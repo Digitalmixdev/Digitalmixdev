@@ -232,30 +232,28 @@ export function ToolLayout({
 
             {/* Right: Actions (Theme, Tool Favorite Toggle, Auth Conditional Links) */}
             <div className="flex items-center gap-2 shrink-0">
-              {/* Favorite Button for the current tool (Only displayed when authenticated) */}
+              {/* Favorite Button for the current tool (Icon only, displayed when authenticated) */}
               {!isLoading && isAuthenticated && (
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="icon"
                   onClick={handleToggleFavorite}
                   disabled={isPending}
                   className={cn(
-                    'h-9 px-3 gap-1.5 font-medium rounded-xl transition-all duration-200 active:scale-95',
+                    'h-9 w-9 rounded-xl transition-all duration-200 active:scale-95',
                     isFavorite
                       ? 'text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 dark:bg-amber-500/15'
                       : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
                   )}
+                  title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                   aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                 >
                   <Star
                     className={cn(
-                      'h-4 w-4 transition-transform duration-300',
+                      'h-4.5 w-4.5 transition-transform duration-300',
                       isFavorite ? 'fill-amber-500 text-amber-500 scale-110' : 'text-current',
                     )}
                   />
-                  <span className="hidden sm:inline text-xs font-semibold">
-                    {isFavorite ? 'Favorited' : 'Favorite'}
-                  </span>
                 </Button>
               )}
 
@@ -276,31 +274,7 @@ export function ToolLayout({
               {!isLoading && (
                 <>
                   {isAuthenticated ? (
-                    <div className="hidden sm:flex items-center gap-2">
-                      <Button
-                        asChild
-                        variant="ghost"
-                        size="sm"
-                        className="h-9 px-3 gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl"
-                      >
-                        <Link href="/favorites">
-                          <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-                          Favorites
-                        </Link>
-                      </Button>
-                      <Button
-                        asChild
-                        variant="ghost"
-                        size="sm"
-                        className="h-9 px-3 gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl"
-                      >
-                        <Link href="/dashboard">
-                          <LayoutDashboard className="h-3.5 w-3.5 text-primary" />
-                          Dashboard
-                        </Link>
-                      </Button>
-                      <UserMenu />
-                    </div>
+                    <UserMenu />
                   ) : (
                     <div className="hidden sm:flex items-center gap-2">
                       <Button asChild variant="ghost" size="sm" className="h-9 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground">

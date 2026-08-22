@@ -174,19 +174,7 @@ return (
             </div>
           )}
           {!isLoading && isAuthenticated && (
-            <div className="hidden sm:flex items-center gap-2">
-              <Button asChild variant="ghost" className="text-muted-foreground hover:text-foreground">
-                <Link href="/favorites" className="flex items-center gap-1.5">
-                  <Star className="h-4 w-4 text-amber-500 fill-amber-500" /> Favorites
-                </Link>
-              </Button>
-              <Button asChild variant="ghost" className="text-muted-foreground hover:text-foreground">
-                <Link href="/dashboard" className="flex items-center gap-1.5">
-                  <LayoutDashboard className="h-4 w-4 text-primary" /> Dashboard
-                </Link>
-              </Button>
-              <UserMenu />
-            </div>
+            <UserMenu />
           )}
 
           <MobileMenu 
