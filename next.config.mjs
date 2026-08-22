@@ -1,8 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: {
     unoptimized: true,
   },
@@ -30,11 +27,6 @@ const nextConfig = {
           key: 'Referrer-Policy',
           value: 'strict-origin-when-cross-origin',
         },
-        // Control browser features
-        {
-          key: 'Permissions-Policy',
-          value: 'camera=(), microphone=(), geolocation=(self), payment=()',
-        },
         // Encourage HTTPS
         {
           key: 'Strict-Transport-Security',
@@ -45,11 +37,11 @@ const nextConfig = {
           key: 'Content-Security-Policy',
           value: 
             "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://clerk.digitalmix.dev https://*.clerk.accounts.dev https://www.clarity.ms https://scripts.clarity.ms https://www.googletagmanager.com https://www.google-analytics.com https://js.stripe.com; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://www.clarity.ms https://scripts.clarity.ms https://www.googletagmanager.com https://www.google-analytics.com https://js.stripe.com; " +
             "style-src 'self' 'unsafe-inline'; " +
             "img-src 'self' data: https: blob:; " +
             "font-src 'self' data: https:; " +
-            "connect-src 'self' https://clerk.digitalmix.dev https://*.clerk.accounts.dev https://*.clarity.ms https: wss:; " +
+            "connect-src 'self' https://*.clarity.ms https: wss:; " +
             "frame-src 'self' https://challenges.cloudflare.com https://www.google.com; " +
             "worker-src 'self' blob:; " +
             "object-src 'none'; " +

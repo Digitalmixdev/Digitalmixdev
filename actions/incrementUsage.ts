@@ -1,23 +1,10 @@
 'use server'
 
-import { auth } from '@clerk/nextjs/server'
-import prisma from '@/lib/prisma'
+import { getSession } from '@/lib/auth/session'
+import { incrementUserToolsUsedCount } from '@/lib/dal/stats'
 
-export async function incrementToolUsage() {
-  const { userId } = await auth()
-
-  if (!userId) return
-
-  await prisma.user.upsert({
-    where: { clerkId: userId },
-    update: {
-      toolsUsedCount: {
-        increment: 1,
-      },
-    },
-    create: {
-      clerkId: userId,
-      toolsUsedCount: 1,
-    },
-  })
+export async function incrementToolUsage(): Promise<void> {
+  const session = await getSession()
+  if (!session?.user?.id) return
+  await incrementUserToolsUsedCount(session.user.id)
 }

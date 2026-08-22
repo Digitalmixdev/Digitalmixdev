@@ -1,24 +1,11 @@
 'use server'
 
-import { auth } from '@clerk/nextjs/server'
-import prisma from '@/lib/prisma'
+import { getSession } from '@/lib/auth/session'
+import { recordToolUsage } from '@/lib/dal/stats'
+import { ToolId } from '@/constants/tools'
 
-export async function markToolUsed(toolSlug: string) {
-  const { userId } = await auth()
-
-  if (!userId) return
-
-  await prisma.toolUsage.upsert({
-    where: {
-      userId_toolSlug: {
-        userId,
-        toolSlug,
-      },
-    },
-    update: {},
-    create: {
-      userId,
-      toolSlug,
-    },
-  })
+export async function markToolUsed(toolSlugOrId: ToolId | string): Promise<void> {
+  const session = await getSession()
+  if (!session?.user?.id) return
+  await recordToolUsage(session.user.id, toolSlugOrId)
 }

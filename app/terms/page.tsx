@@ -1,75 +1,65 @@
 import React from 'react'
 import { Metadata } from 'next'
-import { Scale } from 'lucide-react'
+import { Scale, CheckCircle2, ShieldAlert } from 'lucide-react'
+import { Header } from '@/components/header'
+import { Footer } from '@/components/footer'
 
 export const metadata: Metadata = {
   title: 'Terms of Service | DigitalMix',
-  description: 'Read the terms of service for utilizing DigitalMix tools and platforms safely and legally.',
+  description:
+    'Read the terms of service for utilizing DigitalMix tools and platforms safely and legally.',
   keywords: ['terms of service', 'terms and conditions', 'legal', 'DigitalMix terms', 'user agreement'],
   alternates: {
     canonical: 'https://www.digitalmix.dev/terms',
   },
-  openGraph: {
-    title: 'Terms of Service | DigitalMix',
-    description: 'Read the terms of service for utilizing DigitalMix tools and platforms safely, legally, and free of charge.',
-    type: 'website',
-  }
 }
 
 export default function TermsPage() {
   return (
-    <main className="min-h-screen bg-[#020617] text-white pt-24 pb-16 px-4">
-      <div className="max-w-3xl mx-auto space-y-8">
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
+      <Header />
+      <main className="flex-1 py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto space-y-10">
+          {/* Header */}
+          <div className="text-center space-y-3 border-b border-border/60 pb-8">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
+              Terms of Service
+            </h1>
+            <p className="text-muted-foreground text-sm">Last Updated: May 2026</p>
+          </div>
 
-        {/* Header */}
-        <div className="text-center space-y-3 border-b border-slate-800 pb-8">
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Terms of Service</h1>
-          <p className="text-slate-400 text-sm">Last Updated: May 2026</p>
+          {/* Terms Content */}
+          <div className="space-y-6 text-muted-foreground leading-relaxed text-sm sm:text-base">
+            <section className="space-y-3 p-6 rounded-2xl bg-card border border-border/70 shadow-xs">
+              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <Scale size={20} className="text-primary" /> 1. Acceptance of Terms
+              </h2>
+              <p>
+                By accessing and using DigitalMix, you agree to these Terms of Service. If you disagree with any part of these terms, please discontinue using the platform and services.
+              </p>
+            </section>
+
+            <section className="space-y-3 p-6 rounded-2xl bg-card border border-border/70 shadow-xs">
+              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <CheckCircle2 size={20} className="text-emerald-500" /> 2. Fair & Free Use License
+              </h2>
+              <p>
+                All utilities provided on DigitalMix are 100% free for personal, educational, and commercial purposes. You may format, convert, encode, and process your proprietary or open-source files without licensing fees.
+              </p>
+            </section>
+
+            <section className="space-y-3 p-6 rounded-2xl bg-card border border-border/70 shadow-xs">
+              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <ShieldAlert size={20} className="text-amber-500" /> 3. Warranty Disclaimer
+              </h2>
+              <p>
+                DigitalMix is provided on an &quot;as is&quot; and &quot;as available&quot; basis without warranties of any kind. While our algorithms are tested for high mathematical accuracy, users remain responsible for validating outputs before deployment in mission-critical production environments.
+              </p>
+            </section>
+          </div>
         </div>
-
-        {/* Content */}
-        <div className="space-y-6 text-slate-300 text-sm md:text-base leading-relaxed">
-          <section className="space-y-3">
-            <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-              <Scale size={18} className="text-blue-400" /> 1. Acceptance of Terms
-            </h2>
-            <p>
-              By accessing and using DigitalMix, you agree to these Terms of Service. If you do not agree with any part of these terms, please discontinue the use of our website and services.
-            </p>
-          </section>
-
-          <section className="space-y-3">
-            <h2 className="text-xl font-bold text-slate-100">2. Fair & Fair Use License</h2>
-            <p>
-              All tools provided on DigitalMix are <strong>100% free</strong> for personal, educational, and commercial purposes. You may format, convert, and minify your commercial source codes without any restrictions.
-            </p>
-          </section>
-
-          <section className="space-y-3">
-            <h2 className="text-xl font-bold text-slate-100">3. Disclaimer</h2>
-            <p>
-              DigitalMix is provided on an "as is" and "as available" basis. While we strive to maintain accurate and reliable tools, we do not guarantee that every result will be error-free, uninterrupted, or suitable for every use case.
-            </p>
-            <p>
-              Users are responsible for reviewing and validating any output generated by our tools before using it in production environments, business operations, or critical systems.
-            </p>
-          </section>
-
-          <section className="space-y-3">
-            <h2 className="text-xl font-bold text-slate-100">4. Changes to the Service</h2>
-            <p>
-              We may modify, improve, suspend, or discontinue any part of DigitalMix at any time without prior notice.
-            </p>
-          </section>
-
-          <section className="space-y-3">
-            <h2 className="text-xl font-bold text-slate-100">5. Changes to These Terms</h2>
-            <p>
-              We reserve the right to update these Terms of Service when necessary. Continued use of the website after changes are published constitutes acceptance of the updated terms.
-            </p>
-          </section>
-        </div>
-      </div>
-    </main>
+      </main>
+      <Footer />
+    </div>
   )
 }

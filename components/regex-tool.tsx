@@ -1,61 +1,71 @@
-"use client"
+'use client'
 
 import React, { useState, useEffect, Suspense } from 'react'
-import { useTheme } from 'next-themes'
 import {
   Code,
   Trash2,
   Copy,
   Check,
-  Save,
-  BookOpen,
   Zap,
-  Sun,
-  Moon,
-  Info,
   Sparkles,
-  Bookmark,
-  Menu,
-  X,
-  Star,
-  LayoutDashboard,
-  Binary,
-  Key,
-  Fingerprint
+  BookOpen,
+  ShieldCheck,
+  Layers,
+  FileText,
 } from 'lucide-react'
-import Link from 'next/link'
-import { useSearchParams, useRouter } from 'next/navigation'
-import { Button } from "@/components/ui/button"
+import { Button } from '@/components/ui/button'
+import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
-import { isFavoriteTool, toggleFavoriteTool } from '@/actions/favorites'
 
-const REGEX_TABS_DATA = {
-  email: {
-    pattern: '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}',
-    flags: { g: true, i: false, m: false, s: false },
-    testText: 'Send invoices to finance@digitalmix.com and cc support@agency.org immediately.'
+const toolMeta: ToolMetadata = {
+  id: 'regex-tester',
+  name: 'RegEx Tester & Debugger',
+  description:
+    'Test, debug, analyze, and build regular expressions with real-time match highlighting, capture group inspection, and quick cheat sheets.',
+  category: {
+    id: 'developer',
+    name: 'Developer Tools',
+    slug: 'developer',
   },
-  phone: {
-    pattern: '\\+?[1-9]\\d{1,14}',
-    flags: { g: true, i: false, m: false, s: false },
-    testText: 'Call our hotline at +14155552671 or global center at 442079460958.'
-  },
-  url: {
-    pattern: 'https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)',
-    flags: { g: true, i: false, m: false, s: false },
-    testText: 'Visit https://digitalmix.com/tools/sql-formatter or check browse rules at http://vercel.app'
-  },
-  password: {
-    pattern: '(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z0-9]).{8,}',
-    flags: { g: true, i: false, m: false, s: false },
-    testText: 'Testing passwords: weakpass, MixedCase123!, and secure_Admin2026#'
-  },
-  ipv4: {
-    pattern: '(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)',
-    flags: { g: true, i: false, m: false, s: false },
-    testText: 'Local gateway is 192.168.1.1 and public resolver dns node sits at 8.8.8.8'
-  }
+  icon: Code,
+  privacyBadge: '100% Client-Side • Live Highlight Matcher',
+  features: [
+    {
+      icon: Zap,
+      title: 'Real-Time Match Engine',
+      desc: 'Visualizes capture groups and index offsets instantly as you type your pattern.',
+    },
+    {
+      icon: Layers,
+      title: 'Full Flag Controls',
+      desc: 'Toggle Global (g), Case-Insensitive (i), Multiline (m), and DotAll (s) modifiers.',
+    },
+    {
+      icon: BookOpen,
+      title: 'Quick Cheat Sheet',
+      desc: 'Built-in quick references for common tokens, anchors, and character classes.',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'Zero Logged Data',
+      desc: 'Input test strings and proprietary regex patterns are evaluated purely on your machine.',
+    },
+  ],
+  faqs: [
+    {
+      q: 'What do the RegEx flags mean?',
+      a: 'g (global) finds all matches rather than stopping after the first. i (case-insensitive) ignores letter casing. m (multiline) treats ^ and $ as start/end of each line. s (dotAll) allows dot (.) to match newlines.',
+    },
+    {
+      q: 'Can this tool handle Catastrophic Backtracking?',
+      a: 'Evaluations run client-side. To prevent browser lockups, avoid nested unlimited quantifiers like (a+)+ on long strings.',
+    },
+    {
+      q: 'Are capture groups supported?',
+      a: 'Yes. Any parenthesis groups in your pattern are automatically dissected into numbered capture group badges.',
+    },
+  ],
 }
 
 const PATTERN_LIBRARY = [
@@ -65,51 +75,43 @@ const PATTERN_LIBRARY = [
     regex: '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}',
     flags: 'g',
     desc: 'Matches standard corporate and public email formats.',
-    testText: 'Send invoices to finance@digitalmix.com and cc support@agency.org immediately.'
+    testText: 'Send invoices to finance@digitalmix.dev and cc support@agency.org immediately.',
   },
   {
     id: 'phone',
-    name: 'Phone Number (Global)',
+    name: 'Phone (Global E.164)',
     regex: '\\+?[1-9]\\d{1,14}',
     flags: 'g',
-    desc: 'Validates E.164 international phone number frameworks.',
-    testText: 'Call our hotline at +14155552671 or global center at 442079460958.'
+    desc: 'Validates E.164 international phone number formats.',
+    testText: 'Call hotline at +14155552671 or global center at 442079460958.',
   },
   {
     id: 'url',
-    name: 'URL / Hyperlink',
+    name: 'URL / Web Link',
     regex: 'https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)',
     flags: 'g',
     desc: 'Extracts safe web hyperlinks with HTTP/HTTPS schemes.',
-    testText: 'Visit https://digitalmix.com/tools/sql-formatter or check browse rules at http://vercel.app'
-  },
-  {
-    id: 'password',
-    name: 'Strong Password',
-    regex: '(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z0-9]).{8,}',
-    flags: 'g',
-    desc: 'Min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char.',
-    testText: 'Testing passwords: weakpass, MixedCase123!, and secure_Admin2026#'
+    testText: 'Visit https://digitalmix.dev/tools/sql-formatter or check rules at http://vercel.app',
   },
   {
     id: 'ipv4',
     name: 'IPv4 Address',
     regex: '(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)',
     flags: 'g',
-    desc: 'Validates standard internet protocol version 4 routing strings.',
-    testText: 'Local gateway is 192.168.1.1 and public resolver dns node sits at 8.8.8.8'
-  }
+    desc: 'Validates standard IPv4 network addresses.',
+    testText: 'Local gateway sits at 192.168.1.1 and public resolver sits at 8.8.8.8',
+  },
 ]
 
 const CHEAT_SHEET = [
-  { token: '[a-z]', meaning: 'Any lowercase character from a to z' },
-  { token: '\\d', meaning: 'Any numerical digit from 0 to 9' },
-  { token: '+', meaning: 'Matches 1 or more times of the preceding token' },
-  { token: '*', meaning: 'Matches 0 or more times of the preceding token' },
-  { token: '?', meaning: 'Makes the preceding token optional (0 or 1 time)' },
-  { token: '^', meaning: 'Indicates the absolute start of a boundary line' },
-  { token: '$', meaning: 'Indicates the absolute termination of a boundary line' },
-  { token: '\\w', meaning: 'Any alphanumeric word character plus underscore' },
+  { token: '[a-z]', meaning: 'Any lowercase letter a to z' },
+  { token: '\\d', meaning: 'Any numerical digit (0-9)' },
+  { token: '+', meaning: 'Matches 1 or more times' },
+  { token: '*', meaning: 'Matches 0 or more times' },
+  { token: '?', meaning: 'Optional token (0 or 1 time)' },
+  { token: '^ / $', meaning: 'Start / End of string boundary' },
+  { token: '\\w', meaning: 'Alphanumeric character + _' },
+  { token: '\\s', meaning: 'Whitespace (space, tab, newline)' },
 ]
 
 interface MatchItem {
@@ -119,14 +121,10 @@ interface MatchItem {
 }
 
 function RegexToolContent() {
-  const { theme, setTheme } = useTheme()
-  const [isFavorite, setIsFavorite] = useState(false)
-  const [mounted, setMounted] = useState(false)
-  const searchParams = useSearchParams()
-  const router = useRouter()
-
   const [regexInput, setRegexInput] = useState('[a-z]+')
-  const [testString, setTestString] = useState('Hello DigitalMix Engine 2026! Let us trace your input matrices.')
+  const [testString, setTestString] = useState(
+    'Hello DigitalMix Engine 2026! Let us trace your regex patterns.'
+  )
 
   const [flagG, setFlagG] = useState(true)
   const [flagI, setFlagI] = useState(false)
@@ -135,66 +133,23 @@ function RegexToolContent() {
 
   const [matches, setMatches] = useState<MatchItem[]>([])
   const [regexError, setRegexError] = useState('')
-  const [explanation, setExplanation] = useState<string[]>([])
   const [isCopied, setIsCopied] = useState(false)
-  const [isSaved, setIsSaved] = useState(false)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const handleToggleFavorite = async () => {
-    const nextFavorite = !isFavorite
-    setIsFavorite(nextFavorite)
-
-    try {
-      await toggleFavoriteTool("regex-tool")
-      router.refresh()
-    } catch (error) {
-      setIsFavorite(!nextFavorite)
-      console.error("Error toggling favorite:", error)
-    }
-  }
-
-  const handleSomething = async () => {
+  const recordUsage = async () => {
     try {
       await Promise.all([
         incrementToolUsage(),
-        markToolUsed("regex-tool")
-      ]);
-    } catch (error) {
-      console.error("Error updating stats:", error);
+        markToolUsed('regex-tester'),
+      ])
+    } catch {
+      // Non-blocking telemetry
     }
   }
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    const loadFavorite = async () => {
-      const favorite = await isFavoriteTool("regex-tool")
-      setIsFavorite(favorite)
-    }
-
-    loadFavorite()
-  }, [])
-
-  useEffect(() => {
-    const currentTab = searchParams.get('tab')
-    if (currentTab && currentTab in REGEX_TABS_DATA) {
-      const targetData = REGEX_TABS_DATA[currentTab as keyof typeof REGEX_TABS_DATA]
-      setRegexInput(targetData.pattern)
-      setTestString(targetData.testText)
-      setFlagG(targetData.flags.g)
-      setFlagI(targetData.flags.i)
-      setFlagM(targetData.flags.m)
-      setFlagS(targetData.flags.s)
-    }
-  }, [searchParams])
 
   useEffect(() => {
     if (!regexInput) {
       setMatches([])
       setRegexError('')
-      setExplanation(['Enter a regex pattern to see architectural parsing rules.'])
       return
     }
 
@@ -205,461 +160,241 @@ function RegexToolContent() {
       if (flagM) flags += 'm'
       if (flagS) flags += 's'
 
-      const regex = new RegExp(regexInput, flags)
+      const re = new RegExp(regexInput, flags)
       setRegexError('')
 
       const foundMatches: MatchItem[] = []
-      let match
 
       if (flagG) {
-        let lastIdx = -1
-        while ((match = regex.exec(testString)) !== null) {
-          if (regex.lastIndex === lastIdx) {
-            regex.lastIndex++
-            continue
-          }
-          lastIdx = regex.lastIndex
-
+        let match: RegExpExecArray | null
+        let iterations = 0
+        while ((match = re.exec(testString)) !== null && iterations < 500) {
+          iterations++
+          const groups = match.slice(1).map((g) => g || '')
           foundMatches.push({
             text: match[0],
             index: match.index,
-            groups: match.slice(1)
+            groups,
           })
+          if (match.index === re.lastIndex) re.lastIndex++
         }
       } else {
-        match = regex.exec(testString)
+        const match = re.exec(testString)
         if (match) {
+          const groups = match.slice(1).map((g) => g || '')
           foundMatches.push({
             text: match[0],
             index: match.index,
-            groups: match.slice(1)
+            groups,
           })
         }
       }
-      setMatches(foundMatches)
-      generateExplanation(regexInput)
 
-    } catch (err: any) {
-      setRegexError(err.message)
+      setMatches(foundMatches)
+    } catch (err: unknown) {
       setMatches([])
+      setRegexError(err instanceof Error ? err.message : 'Invalid regular expression.')
     }
   }, [regexInput, testString, flagG, flagI, flagM, flagS])
 
-  const generateExplanation = (pattern: string) => {
-    const steps: string[] = []
+  const handleCopyPattern = async () => {
+    let flags = ''
+    if (flagG) flags += 'g'
+    if (flagI) flags += 'i'
+    if (flagM) flags += 'm'
+    if (flagS) flags += 's'
 
-    if (/\[a-z\]/.test(pattern)) steps.push('• [a-z] ➡️ Matches lowercase alphabetical characters (a through z).')
-    if (/\[A-Z\]/.test(pattern)) steps.push('• [A-Z] ➡️ Matches uppercase alphabetical characters (A through Z).')
-    if (/\[a-zA-Z\]/.test(pattern)) steps.push('• [a-zA-Z] ➡️ Case-insensitive alphabetical character set.')
-    if (/\\d/.test(pattern)) steps.push('• \\d ➡️ Evaluates and isolates any numerical digit symbol between 0-9.')
-    if (/\+/.test(pattern)) steps.push('• + Quantifier ➡️ Matches 1 or more occurrences of the preceding token.')
-    if (/\*/.test(pattern)) steps.push('• * Quantifier ➡️ Matches 0 or more occurrences of the preceding sequence.')
-    if (/\?/.test(pattern)) steps.push('• ? Quantifier ➡️ Declares the preceding character token optional.')
-    if (/\^/.test(pattern)) steps.push('• ^ Anchor ➡️ Enforces validation starting directly from line beginning.')
-    if (/\$/.test(pattern)) steps.push('• $ Anchor ➡️ Confirms structural termination matching line boundaries.')
-    if (/@/.test(pattern)) steps.push('• @ Literal ➡️ Matches the literal symbol "@" explicitly.')
-
-    if (steps.length === 0) {
-      steps.push('• Literal Sequence ➡️ Evaluates precise word matches character by character.')
-    }
-    setExplanation(steps)
-  }
-
-  const renderHighlightedText = () => {
-    if (matches.length === 0 || !regexInput) return testString
-
-    let lastIndex = 0
-    const parts: React.ReactNode[] = []
-    const sortedMatches = [...matches].sort((a, b) => a.index - b.index)
-
-    sortedMatches.forEach((match, idx) => {
-      if (match.index > lastIndex) {
-        parts.push(testString.substring(lastIndex, match.index))
-      }
-      parts.push(
-        <mark
-          key={idx}
-          className="bg-primary/20 text-primary border-b border-primary/60 font-semibold rounded px-0.5"
-          title={`Match #${idx + 1}\nIndex: ${match.index}`}
-        >
-          {match.text}
-        </mark>
-      )
-      lastIndex = match.index + match.text.length
-    })
-
-    if (lastIndex < testString.length) {
-      parts.push(testString.substring(lastIndex))
-    }
-
-    return parts
-  }
-
-  const handleCopy = async () => {
-    let finalRegex = `/${regexInput}/`
-    if (flagG) finalRegex += 'g'
-    if (flagI) finalRegex += 'i'
-    if (flagM) finalRegex += 'm'
-    if (flagS) finalRegex += 's'
-    navigator.clipboard.writeText(finalRegex)
+    const fullRegex = `/${regexInput}/${flags}`
+    await navigator.clipboard.writeText(fullRegex)
     setIsCopied(true)
-    await handleSomething();
+    recordUsage()
     setTimeout(() => setIsCopied(false), 2000)
   }
 
-  const handleSaveRegex = async () => {
-    setIsSaved(true)
-    await handleSomething();
-    setTimeout(() => setIsSaved(false), 2000)
-  }
-
-  const handleSelectPattern = (id: string, regex: string, flagsStr: string, sampleText: string) => {
-    setRegexInput(regex)
-    setTestString(sampleText)
-    setFlagG(flagsStr.includes('g'))
-    setFlagI(flagsStr.includes('i'))
-    setFlagM(flagsStr.includes('m'))
-    setFlagS(flagsStr.includes('s'))
-
-    const validTabs = ['email', 'phone', 'url', 'password', 'ipv4']
-    if (validTabs.includes(id)) {
-      router.push(`/tools/regex-tester?tab=${id}`, { scroll: false })
-    } else {
-      router.push('/tools/regex-tester', { scroll: false })
-    }
+  const loadPattern = (item: (typeof PATTERN_LIBRARY)[0]) => {
+    setRegexInput(item.regex)
+    setTestString(item.testText)
+    setFlagG(item.flags.includes('g'))
+    setFlagI(item.flags.includes('i'))
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Header Framework */}
-      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
-        <div className="w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between w-full gap-4">
-
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 shrink-0">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-                <Code className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xl font-bold tracking-tight text-foreground leading-none">
-                  DigitalMix
-                </span>
-                <span className="text-[10px] text-muted-foreground mt-0.5">Regex Engine</span>
-              </div>
-            </Link>
-
-            <div className="flex items-center gap-2 shrink-0">
-              {mounted && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  className="text-muted-foreground hover:text-foreground h-9 w-9"
-                >
-                  {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                </Button>
-              )}
-
-              <Button
-                variant="ghost"
-                className={`hidden sm:flex gap-2 font-medium h-9 px-3 ${isFavorite
-                  ? "text-amber-500 hover:text-amber-600"
-                  : "text-muted-foreground hover:text-foreground"
-                  }`}
-                onClick={handleToggleFavorite}
-              >
-                <Star
-                  className={`h-4 w-4 ${isFavorite ? "fill-amber-500 text-amber-500" : ""
-                    }`}
-                />
-                {isFavorite ? "Favorited" : "Favorite"}
-              </Button>
-
-              <Button
-                asChild
-                variant="ghost"
-                className="hidden sm:flex text-muted-foreground hover:text-foreground gap-2 font-medium h-9 px-3"
-              >
-                <Link href="/dashboard">
-                  <LayoutDashboard className="h-4 w-4" />
-                  Dashboard
-                </Link>
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                className="sm:hidden text-muted-foreground h-9 w-9"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              >
-                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </Button>
-            </div>
+    <ToolLayout metadata={toolMeta} maxWidth="7xl">
+      {/* Pattern Input & Flags Bar */}
+      <div className="p-6 rounded-2xl border border-border/70 bg-card shadow-xs space-y-4 mb-6">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative flex-1 flex items-center bg-background border border-border rounded-xl px-3 font-mono text-sm shadow-xs focus-within:ring-2 focus-within:ring-primary/40">
+            <span className="text-primary font-bold mr-1.5 select-none">/</span>
+            <input
+              type="text"
+              value={regexInput}
+              onChange={(e) => setRegexInput(e.target.value)}
+              placeholder="e.g. [a-zA-Z0-9._%+-]+@[a-z0-9.-]+"
+              className="w-full py-2.5 bg-transparent font-mono text-sm focus:outline-none text-foreground"
+            />
+            <span className="text-primary font-bold ml-1.5 select-none">/</span>
           </div>
+
+          {/* Flags Toggles */}
+          <div className="flex items-center gap-1.5 bg-muted/60 p-1.5 rounded-xl border border-border shrink-0 justify-center">
+            {[
+              { id: 'g', label: 'g', state: flagG, toggle: () => setFlagG(!flagG), title: 'Global' },
+              { id: 'i', label: 'i', state: flagI, toggle: () => setFlagI(!flagI), title: 'Case Insensitive' },
+              { id: 'm', label: 'm', state: flagM, toggle: () => setFlagM(!flagM), title: 'Multiline' },
+              { id: 's', label: 's', state: flagS, toggle: () => setFlagS(!flagS), title: 'DotAll' },
+            ].map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={f.toggle}
+                title={f.title}
+                className={`h-8 w-8 rounded-lg font-mono text-xs font-bold transition-all cursor-pointer ${
+                  f.state ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleCopyPattern}
+            className="h-10 px-3.5 text-xs font-semibold gap-1.5 rounded-xl shrink-0"
+          >
+            {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+            {isCopied ? 'Copied' : 'Copy RegEx'}
+          </Button>
         </div>
 
-        {mobileMenuOpen && (
-          <div className="sm:hidden border-t border-border/40 bg-background/95 backdrop-blur-xl p-4 space-y-2">
-            <Button
-              variant="ghost"
-              className={`w-full justify-start gap-2 ${isFavorite
-                ? "text-amber-500 hover:text-amber-600"
-                : "text-foreground"
-                }`}
-              onClick={handleToggleFavorite}
-            >
-              <Star
-                className={`h-4 w-4 ${isFavorite ? "fill-amber-500 text-amber-500" : ""
-                  }`}
-              />
-              {isFavorite ? "Favorited" : "Favorite"}
-            </Button>
-
-            <Button
-              asChild
-              variant="ghost"
-              className="w-full text-foreground justify-start gap-2"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <Link href="/dashboard">
-                <LayoutDashboard className="h-4 w-4" />
-                Dashboard
-              </Link>
-            </Button>
+        {/* Error Notice */}
+        {regexError && (
+          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-mono">
+            ⚠️ {regexError}
           </div>
         )}
-      </header>
-
-      {/* Hero Head */}
-      <div className="py-10 px-4 text-center bg-gradient-to-b from-primary/5 to-transparent">
-        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3">
-          Real-Time Regex Tester & Debugger
-        </h1>
-        <p className="text-muted-foreground text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
-          Write expressions, capture groups, analyze index positions, and generate clean token structures with our local engine thread.
-        </p>
       </div>
 
-      {/* Workspace Grid */}
-      <div className="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* Left Side: Inputs */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="p-5 rounded-2xl border border-border bg-card shadow-sm space-y-4">
+      {/* Main Workspace Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Test String & Matches: 8 Columns */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* Test String Box */}
+          <div className="p-5 rounded-2xl border border-border/70 bg-card shadow-xs space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold tracking-wider text-muted-foreground uppercase flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-primary" /> Regular Expression
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleCopy}
-                  className="h-8 px-3 rounded-lg border border-border bg-secondary hover:bg-secondary/80 text-xs font-medium flex items-center gap-1.5 transition-colors"
-                >
-                  {isCopied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-                  {isCopied ? 'Copied' : 'Copy'}
-                </button>
-                <button
-                  onClick={handleSaveRegex}
-                  className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 transition-transform active:scale-[0.98]"
-                >
-                  <Save className="h-3 w-3" />
-                  {isSaved ? 'Saved to Profile' : 'Save Pattern'}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5 p-2 rounded-xl border border-border bg-background focus-within:ring-2 focus-within:ring-primary/40 transition-shadow">
-              <span className="text-muted-foreground font-mono text-lg pl-2 select-none">/</span>
-              <input
-                type="text"
-                value={regexInput}
-                onChange={(e) => setRegexInput(e.target.value)}
-                placeholder="[a-zA-Z0-9]+"
-                className="w-full bg-transparent font-mono text-sm focus:outline-none text-foreground"
-              />
-              <span className="text-muted-foreground font-mono text-lg select-none">/</span>
-
-              <div className="flex items-center gap-1 bg-secondary px-2 py-1 rounded-lg border border-border text-xs font-mono text-primary font-bold">
-                {flagG && 'g'}{flagI && 'i'}{flagM && 'm'}{flagS && 's'}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4 pt-1 text-xs">
-              <span className="text-muted-foreground font-medium">Expression Flags:</span>
-              <label className="flex items-center gap-1.5 cursor-pointer font-mono">
-                <input type="checkbox" checked={flagG} onChange={(e) => setFlagG(e.target.checked)} className="rounded border-border bg-background text-primary focus:ring-primary" />
-                <span>g (global)</span>
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer font-mono">
-                <input type="checkbox" checked={flagI} onChange={(e) => setFlagI(e.target.checked)} className="rounded border-border bg-background text-primary focus:ring-primary" />
-                <span>i (insensitive)</span>
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer font-mono">
-                <input type="checkbox" checked={flagM} onChange={(e) => setFlagM(e.target.checked)} className="rounded border-border bg-background text-primary focus:ring-primary" />
-                <span>m (multiline)</span>
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer font-mono">
-                <input type="checkbox" checked={flagS} onChange={(e) => setFlagS(e.target.checked)} className="rounded border-border bg-background text-primary focus:ring-primary" />
-                <span>s (dotAll)</span>
-              </label>
-            </div>
-
-            {regexError && (
-              <div className="p-3 text-xs bg-destructive/10 border border-destructive/20 text-destructive rounded-xl font-mono">
-                ⚠️ Structural Failure: {regexError}
-              </div>
-            )}
-          </div>
-
-          {/* Test String Framework */}
-          <div className="p-5 rounded-2xl border border-border bg-card shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
-                Test String Framework
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5 text-primary" /> Test String Input
               </label>
               <button
+                type="button"
                 onClick={() => setTestString('')}
-                className="text-xs text-destructive hover:underline flex items-center gap-1 font-medium"
+                className="text-xs text-destructive hover:underline font-medium cursor-pointer"
               >
-                <Trash2 className="h-3 w-3" /> Clear Text
+                Clear
               </button>
             </div>
-
-            <div className="relative min-h-[140px] w-full rounded-xl border border-border bg-background p-4 text-sm font-mono leading-relaxed overflow-hidden">
-              <div className="absolute inset-0 p-4 pointer-events-none whitespace-pre-wrap break-all text-transparent select-none z-0">
-                {renderHighlightedText()}
-              </div>
-              <textarea
-                value={testString}
-                onChange={(e) => setTestString(e.target.value)}
-                placeholder="Insert test logs or parsing target sequences here..."
-                className="absolute inset-0 w-full h-full p-4 bg-transparent text-foreground border-none resize-none focus:outline-none z-10 whitespace-pre-wrap break-all font-mono"
-                style={{ caretColor: 'currentColor' }}
-              />
-            </div>
+            <textarea
+              value={testString}
+              onChange={(e) => setTestString(e.target.value)}
+              placeholder="Paste your test text or data payload here..."
+              className="w-full h-44 p-4 rounded-xl border border-border bg-background font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none leading-relaxed text-foreground shadow-xs"
+            />
           </div>
 
-          {/* Match Diagnostics */}
-          <div className="p-5 rounded-2xl border border-border bg-card shadow-sm space-y-4">
-            <h3 className="text-sm font-bold tracking-wider text-muted-foreground uppercase flex items-center justify-between">
-              <span>Match Diagnostics ({matches.length})</span>
-            </h3>
+          {/* Match Results Table */}
+          <div className="p-5 rounded-2xl border border-border/70 bg-card shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
+                <Zap className="h-4 w-4 text-emerald-500" /> Match Results ({matches.length})
+              </h3>
+            </div>
 
-            {matches.length > 0 ? (
-              <div className="max-h-[300px] overflow-y-auto space-y-2 pr-2">
-                {matches.map((item, idx) => (
-                  <div key={idx} className="p-3 rounded-xl border border-border bg-background flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono">
-                    <div className="flex items-center gap-3">
-                      <span className="h-5 w-5 bg-secondary text-muted-foreground rounded flex items-center justify-center font-bold">
-                        {idx + 1}
+            {matches.length === 0 ? (
+              <div className="p-8 text-center text-xs text-muted-foreground italic border border-dashed rounded-xl">
+                No pattern matches found for current test string.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {matches.map((m, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3 rounded-xl bg-background border border-border flex items-center justify-between gap-3 text-xs font-mono"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-bold text-[11px] shrink-0">
+                        #{idx + 1}
                       </span>
-                      <span className="bg-primary/10 text-primary px-2 py-1 rounded font-bold max-w-xs truncate">
-                        {item.text}
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold truncate">
+                        {m.text}
                       </span>
                     </div>
-                    <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
-                      <span>Index Pos: <strong className="text-foreground">{item.index}</strong></span>
+
+                    <div className="flex items-center gap-3 shrink-0 text-muted-foreground text-[11px]">
+                      <span>Index: {m.index}</span>
+                      {m.groups.length > 0 && (
+                        <span className="bg-muted px-1.5 py-0.5 rounded text-foreground font-semibold">
+                          Groups: {m.groups.length}
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="text-center py-6 border border-dashed border-border rounded-xl text-xs text-muted-foreground">
-                No expression matches intercepted. Adjust token strings or flags.
-              </div>
             )}
           </div>
         </div>
 
-        {/* Right Side */}
-        <div className="space-y-6">
-          <div className="p-5 rounded-2xl border border-border bg-card shadow-sm space-y-3">
-            <h3 className="text-xs font-bold tracking-wider text-muted-foreground uppercase flex items-center gap-1.5">
-              <Info className="h-3.5 w-3.5 text-primary" /> Token Explanation
+        {/* Sidebar: Library + Cheat Sheet: 4 Columns */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* Templates Library */}
+          <div className="p-5 rounded-2xl border border-border/70 bg-card shadow-xs space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-primary" /> Pattern Presets
             </h3>
-            <div className="p-4 rounded-xl bg-secondary/40 border border-border space-y-2 text-xs font-mono leading-relaxed">
-              {explanation.map((line, idx) => (
-                <div key={idx} className="text-foreground/90">{line}</div>
+            <div className="space-y-2">
+              {PATTERN_LIBRARY.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => loadPattern(item)}
+                  className="w-full p-2.5 rounded-xl border border-border bg-background hover:border-primary/40 hover:bg-secondary/60 text-left transition-all cursor-pointer group"
+                >
+                  <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
+                    {item.name}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground truncate">{item.desc}</p>
+                </button>
               ))}
             </div>
           </div>
 
-          {/* Patterns Library */}
-          <div className="p-5 rounded-2xl border border-border bg-card shadow-sm space-y-3">
-            <h3 className="text-xs font-bold tracking-wider text-muted-foreground uppercase flex items-center gap-1.5">
-              <Bookmark className="h-3.5 w-3.5 text-primary" /> Patterns Library
+          {/* Quick Cheat Sheet */}
+          <div className="p-5 rounded-2xl border border-border/70 bg-card shadow-xs space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+              <BookOpen className="h-3.5 w-3.5 text-primary" /> Quick Reference
             </h3>
-            <div className="space-y-2">
-              {PATTERN_LIBRARY.map((pattern, idx) => {
-                const isActive = searchParams.get('tab') === pattern.id;
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => handleSelectPattern(pattern.id, pattern.regex, pattern.flags, pattern.testText)}
-                    className={`w-full text-left p-3 rounded-xl border transition-colors flex flex-col gap-1 text-xs ${isActive
-                      ? 'border-primary bg-primary/5 shadow-sm'
-                      : 'border-border bg-background hover:border-primary/50'
-                      }`}
-                  >
-                    <span className="font-bold text-foreground flex items-center justify-between w-full">
-                      {pattern.name}
-                      <Zap className={`h-3 w-3 ${isActive ? 'text-primary fill-primary' : 'text-amber-500'}`} />
-                    </span>
-                    <span className="text-[11px] text-muted-foreground line-clamp-1">{pattern.desc}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="p-5 rounded-2xl border border-border bg-card shadow-sm space-y-3">
-            <h3 className="text-xs font-bold tracking-wider text-muted-foreground uppercase flex items-center gap-1.5">
-              <BookOpen className="h-3.5 w-3.5 text-primary" /> Quick Cheat Sheet
-            </h3>
-            <div className="divide-y divide-border/60 max-h-[220px] overflow-y-auto pr-1">
-              {CHEAT_SHEET.map((item, idx) => (
-                <div key={idx} className="py-2 flex items-center justify-between text-xs font-mono gap-2">
-                  <span className="bg-secondary px-1.5 py-0.5 rounded font-bold text-primary">{item.token}</span>
-                  <span className="text-muted-foreground text-[11px] text-right">{item.meaning}</span>
+            <div className="space-y-1.5">
+              {CHEAT_SHEET.map((cs, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between text-xs py-1 border-b border-border/30 last:border-0"
+                >
+                  <code className="font-bold text-primary font-mono">{cs.token}</code>
+                  <span className="text-[11px] text-muted-foreground">{cs.meaning}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
       </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-8 border-t border-border/60 mt-12">
-        <h3 className="text-sm font-bold text-center mb-6 text-muted-foreground uppercase tracking-widest">
-          Optimized Developer Validation Modules
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-4xl mx-auto">
-          <Link href="/tools/base64" className="p-5 rounded-xl border border-border bg-card hover:border-primary hover:shadow-md hover:shadow-primary/5 transition-all text-center flex flex-col items-center justify-center gap-2 group">
-            <Binary className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-            <span className="text-xs font-bold text-foreground group-hover:text-primary">Base64 Encoder / Decoder</span>
-            <span className="text-[10px] text-muted-foreground">Convert binary data and strings into safe ASCII transport formats</span>
-          </Link>
-
-          <Link href="/tools/hash-generator" className="p-5 rounded-xl border border-border bg-card hover:border-primary hover:shadow-md hover:shadow-primary/5 transition-all text-center flex flex-col items-center justify-center gap-2 group">
-            <Key className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-            <span className="text-xs font-bold text-foreground group-hover:text-primary">Cryptographic Hash Generator</span>
-            <span className="text-[10px] text-muted-foreground">Compute secure MD5, SHA-1, SHA-256, and SHA-512 signatures</span>
-          </Link>
-
-          <Link href="/tools/uuid-generator" className="p-5 rounded-xl border border-border bg-card hover:border-primary hover:shadow-md hover:shadow-primary/5 transition-all text-center flex flex-col items-center justify-center gap-2 group">
-            <Fingerprint className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-            <span className="text-xs font-bold text-foreground group-hover:text-primary">RFC 4122 UUID Generator</span>
-            <span className="text-[10px] text-muted-foreground">Instantly provision unique V4 identifier tokens for database keys</span>
-          </Link>
-        </div>
-      </div>
-    </div>
+    </ToolLayout>
   )
 }
 
 export default function RegexTool() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-background text-foreground flex items-center justify-center font-mono text-xs">Loading Mix Engine...</div>}>
+    <Suspense fallback={<div className="p-8 text-center font-mono text-xs">Loading Regex Engine...</div>}>
       <RegexToolContent />
     </Suspense>
   )

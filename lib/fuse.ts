@@ -1,22 +1,23 @@
-import Fuse from "fuse.js"
-import { TOOL_CATEGORIES } from "@/constants/toolCategories"
+import Fuse from 'fuse.js'
+import { ALL_TOOLS, getCategoryById } from '@/constants/tools'
 
-const allTools = TOOL_CATEGORIES.flatMap(cat =>
-  cat.tools.map(tool => ({
+const searchableTools = ALL_TOOLS.map((tool) => {
+  const category = getCategoryById(tool.categoryId)
+  return {
     ...tool,
-    active: tool.active !== false,
-    categoryName: cat.name,
-    categorySlug: cat.slug
-  }))
-)
+    categoryName: category?.name || '',
+    categorySlug: category?.slug || '',
+  }
+})
 
-export const toolsFuse = new Fuse(allTools, {
+export const toolsFuse = new Fuse(searchableTools, {
   keys: [
-    { name: "name", weight: 0.5 },
-    { name: "categoryName", weight: 0.3 }, // تفعيل البحث باسم القسم
-    { name: "description", weight: 0.1 },
-    { name: "href", weight: 0.1 } // تفعيل البحث بالرابط عشان يلقط ?tab=roi أو cac
+    { name: 'name', weight: 0.4 },
+    { name: 'keywords', weight: 0.3 },
+    { name: 'categoryName', weight: 0.15 },
+    { name: 'description', weight: 0.1 },
+    { name: 'href', weight: 0.05 },
   ],
-  threshold: 0.4,
-  minMatchCharLength: 1
+  threshold: 0.35,
+  minMatchCharLength: 1,
 })

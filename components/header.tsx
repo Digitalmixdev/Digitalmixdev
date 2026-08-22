@@ -2,21 +2,64 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useTheme } from "next-themes"
+import { useTheme } from "@/components/theme-provider"
 import { toast } from "sonner"
-import { useAuth, UserButton } from "@clerk/nextjs"
-import { Database, Code, Calculator, FileText, ChevronDown, Moon, Sun, Wrench, Rocket, LayoutDashboard } from "lucide-react"
+import { useAuth } from "@/components/auth-provider"
+import { UserMenu } from "@/components/user-menu"
+import {
+  Database,
+  Code,
+  Calculator,
+  FileText,
+  FileCode,
+  FileSpreadsheet,
+  Binary,
+  Shield,
+  Fingerprint,
+  Key,
+  BarChart3,
+  TrendingUp,
+  Layers,
+  Maximize2,
+  QrCode,
+  ChevronDown,
+  Moon,
+  Sun,
+  Wrench,
+  Rocket,
+  LayoutDashboard,
+  Star,
+  type LucideIcon,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
-import { TOOL_CATEGORIES } from "@/constants/toolCategories"
+import { TOOL_CATEGORIES, type ToolDefinition } from "@/constants/tools"
 import { MobileMenu } from "./mobile-menu"
 
-const iconMap: Record<string, any> = {
+const iconMap: Record<string, LucideIcon> = {
   database: Database,
   developer: Code,
   calculators: Calculator,
   files: FileText,
+}
+
+const toolIconMap: Record<string, LucideIcon> = {
+  Database,
+  Code,
+  FileCode,
+  FileSpreadsheet,
+  FileText,
+  Binary,
+  Shield,
+  Fingerprint,
+  Key,
+  BarChart3,
+  Calculator,
+  TrendingUp,
+  Layers,
+  Maximize2,
+  QrCode,
 }
 
 function showComingSoon() {
@@ -28,12 +71,12 @@ function showComingSoon() {
 }
 
 export function Header() {
-  const { theme, setTheme } = useTheme()
-  const { isSignedIn, isLoaded } = useAuth()
+  const { resolvedTheme, toggleTheme } = useTheme()
+  const { isAuthenticated, isLoading } = useAuth()
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
 
-  const handleToolClick = (tool: any, e: React.MouseEvent) => {
+  const handleToolClick = (tool: ToolDefinition, e: React.MouseEvent) => {
     if (tool.active === false || !tool.href) {
       e.preventDefault()
       showComingSoon()
@@ -41,7 +84,7 @@ export function Header() {
   }
 
 return (
-  <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+  <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-backdrop-filter:bg-background/60">
     <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between w-full gap-4">
 
@@ -70,25 +113,29 @@ return (
                 
                 <DropdownMenuContent 
                   align="start" 
-                  className="w-56 z-[60] bg-popover/95 backdrop-blur-md border border-border/80 shadow-2xl p-1">
+                  className="w-64 z-60 bg-popover/95 backdrop-blur-md border border-border/80 shadow-2xl p-1">
                   {category.tools.map((item) => {
-                    const isActive = item.active !== false;
+                    const isActive = item.active !== false
+                    const ToolIcon = toolIconMap[item.icon] || Code
                     return (
                       <DropdownMenuItem 
                         key={item.id} 
                         asChild 
-                        className={`cursor-pointer rounded-md transition-colors data-[focused]:bg-secondary/80 ${!isActive ? "opacity-50" : ""}`}
+                        className={`cursor-pointer rounded-md transition-colors hover:bg-secondary/80 ${!isActive ? "opacity-50" : ""}`}
                       >
                         <Link 
                           href={isActive ? item.href : "#"} 
                           onClick={(e) => handleToolClick(item, e)} 
                           className="flex items-center justify-between w-full px-2.5 py-2"
                         >
-                          <span className={`text-sm font-medium ${!isActive ? "text-muted-foreground" : "text-foreground"}`}>
-                            {item.name}
-                          </span>
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <ToolIcon className="h-4 w-4 text-primary shrink-0" />
+                            <span className={`text-sm font-medium ${!isActive ? "text-muted-foreground" : "text-foreground"} truncate`}>
+                              {item.name}
+                            </span>
+                          </div>
                           {!isActive && (
-                            <span className="text-[10px] font-semibold bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                            <span className="text-[10px] font-semibold bg-muted px-1.5 py-0.5 rounded text-muted-foreground shrink-0 ml-2">
                               Soon
                             </span>
                           )}
@@ -108,34 +155,44 @@ return (
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} 
+            onClick={toggleTheme} 
             className="text-muted-foreground hover:text-foreground"
             aria-label="Toggle theme"
           >
-            {mounted && theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            {mounted && resolvedTheme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
 
           {/* Auth Section */}
-          {isLoaded && !isSignedIn && (
-            <Button asChild className="hidden sm:flex bg-primary text-primary-foreground hover:bg-primary/90">
-              <Link href="/signup">Sign Up</Link>
-            </Button>
-          )}
-          {isLoaded && isSignedIn && (
-            <div className="hidden sm:flex items-center gap-3">
+          {!isLoading && !isAuthenticated && (
+            <div className="hidden sm:flex items-center gap-2">
               <Button asChild variant="ghost" className="text-muted-foreground hover:text-foreground">
-                <Link href="/dashboard" className="flex items-center gap-2">
-                  <LayoutDashboard className="h-4 w-4" /> Dashboard
+                <Link href="/login">Sign In</Link>
+              </Button>
+              <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
+                <Link href="/signup">Sign Up</Link>
+              </Button>
+            </div>
+          )}
+          {!isLoading && isAuthenticated && (
+            <div className="hidden sm:flex items-center gap-2">
+              <Button asChild variant="ghost" className="text-muted-foreground hover:text-foreground">
+                <Link href="/favorites" className="flex items-center gap-1.5">
+                  <Star className="h-4 w-4 text-amber-500 fill-amber-500" /> Favorites
                 </Link>
               </Button>
-              <UserButton afterSignOutUrl="/" appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
+              <Button asChild variant="ghost" className="text-muted-foreground hover:text-foreground">
+                <Link href="/dashboard" className="flex items-center gap-1.5">
+                  <LayoutDashboard className="h-4 w-4 text-primary" /> Dashboard
+                </Link>
+              </Button>
+              <UserMenu />
             </div>
           )}
 
           <MobileMenu 
             categories={TOOL_CATEGORIES} 
-            isLoaded={isLoaded} 
-            isSignedIn={isSignedIn} 
+            isLoaded={!isLoading} 
+            isSignedIn={isAuthenticated} 
             handleToolClick={handleToolClick} 
           />
         </div>

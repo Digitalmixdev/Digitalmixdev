@@ -4,9 +4,8 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Search, Rocket } from "lucide-react"
-import { popularSearches } from "@/lib/tools"
+import { popularSearches, ToolDefinition } from "@/constants/tools"
 import { toolsFuse } from "@/lib/fuse"
-import { Tool } from "@/types/tool"
 
 function showComingSoon() {
   toast("Coming Soon!", {
@@ -20,7 +19,7 @@ export function SearchBox() {
   const router = useRouter()
   const [searchFocused, setSearchFocused] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<Tool[]>([])
+  const [searchResults, setSearchResults] = useState<ToolDefinition[]>([])
   const searchRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -43,7 +42,7 @@ export function SearchBox() {
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  const handleSearchSelect = (tool: Tool) => {
+  const handleSearchSelect = (tool: ToolDefinition) => {
     if (tool.active && tool.href) {
       router.push(tool.href)
       setSearchQuery("")
@@ -81,7 +80,7 @@ export function SearchBox() {
 
         {/* Dropdown Results */}
         {searchFocused && searchResults.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-2 rounded-xl border border-border bg-card shadow-2xl overflow-y-auto max-h-[180px] z-50 p-1 flex flex-col gap-0.5 custom-scrollbar">
+          <div className="absolute top-full left-0 right-0 mt-2 rounded-xl border border-border bg-card shadow-2xl overflow-y-auto max-h-45 z-50 p-1 flex flex-col gap-0.5 custom-scrollbar">
             {searchResults.map((tool) => (
               <button 
                 key={tool.name} 

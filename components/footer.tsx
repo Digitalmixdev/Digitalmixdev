@@ -1,4 +1,3 @@
-import { BLOG_POSTS } from "@/constants/posts"
 import Link from "next/link"
 import {
   Wrench,
@@ -6,14 +5,7 @@ import {
   Linkedin,
   Mail
 } from "lucide-react"
-
-const toolsLinks = [
-  { name: "SQL Formatter", href: "/tools/sql-formatter" },
-  { name: "CSV to JSON", href: "/tools/csv-json" },
-  { name: "Business KPI Calculators", href: "/tools/kpi-calculator" },
-  { name: "Regex Tester", href: "/tools/regex-tester" },
-  { name: "PDF Merger & Organizer", href: "/tools/pdf-merge" },
-]
+import { popularSearches } from "@/constants/tools"
 
 const legalLinks = [
   { name: "Privacy Policy", href: "/privacy-policy" },
@@ -71,14 +63,19 @@ export function Footer() {
                         Read Our Blog
                       </Link>
                     </li>
+                    <li>
+                      <Link href="/tools" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                        Tools Directory
+                      </Link>
+                    </li>
                   </ul>
                 </div>
 
                 {/* 2. Tools Column */}
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">Tools</h3>
+                  <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">Popular Tools</h3>
                   <ul className="mt-4 space-y-3">
-                    {toolsLinks.map((link) => (
+                    {popularSearches.map((link) => (
                       <li key={link.name}>
                         <Link
                           href={link.href}
@@ -88,6 +85,14 @@ export function Footer() {
                         </Link>
                       </li>
                     ))}
+                    <li>
+                      <Link
+                        href="/tools"
+                        className="text-sm font-medium text-primary hover:underline"
+                      >
+                        All Tools →
+                      </Link>
+                    </li>
                   </ul>
                 </div>
 
@@ -139,7 +144,7 @@ export function Footer() {
                   className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-primary transition-colors"
                   aria-label={social.name}
                 >
-                  <social.icon className="h-[18px] w-[18px]" />
+                  <social.icon className="h-4.5 w-4.5" />
                 </a>
               ))}
             </div>

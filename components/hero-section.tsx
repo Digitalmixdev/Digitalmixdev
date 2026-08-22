@@ -34,7 +34,7 @@ export function HeroSection() {
       {/* Background Pattern */}
       {/* 2. نقلنا الـ overflow-hidden هنا عشان البلور والدوائر متخربش الصفحة يمين وشمال */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-primary/10 via-background to-background" />
         <div className="absolute top-0 left-1/4 h-72 w-72 rounded-full bg-primary/5 blur-3xl" />
         <div className="absolute top-20 right-1/4 h-96 w-96 rounded-full bg-accent/5 blur-3xl" />
       </div>

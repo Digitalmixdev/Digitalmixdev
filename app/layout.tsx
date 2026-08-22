@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, Geist_Mono } from 'next/font/google'
-import { ClerkProvider } from '@clerk/nextjs'
+import { AuthProvider } from '@/components/auth-provider'
 import { Analytics } from '@vercel/analytics/next'
 import { GoogleAnalytics } from '@next/third-parties/google'
 import { ThemeProvider } from '@/components/theme-provider'
@@ -161,22 +161,27 @@ const schemaData = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider>
-      <html lang="en" suppressHydrationWarning>
-        <head>
-          {/* JSON-LD Schema */}
-          <Script
-            id="schema-org"
-            type="application/ld+json"
-            strategy="beforeInteractive"
-            suppressHydrationWarning
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
-          />
-
-        </head>
-        <body className={`${inter.variable} ${geistMono.variable} font-sans antialiased bg-background`}>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Anti-flash inline theme loader */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('digitalmix-theme');var d=t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d){document.documentElement.classList.add('dark');document.documentElement.style.colorScheme='dark';}else{document.documentElement.classList.remove('dark');document.documentElement.style.colorScheme='light';}}catch(e){}})()`,
+          }}
+        />
+        {/* JSON-LD Schema */}
+        <Script
+          id="schema-org"
+          type="application/ld+json"
+          strategy="beforeInteractive"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
+        />
+      </head>
+      <body className={`${inter.variable} ${geistMono.variable} font-sans antialiased bg-background`}>
+        <AuthProvider>
           <PWAInstaller />
-          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+          <ThemeProvider defaultTheme="dark" enableSystem>
             {children}
             <Toaster />
           </ThemeProvider>
@@ -199,8 +204,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               })(window, document, "clarity", "script", "${process.env.NEXT_PUBLIC_CLARITY_ID}");
             `}
           </Script>
-        </body>
-      </html>
-    </ClerkProvider>
+        </AuthProvider>
+      </body>
+    </html>
   )
 }

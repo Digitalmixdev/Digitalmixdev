@@ -1,5 +1,5 @@
-import { BLOG_POSTS } from "@/constants/posts";
-import { TOOL_CATEGORIES } from "@/constants/toolCategories";
+import { BLOG_POSTS } from "@/constants/posts"
+import { TOOL_CATEGORIES, ALL_TOOLS } from "@/constants/tools"
 import { MetadataRoute } from 'next'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -11,33 +11,35 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/privacy-policy',
     '/terms',
     '/blog',
-    '/tools/sql-formatter',
-    '/tools/json-formatter',
-    '/tools/csv-json',
-    '/tools/regex-tester',
-    '/tools/base64',
-    '/tools/jwt',
-    '/tools/hash-generator',
-    '/tools/uuid-generator',
-    '/tools/kpi-calculator',
-    '/tools/pdf-merge',
-    '/tools/image-resizer',
-    '/tools/qr-code-generator'
+    '/tools',
   ]
 
-  // staticRoutes
   const staticEntries = staticRoutes.map((route) => {
-    const isHomePage = route === '';
-    const isTool = route.startsWith('/tools');
-    const isLegal = ['/about', '/privacy-policy', '/terms'].includes(route);
+    const isHomePage = route === ''
+    const isToolsIndex = route === '/tools'
+    const isLegal = ['/about', '/privacy-policy', '/terms'].includes(route)
 
     return {
       url: `${baseUrl}${route}`,
       lastModified: new Date(),
-      changeFrequency: isHomePage ? ('daily' as const) : isTool ? ('weekly' as const) : ('monthly' as const),
-      priority: isHomePage ? 1.0 : isTool ? 0.9 : isLegal ? 0.3 : 0.5,
+      changeFrequency: isHomePage ? ('daily' as const) : isToolsIndex ? ('daily' as const) : ('monthly' as const),
+      priority: isHomePage ? 1.0 : isToolsIndex ? 0.95 : isLegal ? 0.3 : 0.5,
     }
   })
+
+  // Tool specific pages (deduplicated by path without query params)
+  const uniqueToolPaths = Array.from(
+    new Set(
+      ALL_TOOLS.filter((t) => t.active).map((tool) => tool.href.split('?')[0])
+    )
+  )
+
+  const toolEntries = uniqueToolPaths.map((path) => ({
+    url: `${baseUrl}${path}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.9,
+  }))
 
   // Category pages
   const categoryEntries = TOOL_CATEGORIES.map((category) => ({
@@ -57,6 +59,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     ...staticEntries,
     ...categoryEntries,
-    ...blogEntries
+    ...toolEntries,
+    ...blogEntries,
   ]
 }
