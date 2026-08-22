@@ -8,12 +8,19 @@ datasource db {
   directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
+enum Role {
+  USER
+  ADMIN
+  EDITOR
+  PRO
+}
+
 model User {
   id             String         @id @default(cuid())
   email          String         @unique
   passwordHash   String
   name           String?
-  role           String         @default("USER")
+  role           Role           @default(USER)
   toolsUsedCount Int            @default(0)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
