@@ -24,7 +24,6 @@ export function SearchBox() {
 
   useEffect(() => {
     if (searchQuery.trim()) {
-      // استدعاء البحث مباشرة من الـ instance الجاهزة في الـ lib
       const results = toolsFuse.search(searchQuery)
       setSearchResults(results.map(result => result.item))
     } else {
@@ -56,43 +55,66 @@ export function SearchBox() {
     if (searchResults.length > 0 && searchResults[0].active && searchResults[0].href) {
       router.push(searchResults[0].href)
       setSearchQuery("")
+      setSearchFocused(false)
     }
   }
 
   return (
-    <div className="mt-10 sm:mt-12">
-      <div ref={searchRef} className={`relative mx-auto max-w-xl transition-all duration-300 ${searchFocused ? 'scale-[1.02]' : ''}`}>
-        <div className={`relative rounded-2xl border-2 bg-card shadow-lg transition-all duration-300 ${searchFocused ? 'border-primary shadow-primary/20 shadow-xl' : 'border-border/50 hover:border-border'}`}>
-          <Search className={`absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${searchFocused ? 'text-primary' : 'text-muted-foreground'}`} />
+    <div className="mt-8 sm:mt-10">
+      <div ref={searchRef} className={`relative mx-auto max-w-xl transition-all duration-300 ${searchFocused ? 'scale-[1.01]' : ''}`}>
+        <div className={`relative rounded-2xl border-2 bg-card shadow-lg transition-all duration-300 ${searchFocused ? 'border-primary shadow-primary/20 shadow-xl' : 'border-border/60 hover:border-border'}`}>
+          <Search className={`absolute left-4 sm:left-5 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${searchFocused ? 'text-primary' : 'text-muted-foreground'}`} />
           <input
             type="text"
-            placeholder="Search for tools... (e.g., SQL formatter, JSON converter)"
+            placeholder="Search tools... (e.g., QR, SQL, JSON, JWT, UUID)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => setSearchFocused(true)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="h-14 sm:h-16 w-full rounded-2xl bg-transparent pl-14 pr-32 text-base sm:text-lg text-foreground placeholder:text-muted-foreground focus:outline-none"
+            className="h-13 sm:h-15 w-full rounded-2xl bg-transparent pl-11 sm:pl-14 pr-24 sm:pr-28 text-sm sm:text-base text-foreground placeholder:text-muted-foreground focus:outline-none"
           />
-          <button onClick={handleSearch} className="absolute right-3 top-1/2 -translate-y-1/2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-20 sm:right-24 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground bg-secondary/80 px-2 py-1 rounded-md"
+            >
+              Clear
+            </button>
+          )}
+
+          <button
+            onClick={handleSearch}
+            className="absolute right-2 sm:right-2.5 top-1/2 -translate-y-1/2 rounded-xl bg-primary px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-sm transition-colors"
+          >
             Search
           </button>
         </div>
 
         {/* Dropdown Results */}
         {searchFocused && searchResults.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-2 rounded-xl border border-border bg-card shadow-2xl overflow-y-auto max-h-45 z-50 p-1 flex flex-col gap-0.5 custom-scrollbar">
+          <div className="absolute top-full left-0 right-0 mt-2 rounded-2xl border border-border/80 bg-popover/95 backdrop-blur-xl shadow-2xl overflow-y-auto max-h-60 z-50 p-1.5 flex flex-col gap-1 custom-scrollbar animate-in fade-in-0 slide-in-from-top-2 duration-150">
             {searchResults.map((tool) => (
               <button 
-                key={tool.name} 
+                key={tool.id} 
                 onClick={() => handleSearchSelect(tool)} 
-                className="w-full px-5 py-4 flex items-center justify-between hover:bg-secondary/50 rounded-lg transition-colors text-left shrink-0"
+                className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-secondary/80 rounded-xl transition-all text-left shrink-0 cursor-pointer group"
               >
-                <div className={`font-medium ${!tool.active ? 'text-muted-foreground' : ''}`}>
-                  {tool.name}
+                <div className="flex flex-col min-w-0">
+                  <span className={`text-sm font-semibold group-hover:text-primary transition-colors truncate ${!tool.active ? 'text-muted-foreground' : 'text-foreground'}`}>
+                    {tool.name}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground line-clamp-1">
+                    {tool.description}
+                  </span>
                 </div>
-                {!tool.active && (
-                  <span className="text-[10px] font-medium bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                {!tool.active ? (
+                  <span className="text-[10px] font-bold bg-muted px-2 py-0.5 rounded-full text-muted-foreground shrink-0 ml-2">
                     Coming Soon
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
+                    Open →
                   </span>
                 )}
               </button>
@@ -101,16 +123,20 @@ export function SearchBox() {
         )}
         
         {searchFocused && searchQuery && searchResults.length === 0 && (
-          <div className="absolute top-full left-0 right-0 mt-2 rounded-xl border border-border bg-card shadow-xl p-4 text-center text-sm text-muted-foreground z-50">
+          <div className="absolute top-full left-0 right-0 mt-2 rounded-2xl border border-border bg-popover/95 backdrop-blur-xl shadow-xl p-4 text-center text-xs sm:text-sm text-muted-foreground z-50">
             No tools found for &ldquo;{searchQuery}&rdquo;
           </div>
         )}
 
         {/* Popular Tags */}
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-          <span className="text-sm text-muted-foreground">Popular:</span>
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+          <span className="text-xs font-semibold text-muted-foreground">Popular:</span>
           {popularSearches.map((search) => (
-            <button key={search.name} onClick={() => router.push(search.href)} className="rounded-full border border-border/50 bg-secondary/50 px-3 py-1 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+            <button
+              key={search.name}
+              onClick={() => router.push(search.href)}
+              className="rounded-full border border-border/60 bg-secondary/60 px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground hover:border-primary/40 transition-all cursor-pointer"
+            >
               {search.name}
             </button>
           ))}

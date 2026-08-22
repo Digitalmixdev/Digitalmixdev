@@ -179,15 +179,23 @@ function QRCodeToolContent() {
     toast.success('Payload copied to clipboard')
   }
 
+  const COLOR_PRESETS = [
+    { name: 'Classic Black', fg: '#000000', bg: '#FFFFFF' },
+    { name: 'Indigo Core', fg: '#3b82f6', bg: '#FFFFFF' },
+    { name: 'Emerald Forest', fg: '#059669', bg: '#FFFFFF' },
+    { name: 'Royal Purple', fg: '#7c3aed', bg: '#FFFFFF' },
+    { name: 'Dark Slate', fg: '#0f172a', bg: '#f8fafc' },
+  ]
+
   return (
     <ToolLayout metadata={toolMeta} maxWidth="6xl">
       {/* Schema Template Tabs */}
-      <div className="flex flex-wrap items-center justify-center gap-2 mb-8 bg-muted/60 p-1.5 rounded-2xl border border-border/70 w-fit mx-auto">
+      <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mb-8 bg-muted/60 p-1.5 rounded-2xl border border-border/70 w-full sm:w-fit mx-auto overflow-x-auto">
         <button
           type="button"
           onClick={() => setQrType('url')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-            qrType === 'url' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
+            qrType === 'url' ? 'bg-primary text-primary-foreground shadow-sm scale-[1.02]' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
           }`}
         >
           <LinkIcon className="h-3.5 w-3.5" /> URL Link
@@ -195,8 +203,8 @@ function QRCodeToolContent() {
         <button
           type="button"
           onClick={() => setQrType('wifi')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-            qrType === 'wifi' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
+            qrType === 'wifi' ? 'bg-primary text-primary-foreground shadow-sm scale-[1.02]' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
           }`}
         >
           <Wifi className="h-3.5 w-3.5" /> WiFi Login
@@ -204,8 +212,8 @@ function QRCodeToolContent() {
         <button
           type="button"
           onClick={() => setQrType('vcard')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-            qrType === 'vcard' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
+            qrType === 'vcard' ? 'bg-primary text-primary-foreground shadow-sm scale-[1.02]' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
           }`}
         >
           <User className="h-3.5 w-3.5" /> vCard Contact
@@ -213,8 +221,8 @@ function QRCodeToolContent() {
         <button
           type="button"
           onClick={() => setQrType('sms')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-            qrType === 'sms' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
+            qrType === 'sms' ? 'bg-primary text-primary-foreground shadow-sm scale-[1.02]' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
           }`}
         >
           <MessageSquare className="h-3.5 w-3.5" /> SMS Text
@@ -222,8 +230,8 @@ function QRCodeToolContent() {
         <button
           type="button"
           onClick={() => setQrType('text')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-            qrType === 'text' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
+            qrType === 'text' ? 'bg-primary text-primary-foreground shadow-sm scale-[1.02]' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
           }`}
         >
           <FileText className="h-3.5 w-3.5" /> Plain Text
@@ -245,7 +253,7 @@ function QRCodeToolContent() {
                   value={urlData}
                   onChange={(e) => setUrlData(e.target.value)}
                   placeholder="https://example.com"
-                  className="w-full h-10 px-3.5 rounded-xl border border-border bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                  className="w-full h-11 px-3.5 rounded-xl border border-border bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
                 />
               </div>
             )}
@@ -259,7 +267,7 @@ function QRCodeToolContent() {
                     value={wifiSSID}
                     onChange={(e) => setWifiSSID(e.target.value)}
                     placeholder="MyHomeWiFi"
-                    className="w-full h-10 px-3.5 rounded-xl border border-border bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                    className="w-full h-11 px-3.5 rounded-xl border border-border bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
                   />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -270,7 +278,7 @@ function QRCodeToolContent() {
                       value={wifiPassword}
                       onChange={(e) => setWifiPassword(e.target.value)}
                       placeholder="SecretPassword"
-                      className="w-full h-10 px-3.5 rounded-xl border border-border bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                      className="w-full h-11 px-3.5 rounded-xl border border-border bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -278,7 +286,7 @@ function QRCodeToolContent() {
                     <select
                       value={wifiSecurity}
                       onChange={(e) => setWifiSecurity(e.target.value)}
-                      className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground cursor-pointer"
+                      className="w-full h-11 px-3 rounded-xl border border-border bg-background text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground cursor-pointer"
                     >
                       <option value="WPA">WPA / WPA2 / WPA3</option>
                       <option value="WEP">WEP</option>
@@ -298,7 +306,7 @@ function QRCodeToolContent() {
                     value={vcardName}
                     onChange={(e) => setVcardName(e.target.value)}
                     placeholder="John Doe"
-                    className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                    className="w-full h-11 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -308,7 +316,7 @@ function QRCodeToolContent() {
                     value={vcardOrg}
                     onChange={(e) => setVcardOrg(e.target.value)}
                     placeholder="Acme Corp"
-                    className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                    className="w-full h-11 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -318,7 +326,7 @@ function QRCodeToolContent() {
                     value={vcardPhone}
                     onChange={(e) => setVcardPhone(e.target.value)}
                     placeholder="+1 555 123 4567"
-                    className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                    className="w-full h-11 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -328,7 +336,7 @@ function QRCodeToolContent() {
                     value={vcardEmail}
                     onChange={(e) => setVcardEmail(e.target.value)}
                     placeholder="john@example.com"
-                    className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                    className="w-full h-11 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
                   />
                 </div>
               </div>
@@ -343,7 +351,7 @@ function QRCodeToolContent() {
                     value={smsPhone}
                     onChange={(e) => setSmsPhone(e.target.value)}
                     placeholder="+1 555 0192"
-                    className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                    className="w-full h-11 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -377,7 +385,28 @@ function QRCodeToolContent() {
               <Palette className="h-4 w-4 text-primary" /> Visual Design & Colors
             </h3>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {/* Color Presets */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Color Presets</label>
+              <div className="flex flex-wrap gap-2">
+                {COLOR_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    onClick={() => {
+                      setFgColor(preset.fg)
+                      setBgColor(preset.bg)
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border bg-background hover:bg-secondary text-[11px] font-medium transition-colors cursor-pointer"
+                  >
+                    <span className="h-3 w-3 rounded-full border border-border/80" style={{ backgroundColor: preset.fg }} />
+                    <span>{preset.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">Foreground</label>
                 <div className="flex items-center gap-2 bg-background border border-border p-1.5 rounded-xl">
@@ -453,12 +482,12 @@ function QRCodeToolContent() {
             />
           </div>
 
-          <div className="w-full space-y-2 pt-2">
+          <div className="w-full space-y-2.5 pt-2">
             <div className="grid grid-cols-2 gap-2">
-              <Button onClick={downloadPNG} className="w-full text-xs font-bold gap-1.5 rounded-xl shadow-sm">
+              <Button onClick={downloadPNG} className="w-full text-xs font-bold gap-1.5 rounded-xl shadow-sm h-10">
                 <Download className="h-3.5 w-3.5" /> Download PNG
               </Button>
-              <Button variant="outline" onClick={downloadSVG} className="w-full text-xs font-bold gap-1.5 rounded-xl">
+              <Button variant="outline" onClick={downloadSVG} className="w-full text-xs font-bold gap-1.5 rounded-xl h-10 border-border">
                 <Download className="h-3.5 w-3.5" /> Download SVG
               </Button>
             </div>
@@ -466,7 +495,7 @@ function QRCodeToolContent() {
             <Button
               variant="secondary"
               onClick={handleCopyPayload}
-              className="w-full text-xs font-semibold gap-1.5 rounded-xl"
+              className="w-full text-xs font-semibold gap-1.5 rounded-xl h-10"
             >
               {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
               {copied ? 'Payload Copied' : 'Copy Raw Encoded Text'}

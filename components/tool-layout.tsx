@@ -196,43 +196,51 @@ export function ToolLayout({
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground selection:bg-primary/20 selection:text-primary">
       {/* 1. STICKY GLASSMORPHISM HEADER */}
-      <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-backdrop-filter:bg-background/60 transition-all">
+      <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl supports-backdrop-filter:bg-background/65 transition-all">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between gap-4">
+          <div className="flex h-16 items-center justify-between gap-3 sm:gap-4">
             {/* Left: Brand + Breadcrumbs */}
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
               <Link
                 href="/"
                 className="flex items-center gap-2.5 shrink-0 group py-1"
                 aria-label="DigitalMix Home"
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 group-hover:scale-105 group-hover:shadow-primary/30 transition-all duration-200">
-                  <ToolIcon className="h-4.5 w-4.5" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/25 group-hover:scale-105 group-hover:shadow-primary/35 transition-all duration-200">
+                  <Wrench className="h-4.5 w-4.5" />
                 </div>
-                <span className="text-lg font-bold tracking-tight text-foreground hidden sm:inline-block">
+                <span className="text-lg font-extrabold tracking-tight text-foreground hidden sm:inline-block">
                   DigitalMix
                 </span>
               </Link>
 
-              {/* Breadcrumb Separator */}
-              <div className="hidden md:flex items-center text-xs text-muted-foreground gap-1.5 pl-2 border-l border-border/60">
+              {/* Breadcrumbs (Desktop & Tablet) */}
+              <div className="hidden sm:flex items-center text-xs text-muted-foreground gap-1.5 pl-2.5 border-l border-border/60">
                 <Link
                   href={`/tools/${metadata.category.slug}`}
                   className="hover:text-foreground transition-colors font-medium hover:underline underline-offset-2"
                 >
                   {metadata.category.name}
                 </Link>
-                <ChevronRight className="h-3 w-3 text-muted-foreground/60" />
-                <span className="text-foreground font-semibold truncate max-w-45 lg:max-w-65 flex items-center gap-1.5">
+                <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
+                <span className="text-foreground font-semibold truncate max-w-35 md:max-w-50 lg:max-w-70 flex items-center gap-1.5">
                   <ToolIcon className="h-3.5 w-3.5 text-primary shrink-0" />
                   {metadata.name}
                 </span>
               </div>
+
+              {/* Mobile Breadcrumb Chip (<640px) */}
+              <Link
+                href={`/tools/${metadata.category.slug}`}
+                className="sm:hidden flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-secondary/80 px-2 py-1 rounded-lg border border-border/60 truncate max-w-36"
+              >
+                <span>{metadata.category.name}</span>
+              </Link>
             </div>
 
             {/* Right: Actions (Theme, Tool Favorite Toggle, Auth Conditional Links) */}
-            <div className="flex items-center gap-2 shrink-0">
-              {/* Favorite Button for the current tool (Icon only, displayed when authenticated) */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {/* Favorite Button for the current tool */}
               {!isLoading && isAuthenticated && (
                 <Button
                   variant="ghost"
@@ -242,7 +250,7 @@ export function ToolLayout({
                   className={cn(
                     'h-9 w-9 rounded-xl transition-all duration-200 active:scale-95',
                     isFavorite
-                      ? 'text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 dark:bg-amber-500/15'
+                      ? 'text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'
                       : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
                   )}
                   title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
@@ -263,7 +271,7 @@ export function ToolLayout({
                   variant="ghost"
                   size="icon"
                   onClick={toggleTheme}
-                  className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-transform duration-200 active:scale-95"
+                  className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all active:scale-95"
                   aria-label="Toggle color theme"
                 >
                   {resolvedTheme === 'dark' ? <Sun className="h-4.5 w-4.5 text-amber-400" /> : <Moon className="h-4.5 w-4.5" />}
@@ -277,10 +285,10 @@ export function ToolLayout({
                     <UserMenu />
                   ) : (
                     <div className="hidden sm:flex items-center gap-2">
-                      <Button asChild variant="ghost" size="sm" className="h-9 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground">
+                      <Button asChild variant="ghost" size="sm" className="h-9 px-3 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground">
                         <Link href="/login">Sign In</Link>
                       </Button>
-                      <Button asChild size="sm" className="h-9 text-xs font-semibold rounded-xl shadow-xs">
+                      <Button asChild size="sm" className="h-9 px-3.5 text-xs font-bold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20">
                         <Link href="/signup">Sign Up</Link>
                       </Button>
                     </div>
@@ -301,10 +309,15 @@ export function ToolLayout({
       </header>
 
       {/* 2. HERO SECTION */}
-      <section className="relative overflow-hidden pt-8 pb-10 sm:pt-12 sm:pb-12 text-center bg-linear-to-b from-primary/5 via-primary/2 to-transparent border-b border-border/30">
+      <section className="relative overflow-hidden pt-8 pb-10 sm:pt-14 sm:pb-14 text-center bg-radial from-primary/10 via-background to-background border-b border-border/40">
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 left-1/3 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
+          <div className="absolute top-10 right-1/3 h-64 w-64 rounded-full bg-accent/10 blur-3xl" />
+        </div>
+
         <div className="mx-auto max-w-4xl px-4 sm:px-6">
           {/* Dynamic Floating Tool Icon */}
-          <div className="inline-flex items-center justify-center p-3.5 sm:p-4 rounded-2xl bg-primary/10 border border-primary/20 text-primary shadow-xl shadow-primary/10 mb-4 sm:mb-5 transition-transform hover:scale-105 duration-200">
+          <div className="inline-flex items-center justify-center p-3.5 sm:p-4 rounded-2xl bg-primary/10 border border-primary/25 text-primary shadow-xl shadow-primary/15 mb-4 sm:mb-5 transition-transform hover:scale-105 duration-200">
             <ToolIcon className="h-7 w-7 sm:h-9 sm:w-9" />
           </div>
 
@@ -314,12 +327,12 @@ export function ToolLayout({
           </h1>
 
           {/* Tool Description */}
-          <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto leading-relaxed mb-5 text-balance">
+          <p className="text-xs sm:text-base text-muted-foreground max-w-2xl mx-auto leading-relaxed mb-5 text-pretty">
             {metadata.description}
           </p>
 
           {/* Privacy Guarantee Badge */}
-          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-xs">
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 shadow-xs">
             <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
             <span>{metadata.privacyBadge || '100% Client-Side • Zero Server Storage'}</span>
           </div>

@@ -175,7 +175,7 @@ export function ToolsDirectory() {
 
         {/* Tools Grid */}
         {filteredTools.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
             {filteredTools.map((tool) => {
               const IconComponent = ICON_MAP[tool.icon] || Code
               const category = TOOL_CATEGORIES.find((c) => c.id === tool.categoryId)
@@ -184,37 +184,37 @@ export function ToolsDirectory() {
                 <Link
                   key={tool.id}
                   href={tool.href}
-                  className="group relative flex flex-col justify-between rounded-2xl border border-border/60 bg-card p-6 transition-all duration-300 hover:shadow-xl hover:border-primary/40 hover:-translate-y-1"
+                  className="group relative flex flex-col justify-between rounded-2xl border border-border/70 bg-card/80 backdrop-blur-xs p-5 sm:p-6 transition-all duration-300 hover:shadow-xl hover:border-primary/40 hover:-translate-y-1 hover:shadow-primary/5"
                 >
                   <div>
                     {/* Top Row: Icon + Category Badge */}
                     <div className="flex items-center justify-between mb-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
-                        <IconComponent className="h-6 w-6" />
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground group-hover:scale-105 transition-all duration-300 shadow-xs">
+                        <IconComponent className="h-5 w-5" />
                       </div>
-                      <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-secondary text-muted-foreground">
+                      <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-secondary border border-border/50 text-muted-foreground">
                         {category?.name || tool.categoryId}
                       </span>
                     </div>
 
                     {/* Tool Name */}
-                    <h3 className="text-lg font-bold text-foreground mb-2 group-hover:text-primary transition-colors">
+                    <h3 className="text-base sm:text-lg font-bold text-foreground mb-1.5 group-hover:text-primary transition-colors">
                       {tool.name}
                     </h3>
 
                     {/* Description */}
-                    <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 mb-4">
+                    <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed line-clamp-3 mb-4">
                       {tool.description}
                     </p>
                   </div>
 
                   <div>
                     {/* Keywords/tags */}
-                    <div className="flex flex-wrap gap-1 mb-4 pt-2 border-t border-border/30">
+                    <div className="flex flex-wrap gap-1 mb-4 pt-3 border-t border-border/40">
                       {tool.keywords.slice(0, 3).map((keyword) => (
                         <span
                           key={keyword}
-                          className="text-[11px] font-medium text-muted-foreground/80 bg-secondary/50 px-2 py-0.5 rounded-md"
+                          className="text-[10px] font-medium text-muted-foreground bg-secondary/80 px-2 py-0.5 rounded-md border border-border/30"
                         >
                           #{keyword}
                         </span>
@@ -222,9 +222,9 @@ export function ToolsDirectory() {
                     </div>
 
                     {/* Action Footer */}
-                    <div className="flex items-center justify-between text-xs font-semibold text-primary pt-2">
-                      <span className="inline-flex items-center gap-1">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Free Tool
+                    <div className="flex items-center justify-between text-xs font-semibold text-primary pt-1">
+                      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> 100% Free
                       </span>
                       <span className="inline-flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                         Launch Tool

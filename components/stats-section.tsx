@@ -22,15 +22,18 @@ const features = [
 
 export function StatsSection() {
   return (
-    <section className="py-20 sm:py-28 border-t border-border/40">
+    <section className="py-16 sm:py-24 border-t border-border/50 bg-radial from-primary/5 via-transparent to-transparent">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center mb-14">
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-            Why Choose Digital Mix?
+        <div className="text-center mb-12 sm:mb-16">
+          <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 px-3.5 py-1 rounded-full border border-primary/20">
+            Core Philosophy
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground mt-3">
+            Why Modern Developers Choose DigitalMix
           </h2>
-          <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-            Built with developers in mind, our tools are designed to be fast, secure, and easy to use.
+          <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto text-pretty">
+            Built with uncompromising privacy, lightweight footprint, and zero cloud dependency.
           </p>
         </div>
 
@@ -39,17 +42,17 @@ export function StatsSection() {
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="relative group text-center p-8 rounded-2xl border border-border/50 bg-card hover:bg-secondary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
+              className="relative group text-center p-7 sm:p-8 rounded-2xl border border-border/70 bg-card/80 backdrop-blur-xs hover:bg-card transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 hover:border-primary/40 hover:-translate-y-1"
             >
               <div className="flex justify-center mb-5">
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300">
-                  <feature.icon className="h-7 w-7" />
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground group-hover:scale-110 shadow-inner transition-all duration-300">
+                  <feature.icon className="h-6 w-6" />
                 </div>
               </div>
-              <h3 className="text-xl font-semibold text-foreground mb-3">
+              <h3 className="text-lg sm:text-xl font-bold text-foreground mb-2">
                 {feature.title}
               </h3>
-              <p className="text-muted-foreground leading-relaxed">
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                 {feature.description}
               </p>
             </div>
