@@ -1,0 +1,32 @@
+# Robots.txt for DigitalMix
+# Allows search engines to crawl public pages
+
+User-agent: *
+Allow: /
+Allow: /tools/
+Allow: /blog/
+Allow: /about
+Allow: /privacy-policy
+Allow: /terms
+
+# Disallow private pages
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /_next/
+
+# Sitemap location
+Sitemap: https://www.digitalmix.dev/sitemap.xml
+
+# Crawl delay for bots (2 seconds)
+Crawl-delay: 2
+
+# Specific rules for Google
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+# Specific rules for Bing
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 2

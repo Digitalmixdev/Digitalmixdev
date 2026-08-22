@@ -1,0 +1,206 @@
+import type { Metadata, Viewport } from 'next'
+import { Inter, Geist_Mono } from 'next/font/google'
+import { ClerkProvider } from '@clerk/nextjs'
+import { Analytics } from '@vercel/analytics/next'
+import { GoogleAnalytics } from '@next/third-parties/google'
+import { ThemeProvider } from '@/components/theme-provider'
+import { Toaster } from '@/components/ui/sonner'
+import { PWAInstaller } from '@/components/pwa-installer'
+import Script from 'next/script'
+import './globals.css'
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: '--font-inter'
+})
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: '--font-geist-mono'
+})
+
+export const metadata: Metadata = {
+  title: 'DigitalMix - Free Digital Tools for Developers',
+  description: 'Free digital tools to simplify your data and dev workflow. Database tools, developer utilities, business calculators, and file tools.',
+  keywords: ['developer tools', 'database tools', 'file utilities', 'KPI calculator', 'pdf tools', 'profit margins', 'json formatter', 'sql formatter', 'uuid generator', 'hash generator'],
+  authors: [{ name: 'DigitalMix', url: 'https://www.digitalmix.dev' }],
+  creator: 'DigitalMix',
+  publisher: 'DigitalMix',
+  alternates: {
+    canonical: 'https://www.digitalmix.dev',
+  },
+  openGraph: {
+    title: 'DigitalMix - Free Digital Tools for Developers',
+    description: 'Technical solutions and smart tools for developers and creators.',
+    url: 'https://www.digitalmix.dev',
+    siteName: 'DigitalMix',
+    images: [
+      {
+        url: 'https://www.digitalmix.dev/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'DigitalMix - Free Digital Tools',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'DigitalMix - Free Digital Tools',
+    description: 'Free tools for developers: JSON formatter, SQL tools, hash generator, and more.',
+    images: ['https://www.digitalmix.dev/og-image.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-snippet': -1,
+      'max-image-preview': 'large',
+      'max-video-preview': -1,
+    },
+  },
+  icons: {
+    icon: [
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+    other: [
+      {
+        rel: 'manifest',
+        url: '/site.webmanifest',
+      },
+      {
+        rel: 'icon',
+        sizes: '192x192',
+        url: '/android-chrome-192x192.png',
+      },
+      {
+        rel: 'icon',
+        sizes: '512x512',
+        url: '/android-chrome-512x512.png',
+      },
+    ],
+  },
+  other: {},
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f8fafc' },
+    { media: '(prefers-color-scheme: dark)', color: '#0f172a' }
+  ],
+  width: 'device-width',
+  initialScale: 1,
+}
+
+const schemaData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebApplication',
+      '@id': 'https://www.digitalmix.dev/#webapp',
+      name: 'DigitalMix',
+      description: 'Free digital tools for developers and creators',
+      url: 'https://www.digitalmix.dev',
+      applicationCategory: 'DeveloperApplication',
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'USD',
+      },
+      image: 'https://www.digitalmix.dev/og-image.png',
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: {
+          '@type': 'EntryPoint',
+          urlTemplate: 'https://www.digitalmix.dev/tools?q={search_term_string}',
+        },
+        'query-input': 'required name=search_term_string',
+      },
+    },
+    {
+      '@type': 'Organization',
+      '@id': 'https://www.digitalmix.dev/#organization',
+      name: 'DigitalMix',
+      url: 'https://www.digitalmix.dev',
+      logo: 'https://www.digitalmix.dev/digitalmix.png',
+      sameAs: [
+        'https://www.digitalmix.dev',
+      ],
+      contactPoint: {
+        '@type': 'ContactPoint',
+        contactType: 'Customer Support',
+        url: 'https://www.digitalmix.dev/about',
+      },
+    },
+    {
+      '@type': 'Website',
+      '@id': 'https://www.digitalmix.dev/#website',
+      url: 'https://www.digitalmix.dev',
+      name: 'DigitalMix',
+      description: 'Free digital tools for developers',
+      publisher: {
+        '@id': 'https://www.digitalmix.dev/#organization',
+      },
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: {
+          '@type': 'EntryPoint',
+          urlTemplate: 'https://www.digitalmix.dev?s={search_term_string}',
+        },
+        'query-input': 'required name=search_term_string',
+      },
+    },
+  ],
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <ClerkProvider>
+      <html lang="en" suppressHydrationWarning>
+        <head>
+          {/* JSON-LD Schema */}
+          <Script
+            id="schema-org"
+            type="application/ld+json"
+            strategy="beforeInteractive"
+            suppressHydrationWarning
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
+          />
+
+        </head>
+        <body className={`${inter.variable} ${geistMono.variable} font-sans antialiased bg-background`}>
+          <PWAInstaller />
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+            {children}
+            <Toaster />
+          </ThemeProvider>
+
+          {/* Analytical tools */}
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID!} />
+
+          {/* Microsoft Clarity Analytics */}
+          <Script
+            id="microsoft-clarity"
+            strategy="lazyOnload"
+            suppressHydrationWarning
+          >
+            {`
+              (function(c,l,a,r,i,t,y){
+                  c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                  t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                  y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+              })(window, document, "clarity", "script", "${process.env.NEXT_PUBLIC_CLARITY_ID}");
+            `}
+          </Script>
+        </body>
+      </html>
+    </ClerkProvider>
+  )
+}
