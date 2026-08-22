@@ -3,7 +3,8 @@ import {
   Wrench,
   Instagram,
   Linkedin,
-  Mail
+  Mail,
+  Github,
 } from "lucide-react"
 import { popularSearches } from "@/constants/tools"
 
@@ -13,6 +14,7 @@ const legalLinks = [
 ]
 
 const socialLinks = [
+  { name: "GitHub", icon: Github, href: "https://github.com/Digitalmixdev" },
   { name: "Instagram", icon: Instagram, href: "https://www.instagram.com/digitalmixdev/" },
   { name: "LinkedIn", icon: Linkedin, href: "https://www.linkedin.com/company/digitalmixdev/" },
   {
