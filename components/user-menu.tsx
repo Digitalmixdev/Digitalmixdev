@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { LayoutDashboard, Star, LogOut, Loader2, Settings } from 'lucide-react'
 import { useAuth } from '@/components/auth-provider'
+import { UserAvatar } from '@/components/user-avatar'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -26,15 +27,6 @@ export function UserMenu({ align = 'end', className }: UserMenuProps) {
   if (!user) return null
 
   const displayName = user.name || user.email.split('@')[0]
-  const initials = user.name
-    ? user.name
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2)
-    : user.email.slice(0, 2).toUpperCase()
-
   const handleLogout = async () => {
     setIsLoggingOut(true)
     try {
@@ -53,9 +45,12 @@ export function UserMenu({ align = 'end', className }: UserMenuProps) {
           className={`relative h-9 w-9 rounded-full ring-offset-background transition-transform duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:scale-105 ${className || ''}`}
           aria-label="User account menu"
         >
-          <div className="h-9 w-9 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-primary font-bold text-xs tracking-wider shadow-xs">
-            {initials}
-          </div>
+          <UserAvatar
+            name={user.name}
+            email={user.email}
+            avatarData={user.avatarData}
+            className="h-9 w-9 text-xs"
+          />
         </Button>
       </DropdownMenuTrigger>
 

@@ -3,19 +3,19 @@ import Link from "next/link"
 import { History, Star, Settings, Zap } from "lucide-react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { getSession } from "@/lib/auth/session"
+import { UserAvatar } from "@/components/user-avatar"
+import { getCurrentUser } from "@/lib/auth/session"
 import { getUserStats } from "@/lib/dal/stats"
 
 export const dynamic = "force-dynamic"
 
 export default async function DashboardPage() {
-  const session = await getSession()
+  const user = await getCurrentUser()
 
-  if (!session?.user) {
+  if (!user) {
     redirect("/login?callbackUrl=/dashboard")
   }
 
-  const { user } = session
   const stats = await getUserStats(user.id)
 
   const displayName = user.name || user.email.split("@")[0] || "Developer"
@@ -36,11 +36,12 @@ export default async function DashboardPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-primary font-bold text-xs tracking-wider shadow-xs select-none">
-                {user.name
-                  ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
-                  : user.email.slice(0, 2).toUpperCase()}
-              </div>
+              <UserAvatar
+                name={user.name}
+                email={user.email}
+                avatarData={user.avatarData}
+                className="h-9 w-9 text-xs"
+              />
             </div>
           </div>
 

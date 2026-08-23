@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { signupAction } from '@/actions/auth'
+import { PASSWORD_RULE_MESSAGE, isStrongPassword } from '@/lib/auth/password-rules'
 import { useAuth } from '@/components/auth-provider'
 
 function SignupForm() {
@@ -35,8 +36,8 @@ function SignupForm() {
       return
     }
 
-    if (password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters long')
+    if (!isStrongPassword(password)) {
+      setErrorMessage(PASSWORD_RULE_MESSAGE)
       return
     }
 
@@ -144,7 +145,7 @@ function SignupForm() {
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
-                placeholder="At least 6 characters"
+                placeholder="Letters and numbers, 6+ characters"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}

@@ -3,8 +3,9 @@
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { hashPassword, verifyPassword } from '@/lib/auth/password'
+import { PASSWORD_RULE_MESSAGE, isStrongPassword } from '@/lib/auth/password-rules'
 import { createSessionToken, type SessionUser } from '@/lib/auth/jwt'
-import { setSessionCookie, clearSessionCookie, getSession } from '@/lib/auth/session'
+import { setSessionCookie, clearSessionCookie, getCurrentUser } from '@/lib/auth/session'
 
 const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email({ message: 'Please enter a valid email address' }),
@@ -14,7 +15,7 @@ const loginSchema = z.object({
 const signupSchema = z.object({
   name: z.string().trim().optional(),
   email: z.string().trim().toLowerCase().email({ message: 'Please enter a valid email address' }),
-  password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
+  password: z.string().refine(isStrongPassword, { message: PASSWORD_RULE_MESSAGE }),
 })
 
 export type ActionResult<T = unknown> = {
@@ -56,6 +57,9 @@ export async function loginAction(values: {
       id: user.id,
       email: user.email,
       name: user.name,
+      avatarData: user.avatarData,
+      emailNotifications: user.emailNotifications,
+      themePreference: user.themePreference,
       role: user.role,
     }
 
@@ -125,6 +129,9 @@ export async function signupAction(values: {
       id: newUser.id,
       email: newUser.email,
       name: newUser.name,
+      avatarData: newUser.avatarData,
+      emailNotifications: newUser.emailNotifications,
+      themePreference: newUser.themePreference,
       role: newUser.role,
     }
 
@@ -167,6 +174,6 @@ export async function logoutAction(): Promise<ActionResult> {
  * Get current session user for client components
  */
 export async function getSessionAction(): Promise<SessionUser | null> {
-  const session = await getSession()
-  return session?.user || null
+  const user = await getCurrentUser()
+  return user || null
 }

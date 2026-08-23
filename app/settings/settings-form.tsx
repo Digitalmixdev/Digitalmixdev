@@ -1,16 +1,18 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition, type ChangeEvent } from 'react'
+import { useEffect, useState, useTransition, type ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, Check, Loader2, Moon, Shield, Sun, Upload, User as UserIcon } from 'lucide-react'
+import { Bell, Check, Loader2, Moon, Shield, Sun, Trash2, Upload, User as UserIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   changePasswordAction,
   updatePreferencesAction,
   updateProfileAction,
 } from '@/actions/settings'
+import { PASSWORD_RULE_MESSAGE, isStrongPassword } from '@/lib/auth/password-rules'
 import { useAuth } from '@/components/auth-provider'
 import { useTheme } from '@/components/theme-provider'
+import { UserAvatar } from '@/components/user-avatar'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -25,7 +27,7 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { SessionUser } from '@/lib/auth/jwt'
 
-const EMAIL_NOTIFICATIONS_KEY = 'digitalmix-email-notifications'
+type ThemePreference = 'light' | 'dark' | 'system'
 
 interface SettingsFormProps {
   user: SessionUser
@@ -34,41 +36,27 @@ interface SettingsFormProps {
 export function SettingsForm({ user }: SettingsFormProps) {
   const router = useRouter()
   const { setUser } = useAuth()
-  const { resolvedTheme, setTheme } = useTheme()
+  const { setTheme } = useTheme()
   const [isPending, startTransition] = useTransition()
 
   const [displayName, setDisplayName] = useState(user.name || '')
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [avatarData, setAvatarData] = useState<string | null>(user.avatarData || null)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [emailNotifications, setEmailNotifications] = useState(true)
+  const [emailNotifications, setEmailNotifications] = useState(user.emailNotifications ?? true)
+  const [themePreference, setThemePreference] = useState<ThemePreference>(
+    user.themePreference === 'light' || user.themePreference === 'system' ? user.themePreference : 'dark',
+  )
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(EMAIL_NOTIFICATIONS_KEY)
-      if (stored !== null) {
-        setEmailNotifications(stored === 'true')
-      }
-    } catch {
-      // Local storage can be unavailable in restricted browser contexts.
-    }
-  }, [])
+    setTheme(themePreference)
+  }, [setTheme, themePreference])
 
-  const initials = useMemo(() => {
-    const source = displayName.trim() || user.email
-    if (source.includes('@')) return source.slice(0, 2).toUpperCase()
-
-    return source
-      .split(' ')
-      .filter(Boolean)
-      .map((part) => part[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
-  }, [displayName, user.email])
-
-  const isDirty = displayName !== (user.name || '') || Boolean(avatarPreview)
+  const isProfileDirty = displayName !== (user.name || '') || avatarData !== (user.avatarData || null)
+  const isPreferencesDirty =
+    emailNotifications !== (user.emailNotifications ?? true) ||
+    themePreference !== (user.themePreference || 'dark')
 
   const handleAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -81,7 +69,13 @@ export function SettingsForm({ user }: SettingsFormProps) {
 
     const reader = new FileReader()
     reader.onload = () => {
-      setAvatarPreview(typeof reader.result === 'string' ? reader.result : null)
+      const result = typeof reader.result === 'string' ? reader.result : null
+      if (result && result.length > 750_000) {
+        toast.error('Avatar image is too large')
+        return
+      }
+
+      setAvatarData(result)
       toast.success('Avatar preview updated')
     }
     reader.onerror = () => toast.error('Unable to preview that image')
@@ -90,7 +84,7 @@ export function SettingsForm({ user }: SettingsFormProps) {
 
   const handleProfileSave = () => {
     startTransition(async () => {
-      const result = await updateProfileAction({ name: displayName })
+      const result = await updateProfileAction({ name: displayName, avatarData })
 
       if (!result.success || !result.data?.user) {
         toast.error(result.error || 'Unable to save profile')
@@ -99,12 +93,23 @@ export function SettingsForm({ user }: SettingsFormProps) {
 
       setUser(result.data.user)
       setDisplayName(result.data.user.name || '')
+      setAvatarData(result.data.user.avatarData || null)
       toast.success('Profile updated')
       router.refresh()
     })
   }
 
   const handlePasswordSave = () => {
+    if (!isStrongPassword(newPassword)) {
+      toast.error(PASSWORD_RULE_MESSAGE)
+      return
+    }
+
+    if (currentPassword === newPassword) {
+      toast.error('New password must be different from your current password')
+      return
+    }
+
     startTransition(async () => {
       const result = await changePasswordAction({
         currentPassword,
@@ -126,30 +131,31 @@ export function SettingsForm({ user }: SettingsFormProps) {
 
   const handlePreferencesSave = () => {
     startTransition(async () => {
-      const result = await updatePreferencesAction({ emailNotifications })
+      const result = await updatePreferencesAction({ emailNotifications, themePreference })
 
-      if (!result.success) {
+      if (!result.success || !result.data?.user) {
         toast.error(result.error || 'Unable to save preferences')
         return
       }
 
-      try {
-        localStorage.setItem(EMAIL_NOTIFICATIONS_KEY, String(emailNotifications))
-      } catch {
-        toast.error('Preferences saved for this session, but local storage is unavailable')
-        return
-      }
-
+      setUser(result.data.user)
       toast.success('Preferences saved')
+      router.refresh()
     })
   }
 
   const handleCancel = () => {
     setDisplayName(user.name || '')
-    setAvatarPreview(null)
+    setAvatarData(user.avatarData || null)
     setCurrentPassword('')
     setNewPassword('')
     setConfirmPassword('')
+    setEmailNotifications(user.emailNotifications ?? true)
+    setThemePreference(
+      user.themePreference === 'light' || user.themePreference === 'system'
+        ? user.themePreference
+        : 'dark',
+    )
   }
 
   return (
@@ -177,18 +183,27 @@ export function SettingsForm({ user }: SettingsFormProps) {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <div className="h-20 w-20 overflow-hidden rounded-full border border-primary/30 bg-primary/10 flex items-center justify-center text-primary text-xl font-bold tracking-wider shrink-0">
-                {avatarPreview ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatarPreview} alt="Avatar preview" className="h-full w-full object-cover" />
-                ) : (
-                  initials
-                )}
-              </div>
+              <UserAvatar
+                name={displayName}
+                email={user.email}
+                avatarData={avatarData}
+                className="h-20 w-20 text-xl shrink-0"
+              />
 
               <div className="space-y-2">
                 <Label htmlFor="avatar">Avatar preview</Label>
-                <Input id="avatar" type="file" accept="image/*" onChange={handleAvatarChange} />
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Input id="avatar" type="file" accept="image/*" onChange={handleAvatarChange} />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setAvatarData(null)}
+                    disabled={!avatarData || isPending}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Remove
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -209,7 +224,7 @@ export function SettingsForm({ user }: SettingsFormProps) {
             </div>
           </CardContent>
           <CardFooter className="justify-end gap-3">
-            <Button type="button" variant="outline" onClick={handleCancel} disabled={isPending || !isDirty}>
+            <Button type="button" variant="outline" onClick={handleCancel} disabled={isPending || !isProfileDirty}>
               Cancel
             </Button>
             <Button type="button" onClick={handleProfileSave} disabled={isPending}>
@@ -245,6 +260,7 @@ export function SettingsForm({ user }: SettingsFormProps) {
                 value={newPassword}
                 onChange={(event) => setNewPassword(event.target.value)}
                 autoComplete="new-password"
+                placeholder="Letters and numbers, 6+ characters"
               />
             </div>
             <div className="grid gap-2">
@@ -285,20 +301,20 @@ export function SettingsForm({ user }: SettingsFormProps) {
               <div className="inline-flex rounded-xl border border-border bg-muted/60 p-1">
                 <Button
                   type="button"
-                  variant={resolvedTheme === 'light' ? 'default' : 'ghost'}
+                  variant={themePreference === 'light' ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => setTheme('light')}
-                  aria-pressed={resolvedTheme === 'light'}
+                  onClick={() => setThemePreference('light')}
+                  aria-pressed={themePreference === 'light'}
                 >
                   <Sun className="h-4 w-4" />
                   Light
                 </Button>
                 <Button
                   type="button"
-                  variant={resolvedTheme === 'dark' ? 'default' : 'ghost'}
+                  variant={themePreference === 'dark' ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => setTheme('dark')}
-                  aria-pressed={resolvedTheme === 'dark'}
+                  onClick={() => setThemePreference('dark')}
+                  aria-pressed={themePreference === 'dark'}
                 >
                   <Moon className="h-4 w-4" />
                   Dark
@@ -325,7 +341,7 @@ export function SettingsForm({ user }: SettingsFormProps) {
             </label>
           </CardContent>
           <CardFooter className="justify-end">
-            <Button type="button" onClick={handlePreferencesSave} disabled={isPending}>
+            <Button type="button" onClick={handlePreferencesSave} disabled={isPending || !isPreferencesDirty}>
               {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
               Save Preferences
             </Button>

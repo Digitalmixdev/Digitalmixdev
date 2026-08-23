@@ -24,10 +24,12 @@ import {
   Star,
   LogOut,
   Loader2,
+  Settings,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/components/auth-provider'
+import { UserAvatar } from '@/components/user-avatar'
 import type { ToolCategory, ToolDefinition } from '@/constants/tools'
 
 const iconMap: Record<string, LucideIcon> = {
@@ -94,17 +96,6 @@ export function MobileMenu({
   }
 
   const displayName = user?.name || (user?.email ? user.email.split('@')[0] : 'User')
-  const initials = user?.name
-    ? user.name
-        .split(' ')
-        .map((n: string) => n[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2)
-    : user?.email
-      ? user.email.slice(0, 2).toUpperCase()
-      : 'DM'
-
   return (
     <>
       <Button
@@ -220,19 +211,27 @@ export function MobileMenu({
             {isLoaded && isSignedIn && (
               <div className="space-y-2.5 p-3.5 rounded-2xl bg-card border border-border/80 shadow-xs">
                 <div className="flex items-center gap-3 pb-2.5 border-b border-border/40">
-                  <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center text-primary font-bold text-xs tracking-wider shrink-0 shadow-xs">
-                    {initials}
-                  </div>
+                  <UserAvatar
+                    name={user?.name}
+                    email={user?.email}
+                    avatarData={user?.avatarData}
+                    className="h-9 w-9 rounded-xl text-xs shrink-0"
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold text-foreground truncate">{displayName}</p>
                     <p className="text-[11px] text-muted-foreground truncate font-mono">{user?.email}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <Button asChild variant="ghost" size="sm" className="justify-start text-xs font-semibold rounded-xl" onClick={() => setMobileMenuOpen(false)}>
                     <Link href="/dashboard" className="flex items-center gap-2">
                       <LayoutDashboard className="h-3.5 w-3.5 text-primary" /> Dashboard
+                    </Link>
+                  </Button>
+                  <Button asChild variant="ghost" size="sm" className="justify-start text-xs font-semibold rounded-xl" onClick={() => setMobileMenuOpen(false)}>
+                    <Link href="/settings" className="flex items-center gap-2">
+                      <Settings className="h-3.5 w-3.5 text-emerald-500" /> Settings
                     </Link>
                   </Button>
                   <Button asChild variant="ghost" size="sm" className="justify-start text-xs font-semibold rounded-xl" onClick={() => setMobileMenuOpen(false)}>

@@ -20,6 +20,9 @@ model User {
   email          String         @unique
   passwordHash   String
   name           String?
+  avatarData         String?        @db.Text
+  emailNotifications Boolean        @default(true)
+  themePreference    String         @default("dark")
   role           Role           @default(USER)
   toolsUsedCount Int            @default(0)
   createdAt      DateTime       @default(now())

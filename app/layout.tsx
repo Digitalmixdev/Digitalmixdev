@@ -3,6 +3,7 @@ import { Inter, Geist_Mono } from 'next/font/google'
 import { AuthProvider } from '@/components/auth-provider'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/sonner'
+import { UserPreferencesSync } from '@/components/user-preferences-sync'
 import { PWAInstaller } from '@/components/pwa-installer'
 import { LazyThirdPartyScripts } from '@/components/lazy-third-party-scripts'
 import Script from 'next/script'
@@ -183,6 +184,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <PWAInstaller />
           <ThemeProvider defaultTheme="dark" enableSystem>
+            <UserPreferencesSync />
             {children}
             <Toaster />
           </ThemeProvider>

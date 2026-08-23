@@ -4,6 +4,9 @@ export interface SessionUser {
   id: string
   email: string
   name?: string | null
+  avatarData?: string | null
+  emailNotifications?: boolean
+  themePreference?: string
   role: string
 }
 
