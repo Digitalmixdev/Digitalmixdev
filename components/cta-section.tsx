@@ -23,7 +23,7 @@ export function CTASection() {
             <Button
               asChild
               size="lg"
-              className="gap-2 rounded-xl px-7 py-5 text-sm font-bold bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all shadow-xl"
+              className="gap-2 rounded-xl px-7 py-5 text-sm font-bold bg-white text-slate-900 hover:bg-white/90 hover:scale-105 transition-all shadow-xl"
             >
               <Link href="/tools">
                 Explore All 14 Tools

@@ -183,24 +183,28 @@ export function Header() {
               onClick={toggleTheme} 
               className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all active:scale-95"
               aria-label="Toggle theme"
+              suppressHydrationWarning
             >
               {mounted && resolvedTheme === 'dark' ? <Sun className="h-4.5 w-4.5 text-amber-400" /> : <Moon className="h-4.5 w-4.5" />}
             </Button>
 
             {/* Auth Section */}
-            {!isLoading && !isAuthenticated && (
-              <div className="hidden sm:flex items-center gap-2">
-                <Button asChild variant="ghost" size="sm" className="h-9 px-3 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground">
-                  <Link href="/login">Sign In</Link>
-                </Button>
-                <Button asChild size="sm" className="h-9 px-3.5 text-xs font-bold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20">
-                  <Link href="/signup">Sign Up</Link>
-                </Button>
-              </div>
-            )}
-            {!isLoading && isAuthenticated && (
-              <UserMenu />
-            )}
+            <div className="hidden sm:flex items-center min-h-[36px]">
+              {isLoading ? (
+                <div className="w-[140px] h-9" />
+              ) : !isAuthenticated ? (
+                <div className="flex items-center gap-2 animate-in fade-in duration-150">
+                  <Button asChild variant="ghost" size="sm" className="h-9 px-3 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground">
+                    <Link href="/login">Sign In</Link>
+                  </Button>
+                  <Button asChild size="sm" className="h-9 px-3.5 text-xs font-bold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20">
+                    <Link href="/signup">Sign Up</Link>
+                  </Button>
+                </div>
+              ) : (
+                <UserMenu />
+              )}
+            </div>
 
             <MobileMenu 
               categories={TOOL_CATEGORIES} 
