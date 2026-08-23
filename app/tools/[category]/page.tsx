@@ -6,11 +6,20 @@ import {
   Code,
   Calculator,
   FileText,
-  Sparkles,
+  FileCode,
+  FileSpreadsheet,
+  Binary,
+  Shield,
+  Fingerprint,
+  Key,
+  BarChart3,
+  TrendingUp,
+  Layers,
+  Maximize2,
+  QrCode,
   ArrowRight,
   ChevronRight,
-  Layers,
-  LucideIcon,
+  type LucideIcon,
 } from 'lucide-react'
 import { getCategoryBySlug, TOOL_CATEGORIES } from '@/constants/tools'
 import { notFound } from 'next/navigation'
@@ -26,6 +35,24 @@ const categoryIcons: Record<string, LucideIcon> = {
   developer: Code,
   calculators: Calculator,
   files: FileText,
+}
+
+const toolIcons: Record<string, LucideIcon> = {
+  Database,
+  Code,
+  FileCode,
+  FileSpreadsheet,
+  FileText,
+  Binary,
+  Shield,
+  Fingerprint,
+  Key,
+  BarChart3,
+  Calculator,
+  TrendingUp,
+  Layers,
+  Maximize2,
+  QrCode,
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -191,6 +218,7 @@ export default async function ToolsCategoryPage({ params }: Props) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {categoryData.tools.map((tool) => {
               const isActive = tool.active !== false
+              const ToolIcon = toolIcons[tool.icon] || Code
               return (
                 <Link
                   key={tool.id}
@@ -202,7 +230,7 @@ export default async function ToolsCategoryPage({ params }: Props) {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="p-3 rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300">
-                        <Sparkles className="h-5 w-5" />
+                        <ToolIcon className="h-5 w-5" />
                       </div>
                       {!isActive && (
                         <span className="text-[10px] font-bold bg-muted px-2 py-0.5 rounded-full text-muted-foreground">

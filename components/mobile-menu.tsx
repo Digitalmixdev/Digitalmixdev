@@ -120,7 +120,7 @@ export function MobileMenu({
       {mobileMenuOpen && (
         <div className="lg:hidden fixed inset-x-0 top-16 z-50 bg-background/95 backdrop-blur-2xl border-t border-border/60 flex flex-col max-h-[calc(100vh-64px)] overflow-y-auto p-4 sm:p-6 space-y-4 pb-20 shadow-2xl animate-in slide-in-from-top-4 duration-200">
           {/* Quick Hub Links */}
-          <div className="grid grid-cols-2 gap-2 shrink-0 pb-2 border-b border-border/40">
+          <div className={`grid ${isSignedIn ? 'grid-cols-2' : 'grid-cols-1'} gap-2 shrink-0 pb-2 border-b border-border/40`}>
             <Link
               href="/tools"
               onClick={() => setMobileMenuOpen(false)}
@@ -132,16 +132,18 @@ export function MobileMenu({
               <span>All Tools (14)</span>
             </Link>
 
-            <Link
-              href="/favorites"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2 p-2.5 rounded-xl bg-card border border-border/70 text-xs font-bold text-foreground hover:border-amber-500/40 hover:bg-amber-500/5 transition-all"
-            >
-              <div className="p-1 rounded-lg bg-amber-500/10 text-amber-500">
-                <Star className="h-3.5 w-3.5 fill-amber-500" />
-              </div>
-              <span>My Favorites</span>
-            </Link>
+            {isSignedIn && (
+              <Link
+                href="/favorites"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 p-2.5 rounded-xl bg-card border border-border/70 text-xs font-bold text-foreground hover:border-amber-500/40 hover:bg-amber-500/5 transition-all"
+              >
+                <div className="p-1 rounded-lg bg-amber-500/10 text-amber-500">
+                  <Star className="h-3.5 w-3.5 fill-amber-500" />
+                </div>
+                <span>My Favorites</span>
+              </Link>
+            )}
           </div>
 
           {/* Categories Navigation */}

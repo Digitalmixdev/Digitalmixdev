@@ -34,7 +34,7 @@ export function CTASection() {
               asChild
               size="lg"
               variant="outline"
-              className="gap-2 rounded-xl px-7 py-5 text-sm font-bold text-white border-white/30 hover:bg-white/10 transition-all"
+              className="gap-2 rounded-xl px-7 py-5 text-sm font-bold bg-black text-white border-white/20 hover:bg-white hover:text-black hover:border-white transition-all shadow-lg"
             >
               <Link href="/signup">
                 Create Free Account

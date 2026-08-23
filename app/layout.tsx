@@ -1,11 +1,10 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, Geist_Mono } from 'next/font/google'
 import { AuthProvider } from '@/components/auth-provider'
-import { Analytics } from '@vercel/analytics/next'
-import { GoogleAnalytics } from '@next/third-parties/google'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/sonner'
 import { PWAInstaller } from '@/components/pwa-installer'
+import { LazyThirdPartyScripts } from '@/components/lazy-third-party-scripts'
 import Script from 'next/script'
 import './globals.css'
 
@@ -20,7 +19,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'DigitalMix - Free Digital Tools for Developers',
+  title: 'DigitalMix - Free Digital Tools for Developer',
   description: 'Free digital tools to simplify your data and dev workflow. Database tools, developer utilities, business calculators, and file tools.',
   keywords: ['developer tools', 'database tools', 'file utilities', 'KPI calculator', 'pdf tools', 'profit margins', 'json formatter', 'sql formatter', 'uuid generator', 'hash generator'],
   authors: [{ name: 'DigitalMix', url: 'https://www.digitalmix.dev' }],
@@ -186,24 +185,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Toaster />
           </ThemeProvider>
 
-          {/* Analytical tools */}
-          {process.env.NODE_ENV === 'production' && <Analytics />}
-          <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID!} />
-
-          {/* Microsoft Clarity Analytics */}
-          <Script
-            id="microsoft-clarity"
-            strategy="lazyOnload"
-            suppressHydrationWarning
-          >
-            {`
-              (function(c,l,a,r,i,t,y){
-                  c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-                  t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                  y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-              })(window, document, "clarity", "script", "${process.env.NEXT_PUBLIC_CLARITY_ID}");
-            `}
-          </Script>
+          <LazyThirdPartyScripts />
         </AuthProvider>
       </body>
     </html>

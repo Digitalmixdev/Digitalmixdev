@@ -73,6 +73,16 @@ const toolMeta: ToolMetadata = {
   ],
 }
 
+function formatCurrency(val: number): string {
+  if (!isFinite(val) || isNaN(val)) return '$0.00'
+  return `$${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function formatPercent(val: number): string {
+  if (!isFinite(val) || isNaN(val)) return '0.00%'
+  return `${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+}
+
 // 1. ROI CALCULATOR ENGINE
 function RoiCalculatorEngine({ onCalculate }: { onCalculate: () => void }) {
   const [invested, setInvested] = useState('1200')
@@ -173,32 +183,36 @@ function RoiCalculatorEngine({ onCalculate }: { onCalculate: () => void }) {
         </h3>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 rounded-xl bg-background border border-border text-center">
-            <span className="text-xs text-muted-foreground font-medium">Net Profit</span>
-            <div className={`text-2xl font-extrabold mt-1 ${profit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-              {profit >= 0 ? `+$${profit.toLocaleString()}` : `-$${Math.abs(profit).toLocaleString()}`}
+          <div className="p-4 rounded-xl bg-background border border-border text-center min-w-0">
+            <span className="text-xs text-muted-foreground font-medium block">Net Profit</span>
+            <div
+              className={`text-lg sm:text-xl md:text-2xl font-extrabold mt-1 break-all leading-tight ${profit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}
+            >
+              {profit >= 0 ? `+${formatCurrency(profit)}` : `-${formatCurrency(Math.abs(profit))}`}
             </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-background border border-border text-center">
-            <span className="text-xs text-muted-foreground font-medium">Total ROI</span>
-            <div className={`text-2xl font-extrabold mt-1 ${totalRoi >= 0 ? 'text-primary' : 'text-rose-500'}`}>
-              {totalRoi.toFixed(2)}%
+          <div className="p-4 rounded-xl bg-background border border-border text-center min-w-0">
+            <span className="text-xs text-muted-foreground font-medium block">Total ROI</span>
+            <div
+              className={`text-lg sm:text-xl md:text-2xl font-extrabold mt-1 break-all leading-tight ${totalRoi >= 0 ? 'text-primary' : 'text-rose-500'}`}
+            >
+              {formatPercent(totalRoi)}
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 rounded-xl bg-background border border-border text-center">
-            <span className="text-xs text-muted-foreground font-medium">Annualized ROI</span>
-            <div className="text-xl font-bold text-foreground mt-1">
-              {annualizedRoi.toFixed(2)}% <span className="text-xs text-muted-foreground font-normal">/yr</span>
+          <div className="p-4 rounded-xl bg-background border border-border text-center min-w-0">
+            <span className="text-xs text-muted-foreground font-medium block">Annualized ROI</span>
+            <div className="text-sm sm:text-base md:text-xl font-bold text-foreground mt-1 break-all leading-tight">
+              {formatPercent(annualizedRoi)} <span className="text-xs text-muted-foreground font-normal">/yr</span>
             </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-background border border-border text-center">
-            <span className="text-xs text-muted-foreground font-medium">Holding Period</span>
-            <div className="text-xl font-bold text-foreground mt-1">
+          <div className="p-4 rounded-xl bg-background border border-border text-center min-w-0">
+            <span className="text-xs text-muted-foreground font-medium block">Holding Period</span>
+            <div className="text-sm sm:text-base md:text-xl font-bold text-foreground mt-1 break-all leading-tight">
               {years.toFixed(1)} <span className="text-xs text-muted-foreground font-normal">Years</span>
             </div>
           </div>
@@ -299,29 +313,35 @@ function SaaSCacLtvCalculatorEngine({ onCalculate }: { onCalculate: () => void }
         </h3>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 rounded-xl bg-background border border-border text-center">
-            <span className="text-xs text-muted-foreground font-medium">CAC (Acquisition Cost)</span>
-            <div className="text-2xl font-extrabold text-foreground mt-1">${cac.toFixed(2)}</div>
+          <div className="p-4 rounded-xl bg-background border border-border text-center min-w-0">
+            <span className="text-xs text-muted-foreground font-medium block">CAC (Acquisition Cost)</span>
+            <div className="text-lg sm:text-xl md:text-2xl font-extrabold text-foreground mt-1 break-all leading-tight">
+              {formatCurrency(cac)}
+            </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-background border border-border text-center">
-            <span className="text-xs text-muted-foreground font-medium">LTV (Customer Value)</span>
-            <div className="text-2xl font-extrabold text-primary mt-1">${ltv.toFixed(2)}</div>
+          <div className="p-4 rounded-xl bg-background border border-border text-center min-w-0">
+            <span className="text-xs text-muted-foreground font-medium block">LTV (Customer Value)</span>
+            <div className="text-lg sm:text-xl md:text-2xl font-extrabold text-primary mt-1 break-all leading-tight">
+              {formatCurrency(ltv)}
+            </div>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 rounded-xl bg-background border border-border text-center">
-            <span className="text-xs text-muted-foreground font-medium">LTV : CAC Ratio</span>
-            <div className={`text-2xl font-extrabold mt-1 ${ratio >= 3 ? 'text-emerald-500' : ratio >= 1 ? 'text-amber-500' : 'text-rose-500'}`}>
-              {ratio.toFixed(2)}x
+          <div className="p-4 rounded-xl bg-background border border-border text-center min-w-0">
+            <span className="text-xs text-muted-foreground font-medium block">LTV : CAC Ratio</span>
+            <div
+              className={`text-lg sm:text-xl md:text-2xl font-extrabold mt-1 break-all leading-tight ${ratio >= 3 ? 'text-emerald-500' : ratio >= 1 ? 'text-amber-500' : 'text-rose-500'}`}
+            >
+              {isFinite(ratio) ? ratio.toFixed(2) : '0.00'}x
             </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-background border border-border text-center">
-            <span className="text-xs text-muted-foreground font-medium">Payback Period</span>
-            <div className="text-xl font-bold text-foreground mt-1">
-              {payback.toFixed(1)} <span className="text-xs text-muted-foreground font-normal">Months</span>
+          <div className="p-4 rounded-xl bg-background border border-border text-center min-w-0">
+            <span className="text-xs text-muted-foreground font-medium block">Payback Period</span>
+            <div className="text-sm sm:text-base md:text-xl font-bold text-foreground mt-1 break-all leading-tight">
+              {isFinite(payback) ? payback.toFixed(1) : '0.0'} <span className="text-xs text-muted-foreground font-normal">Months</span>
             </div>
           </div>
         </div>
@@ -386,22 +406,28 @@ function ProfitMarginCalculatorEngine({ onCalculate }: { onCalculate: () => void
           Yield & Margin Results
         </h3>
 
-        <div className="p-4 rounded-xl bg-background border border-border text-center">
-          <span className="text-xs text-muted-foreground font-medium">Gross Profit Cash</span>
-          <div className={`text-3xl font-extrabold mt-1 ${grossProfit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-            ${grossProfit.toLocaleString()}
+        <div className="p-4 rounded-xl bg-background border border-border text-center min-w-0">
+          <span className="text-xs text-muted-foreground font-medium block">Gross Profit Cash</span>
+          <div
+            className={`text-xl sm:text-2xl md:text-3xl font-extrabold mt-1 break-all leading-tight ${grossProfit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}
+          >
+            {grossProfit >= 0 ? `+${formatCurrency(grossProfit)}` : `-${formatCurrency(Math.abs(grossProfit))}`}
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 rounded-xl bg-background border border-border text-center">
-            <span className="text-xs text-muted-foreground font-medium">Gross Margin</span>
-            <div className="text-2xl font-extrabold text-primary mt-1">{marginPct.toFixed(2)}%</div>
+          <div className="p-4 rounded-xl bg-background border border-border text-center min-w-0">
+            <span className="text-xs text-muted-foreground font-medium block">Gross Margin</span>
+            <div className="text-lg sm:text-xl md:text-2xl font-extrabold text-primary mt-1 break-all leading-tight">
+              {formatPercent(marginPct)}
+            </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-background border border-border text-center">
-            <span className="text-xs text-muted-foreground font-medium">Markup Percentage</span>
-            <div className="text-2xl font-extrabold text-foreground mt-1">{markupPct.toFixed(2)}%</div>
+          <div className="p-4 rounded-xl bg-background border border-border text-center min-w-0">
+            <span className="text-xs text-muted-foreground font-medium block">Markup Percentage</span>
+            <div className="text-lg sm:text-xl md:text-2xl font-extrabold text-foreground mt-1 break-all leading-tight">
+              {formatPercent(markupPct)}
+            </div>
           </div>
         </div>
       </div>
