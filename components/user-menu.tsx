@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
-import { LayoutDashboard, Star, LogOut, User as UserIcon, Loader2 } from 'lucide-react'
+import { LayoutDashboard, Star, LogOut, Loader2, Settings } from 'lucide-react'
 import { useAuth } from '@/components/auth-provider'
 import { Button } from '@/components/ui/button'
 import {
@@ -80,6 +80,13 @@ export function UserMenu({ align = 'end', className }: UserMenuProps) {
           <Link href="/dashboard" className="flex items-center gap-2.5 px-2 py-2 text-sm font-medium">
             <LayoutDashboard className="h-4 w-4 text-primary" />
             <span>Dashboard</span>
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-secondary">
+          <Link href="/settings" className="flex items-center gap-2.5 px-2 py-2 text-sm font-medium">
+            <Settings className="h-4 w-4 text-emerald-500" />
+            <span>Settings</span>
           </Link>
         </DropdownMenuItem>
 

@@ -3,7 +3,6 @@ import Link from "next/link"
 import { History, Star, Settings, Zap } from "lucide-react"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
-import { UserMenu } from "@/components/user-menu"
 import { getSession } from "@/lib/auth/session"
 import { getUserStats } from "@/lib/dal/stats"
 
@@ -37,7 +36,11 @@ export default async function DashboardPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <UserMenu />
+              <div className="h-9 w-9 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-primary font-bold text-xs tracking-wider shadow-xs select-none">
+                {user.name
+                  ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+                  : user.email.slice(0, 2).toUpperCase()}
+              </div>
             </div>
           </div>
 
@@ -119,16 +122,19 @@ export default async function DashboardPage() {
                 View Favorites
               </p>
             </Link>
-            <div className="bg-card border border-border p-6 rounded-xl">
-              <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center mb-4">
+            <Link
+              href="/settings"
+              className="bg-card border border-border p-6 rounded-xl hover:border-primary/50 transition-colors group"
+            >
+              <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
                 <Settings className="h-5 w-5 text-emerald-500" />
               </div>
               <h3 className="font-semibold text-foreground mb-2">Settings</h3>
               <p className="text-muted-foreground text-sm">
                 Customize your experience and preferences.
               </p>
-              <p className="text-xs text-muted-foreground/60 mt-3 italic">Coming Soon</p>
-            </div>
+              <p className="text-xs text-muted-foreground/60 mt-3 italic">Open Settings</p>
+            </Link>
           </div>
         </div>
       </main>
