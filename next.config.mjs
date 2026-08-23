@@ -27,10 +27,25 @@ const nextConfig = {
           key: 'Referrer-Policy',
           value: 'strict-origin-when-cross-origin',
         },
+        // Cross-Origin-Opener-Policy for origin isolation
+        {
+          key: 'Cross-Origin-Opener-Policy',
+          value: 'same-origin-allow-popups',
+        },
+        // Permissions-Policy
+        {
+          key: 'Permissions-Policy',
+          value: 'camera=(), microphone=(), geolocation=()',
+        },
         // Encourage HTTPS
         {
           key: 'Strict-Transport-Security',
-          value: 'max-age=31536000; includeSubDomains',
+          value: 'max-age=63072000; includeSubDomains; preload',
+        },
+        // Explicitly allow indexing for search engines & Lighthouse
+        {
+          key: 'X-Robots-Tag',
+          value: 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
         },
         // Content Security Policy for required third-party scripts
         {

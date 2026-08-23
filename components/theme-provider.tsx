@@ -50,12 +50,10 @@ export function ThemeProvider({
   enableSystem = true,
   storageKey = STORAGE_KEY,
 }: ThemeProviderProps) {
-  const [theme, setThemeState] = React.useState<Theme>(() => getInitialTheme(defaultTheme, storageKey))
-  const [resolvedTheme, setResolvedTheme] = React.useState<ResolvedTheme>(() => {
-    if (typeof window === 'undefined') return defaultTheme === 'light' ? 'light' : 'dark'
-    const initial = getInitialTheme(defaultTheme, storageKey)
-    return initial === 'system' ? getSystemTheme() : initial
-  })
+  const [theme, setThemeState] = React.useState<Theme>(defaultTheme)
+  const [resolvedTheme, setResolvedTheme] = React.useState<ResolvedTheme>(
+    defaultTheme === 'light' ? 'light' : 'dark',
+  )
 
   // Apply theme to document element immediately
   const applyTheme = React.useCallback((resolved: ResolvedTheme) => {
