@@ -42,6 +42,11 @@ const nextConfig = {
           key: 'Strict-Transport-Security',
           value: 'max-age=63072000; includeSubDomains; preload',
         },
+        // Explicitly allow indexing for search engines & Lighthouse
+        {
+          key: 'X-Robots-Tag',
+          value: 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
+        },
         // Content Security Policy for required third-party scripts
         {
           key: 'Content-Security-Policy',
