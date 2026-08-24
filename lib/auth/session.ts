@@ -48,14 +48,24 @@ export async function getSession(): Promise<Session | null> {
       return null
     }
 
-    return {
-      user: {
-        id: payload.userId,
-        email: payload.email,
-        name: payload.name,
-        role: payload.role,
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatarData: true,
+        emailNotifications: true,
+        themePreference: true,
+        role: true,
       },
+    })
+
+    if (!user) {
+      return null
     }
+
+    return { user }
   } catch {
     return null
   }
