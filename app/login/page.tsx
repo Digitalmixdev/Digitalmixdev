@@ -3,7 +3,7 @@
 import React, { useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Wrench, Eye, EyeOff, Loader2, ArrowRight, ShieldCheck } from 'lucide-react'
+import { Wrench, Eye, EyeOff, Loader2, ArrowRight, ShieldCheck, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -62,7 +62,11 @@ function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-md border-border/80 bg-card/95 shadow-2xl backdrop-blur-xl">
+    <div className="w-full max-w-md">
+      <Button asChild variant="ghost" className="mb-3 gap-2 text-muted-foreground">
+        <Link href="/dashboard"><ArrowLeft data-icon="inline-start" />Return to Dashboard</Link>
+      </Button>
+      <Card className="w-full border-border/80 bg-card/95 shadow-2xl backdrop-blur-xl">
       <CardHeader className="space-y-3 text-center pb-6">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20">
           <Wrench className="h-6 w-6 text-primary-foreground" />
@@ -166,7 +170,8 @@ function LoginForm() {
           <span>Secure HTTP-Only Session Auth</span>
         </div>
       </CardFooter>
-    </Card>
+      </Card>
+    </div>
   )
 }
 
