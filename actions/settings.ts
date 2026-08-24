@@ -195,9 +195,28 @@ export async function updatePreferencesAction(values: {
       },
     })
 
-    revalidatePath('/settings')
+    const updatedUser: SessionUser = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatarData: user.avatarData,
+      emailNotifications: user.emailNotifications,
+      themePreference: user.themePreference,
+      role: user.role,
+    }
 
-    return { success: true, data: { user } }
+    const token = await createSessionToken({
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    })
+
+    await setSessionCookie(token)
+    revalidatePath('/settings')
+    revalidatePath('/dashboard')
+
+    return { success: true, data: { user: updatedUser } }
   } catch (error) {
     console.error('Update preferences action error:', error)
     return { success: false, error: 'Failed to update your preferences. Please try again.' }
