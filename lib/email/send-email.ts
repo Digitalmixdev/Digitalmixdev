@@ -57,7 +57,13 @@ export async function sendOtpEmail({
   purposeText,
   validityMinutes = 10,
 }: SendOtpEmailOptions): Promise<{ success: boolean; error?: string; sentViaSmtp: boolean }> {
-  const from = process.env.EMAIL_FROM || process.env.SMTP_FROM || `"DigitalMix" <${process.env.SMTP_USER || 'no-reply@digitalmix.dev'}>`
+  const user = process.env.SMTP_USER || process.env.EMAIL_SERVER_USER || 'digitalmix111@gmail.com'
+  
+  let from = process.env.EMAIL_FROM || process.env.SMTP_FROM || ''
+  if (!from || from.includes('your-email') || from.includes('example.com')) {
+    from = `"DigitalMix" <${user}>`
+  }
+
   const transporter = getEmailTransporter()
 
   const htmlContent = `
