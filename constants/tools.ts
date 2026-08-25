@@ -212,7 +212,7 @@ export const ALL_TOOLS: ToolDefinition[] = [
     href: '/tools/image-and-file-compressor',
     description: 'Compress images (JPG, PNG, WebP) and pack files into optimized ZIP archives with instant size reduction.',
     categoryId: 'files',
-    icon: 'FileArchive',
+    icon: 'FileText',
     active: true,
     keywords: ['compress', 'image optimizer', 'file compression', 'zip', 'shrink', 'media', 'deflate'],
   },

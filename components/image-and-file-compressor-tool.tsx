@@ -121,8 +121,8 @@ export default function ImageAndFileCompressorTool() {
   const [activePreview, setActivePreview] = useState<{ url: string; name: string; size: string } | null>(null)
 
   // Image compression settings
-  const [imageQuality, setImageQuality] = useState<number>(75)
-  const [imageFormat, setImageFormat] = useState<'original' | 'image/jpeg' | 'image/png' | 'image/webp'>('image/webp')
+  const [imageQuality, setImageQuality] = useState<number>(85)
+  const [imageFormat, setImageFormat] = useState<'original' | 'image/jpeg' | 'image/png' | 'image/webp'>('image/png')
   const [maxDimension, setMaxDimension] = useState<number>(1920)
   const [preset, setPreset] = useState<'balanced' | 'high_compression' | 'high_quality' | 'custom'>('balanced')
 
@@ -227,6 +227,80 @@ export default function ImageAndFileCompressorTool() {
     [imageQuality, imageFormat, maxDimension]
   )
 
+  // Compress a single non-image file preserving original format
+  const compressGenericFile = useCallback(
+    async (file: File): Promise<Blob> => {
+      const isImage = file.type.startsWith('image/')
+      if (isImage) {
+        const { blob } = await compressImage(file)
+        return blob
+      }
+
+      const fileName = file.name.toLowerCase()
+      const isTextBased =
+        file.type.startsWith('text/') ||
+        fileName.endsWith('.json') ||
+        fileName.endsWith('.js') ||
+        fileName.endsWith('.ts') ||
+        fileName.endsWith('.jsx') ||
+        fileName.endsWith('.tsx') ||
+        fileName.endsWith('.css') ||
+        fileName.endsWith('.html') ||
+        fileName.endsWith('.svg') ||
+        fileName.endsWith('.xml') ||
+        fileName.endsWith('.csv') ||
+        fileName.endsWith('.md') ||
+        fileName.endsWith('.txt') ||
+        fileName.endsWith('.sql')
+
+      if (isTextBased) {
+        try {
+          const text = await file.text()
+          if (fileName.endsWith('.json')) {
+            try {
+              const parsed = JSON.parse(text)
+              const minified = JSON.stringify(parsed)
+              return new Blob([minified], { type: file.type || 'application/json' })
+            } catch {
+              // fallback
+            }
+          }
+          if (fileName.endsWith('.svg') || fileName.endsWith('.xml') || fileName.endsWith('.html')) {
+            const compacted = text.replace(/>\s+</g, '><').trim()
+            return new Blob([compacted], { type: file.type || 'text/plain' })
+          }
+          if (fileName.endsWith('.css') || fileName.endsWith('.js') || fileName.endsWith('.ts')) {
+            const compacted = text.replace(/\s+/g, ' ').replace(/\s*([{}();:,])\s*/g, '$1').trim()
+            return new Blob([compacted], { type: file.type || 'text/plain' })
+          }
+          // General text / csv / md: strip trailing whitespace & extra blank lines
+          const lines = text.split('\n').map((l) => l.trimEnd())
+          const compacted = lines.filter((l, idx) => l.length > 0 || (idx > 0 && lines[idx - 1].length > 0)).join('\n')
+          return new Blob([compacted], { type: file.type || 'text/plain' })
+        } catch (err) {
+          console.warn('Text optimization error:', err)
+        }
+      }
+
+      // Deflate stream if supported, keeping original mime type
+      if (typeof CompressionStream !== 'undefined') {
+        try {
+          const stream = file.stream().pipeThrough(new CompressionStream('deflate'))
+          const response = await new Response(stream)
+          const compressedBuffer = await response.arrayBuffer()
+          if (compressedBuffer.byteLength < file.size) {
+            return new Blob([compressedBuffer], { type: file.type || 'application/octet-stream' })
+          }
+        } catch {
+          // fallback
+        }
+      }
+
+      return file
+    },
+    [compressImage]
+  )
+
   // Add files to list
   const handleFilesAdded = useCallback((fileList: FileList | File[]) => {
     const newFiles = Array.from(fileList)
@@ -278,15 +352,10 @@ export default function ImageAndFileCompressorTool() {
           }
           item.status = 'done'
         } else {
-          const zip = new JSZip()
-          zip.file(item.name, item.originalFile, {
-            compression: 'DEFLATE',
-            compressionOptions: { level: zipCompressionLevel },
-          })
-          const zipBlob = await zip.generateAsync({ type: 'blob' })
-          item.compressedBlob = zipBlob
-          item.compressedSize = zipBlob.size
-          const saved = item.originalSize - zipBlob.size
+          const blob = await compressGenericFile(item.originalFile)
+          item.compressedBlob = blob
+          item.compressedSize = blob.size
+          const saved = item.originalSize - blob.size
           item.compressionRatio = Math.max(0, Math.round((saved / item.originalSize) * 100))
           item.status = 'done'
         }
@@ -301,7 +370,7 @@ export default function ImageAndFileCompressorTool() {
     setIsProcessing(false)
     recordUsage()
     toast.success('Compression completed!')
-  }, [items, compressImage, zipCompressionLevel, recordUsage])
+  }, [items, compressImage, compressGenericFile, recordUsage])
 
   // Download single item
   const downloadSingle = (item: CompressedItem) => {
@@ -310,19 +379,20 @@ export default function ImageAndFileCompressorTool() {
     const a = document.createElement('a')
     a.href = url
 
+    const lastDotIndex = item.name.lastIndexOf('.')
+    const baseName = lastDotIndex !== -1 ? item.name.substring(0, lastDotIndex) : item.name
+    const originalExt = lastDotIndex !== -1 ? item.name.substring(lastDotIndex + 1) : ''
+
     if (item.type === 'image') {
-      const ext =
-        imageFormat === 'image/webp'
-          ? 'webp'
-          : imageFormat === 'image/jpeg'
-          ? 'jpg'
-          : imageFormat === 'image/png'
-          ? 'png'
-          : item.name.split('.').pop() || 'jpg'
-      const baseName = item.name.substring(0, item.name.lastIndexOf('.')) || item.name
+      let ext = originalExt || 'png'
+      if (imageFormat === 'image/webp') ext = 'webp'
+      else if (imageFormat === 'image/jpeg') ext = 'jpg'
+      else if (imageFormat === 'image/png') ext = 'png'
+      else if (imageFormat === 'original') ext = originalExt || 'png'
       a.download = `${baseName}-compressed.${ext}`
     } else {
-      a.download = `${item.name}.zip`
+      // Download single file in its original format
+      a.download = originalExt ? `${baseName}-compressed.${originalExt}` : `${baseName}-compressed`
     }
 
     document.body.appendChild(a)
@@ -405,56 +475,17 @@ export default function ImageAndFileCompressorTool() {
   return (
     <ToolLayout metadata={toolMeta}>
       <div className="space-y-6">
-        {/* Top Control Bar */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="border-border bg-card/60 backdrop-blur-sm shadow-sm">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                <ShieldCheck className="h-5 w-5" />
-              </div>
-              <div className="text-sm">
-                <div className="font-semibold text-foreground">100% Client-Side</div>
-                <div className="text-muted-foreground text-xs">Files never leave your device or browser</div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border bg-card/60 backdrop-blur-sm shadow-sm">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
-                <Zap className="h-5 w-5" />
-              </div>
-              <div className="text-sm">
-                <div className="font-semibold text-foreground">Instant Processing</div>
-                <div className="text-muted-foreground text-xs">Fast canvas engine & multi-file packaging</div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border bg-card/60 backdrop-blur-sm shadow-sm">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
-                <Layers className="h-5 w-5" />
-              </div>
-              <div className="text-sm">
-                <div className="font-semibold text-foreground">Batch Optimization</div>
-                <div className="text-muted-foreground text-xs">Compress multiple images or pack as ZIP</div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Compression Mode Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'image' | 'file')} className="w-full">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
             <TabsList className="bg-secondary/60 p-1 rounded-xl">
               <TabsTrigger value="image" className="rounded-lg gap-2 data-[state=active]:bg-background">
                 <ImageIcon className="h-4 w-4" />
-                Image Compressor (WebP/JPG/PNG)
+                Image Compressor (PNG/JPG/WebP)
               </TabsTrigger>
               <TabsTrigger value="file" className="rounded-lg gap-2 data-[state=active]:bg-background">
                 <FileArchive className="h-4 w-4" />
-                File & Archive Compressor (ZIP)
+                File Compressor
               </TabsTrigger>
             </TabsList>
 
@@ -495,7 +526,7 @@ export default function ImageAndFileCompressorTool() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Sliders className="h-4 w-4 text-primary" />
-                {activeTab === 'image' ? 'Image Compression Settings' : 'Archive Compression Settings'}
+                {activeTab === 'image' ? 'Image Compression Settings' : 'File Compression Settings'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -556,9 +587,9 @@ export default function ImageAndFileCompressorTool() {
                       }}
                       className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none"
                     >
+                      <option value="image/png">PNG (Lossless / Transparency)</option>
                       <option value="image/webp">WebP (Best size & modern web)</option>
                       <option value="image/jpeg">JPEG (Universal compatibility)</option>
-                      <option value="image/png">PNG (Lossless / Transparency)</option>
                       <option value="original">Preserve Original Format</option>
                     </select>
                   </div>
@@ -642,8 +673,8 @@ export default function ImageAndFileCompressorTool() {
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
                 {activeTab === 'image'
-                  ? 'Supports JPG, PNG, WebP, GIF, SVG. Bulk processing available.'
-                  : 'Supports code, documents, text, images, and folders. Packaged with ZIP Deflate.'}
+                  ? 'Supports PNG, JPG, WebP, GIF, SVG. Bulk processing available.'
+                  : 'Supports code, documents, text, images, and data. Download in original format or bundle as ZIP.'}
               </p>
             </div>
             <Button size="sm" className="rounded-xl font-bold gap-2 pointer-events-none mt-1">
