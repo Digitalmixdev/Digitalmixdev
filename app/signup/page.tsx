@@ -42,7 +42,6 @@ function SignupForm() {
   const [verificationCode, setVerificationCode] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [sentCodeHint, setSentCodeHint] = useState<string | null>(null)
 
   // Real-time password criteria
   const hasMinLength = password.length >= 6
@@ -86,10 +85,9 @@ function SignupForm() {
         return
       }
 
-      setSentCodeHint(result.debugCode || null)
       setStep('verify')
-      toast.success('Verification code generated', {
-        description: `Please enter the 6-digit code for ${email}`,
+      toast.success('Verification code sent!', {
+        description: `We've sent a 6-digit confirmation code to ${email}`,
       })
     } catch (err) {
       const errorMsg = 'An unexpected error occurred. Please try again.'
@@ -154,9 +152,8 @@ function SignupForm() {
         password,
       })
       if (result.success) {
-        setSentCodeHint(result.debugCode || null)
-        toast.success('New verification code sent', {
-          description: `Check code for ${email}`,
+        toast.success('Verification code re-sent', {
+          description: `A new 6-digit code was sent to ${email}`,
         })
       } else {
         setErrorMessage(result.error || 'Failed to resend code')
@@ -340,21 +337,12 @@ function SignupForm() {
             </form>
           ) : (
             <form onSubmit={handleVerifyAndRegister} className="space-y-4">
-              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
-                We sent a 6-digit confirmation code to{' '}
-                <span className="font-semibold text-foreground">{email}</span>.
-                {sentCodeHint && (
-                  <div className="mt-2 pt-2 border-t border-primary/20 flex items-center justify-between">
-                    <span>Verification Code:</span>
-                    <button
-                      type="button"
-                      onClick={() => setVerificationCode(sentCodeHint)}
-                      className="font-mono font-bold text-primary hover:underline bg-primary/10 px-2 py-0.5 rounded"
-                    >
-                      {sentCodeHint} (Click to Fill)
-                    </button>
-                  </div>
-                )}
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground flex items-center gap-3">
+                <Mail className="h-5 w-5 text-primary shrink-0" />
+                <div>
+                  We sent a 6-digit confirmation code to{' '}
+                  <span className="font-semibold text-foreground">{email}</span>. Please check your inbox (and spam folder).
+                </div>
               </div>
 
               <div className="space-y-2">

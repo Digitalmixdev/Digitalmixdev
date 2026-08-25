@@ -3,6 +3,8 @@
 import { z } from 'zod'
 import { isStrongPassword, PASSWORD_RULE_MESSAGE } from '@/lib/auth/password-rules'
 
+import { sendOtpEmail } from '@/lib/email/send-email'
+
 // In-memory verification code store: email -> { code, expiresAt, name, password }
 interface VerificationEntry {
   code: string
@@ -34,7 +36,7 @@ export async function sendVerificationCodeAction(values: {
   name?: string
   email: string
   password: string
-}): Promise<{ success: boolean; error?: string; message?: string; debugCode?: string }> {
+}): Promise<{ success: boolean; error?: string; message?: string }> {
   try {
     const validated = initiateSchema.safeParse(values)
     if (!validated.success) {
@@ -52,7 +54,7 @@ export async function sendVerificationCodeAction(values: {
     if (existingUser) {
       return {
         success: false,
-        error: 'An account with this email already exists',
+        error: 'An account with this email already exists. Please sign in instead.',
       }
     }
 
@@ -67,15 +69,26 @@ export async function sendVerificationCodeAction(values: {
       password,
     })
 
-    console.log(`[Email Verification] Code for ${email} is: ${code}`)
+    // Send real email via SMTP / Transporter
+    const emailResult = await sendOtpEmail({
+      to: email,
+      subject: 'Verify your DigitalMix email address',
+      title: 'Email Verification Code',
+      purposeText: 'Thank you for signing up with DigitalMix. Use the verification code below to verify your email and activate your account.',
+      code,
+      validityMinutes: 10,
+    })
 
-    // If an SMTP / Resend provider is configured, it would send email here
-    // In preview / serverless mode without external email provider credentials,
-    // we return debugCode so user can test and fill the code directly.
+    if (!emailResult.success) {
+      return {
+        success: false,
+        error: emailResult.error || 'Failed to send email verification code to your inbox.',
+      }
+    }
+
     return {
       success: true,
-      message: `A 6-digit verification code was generated for ${email}.`,
-      debugCode: code,
+      message: `A 6-digit verification code has been sent to ${email}. Please check your inbox.`,
     }
   } catch (err) {
     console.error('Send verification code error:', err)

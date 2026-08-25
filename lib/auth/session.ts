@@ -76,16 +76,7 @@ export async function getSession(): Promise<Session | null> {
     })
 
     if (!user) {
-      const restoredUser: SessionUser = {
-        id: payload.userId,
-        email: payload.email,
-        name: payload.name || null,
-        avatarData: null,
-        emailNotifications: true,
-        themePreference: 'dark',
-        role: payload.role || 'USER',
-      }
-      return { user: restoredUser }
+      return null
     }
 
     return { user }
@@ -117,18 +108,5 @@ export async function getCurrentUser() {
     },
   })
 
-  if (user) return user
-
-  return {
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name ?? null,
-    avatarData: session.user.avatarData ?? null,
-    emailNotifications: session.user.emailNotifications ?? true,
-    themePreference: session.user.themePreference ?? 'dark',
-    role: session.user.role ?? 'USER',
-    toolsUsedCount: 0,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }
+  return user || null
 }

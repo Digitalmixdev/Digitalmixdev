@@ -103,22 +103,7 @@ function createMemoryPrisma() {
       update: async (args: { where: { id: string }; data: any; select?: any }) => {
         const user = memoryDb.users.get(args.where.id)
         if (!user) {
-          // If not in map, create a dummy entry
-          const placeholder: MemoryUser = {
-            id: args.where.id,
-            email: 'user@digitalmix.dev',
-            passwordHash: '',
-            name: args.data.name ?? null,
-            avatarData: args.data.avatarData ?? null,
-            emailNotifications: args.data.emailNotifications ?? true,
-            themePreference: args.data.themePreference ?? 'dark',
-            role: 'USER',
-            toolsUsedCount: typeof args.data.toolsUsedCount === 'number' ? args.data.toolsUsedCount : 1,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }
-          memoryDb.users.set(args.where.id, placeholder)
-          return { ...placeholder }
+          throw new Error(`Record to update not found: user with id ${args.where.id}`)
         }
         if (args.data.toolsUsedCount?.increment) {
           user.toolsUsedCount += args.data.toolsUsedCount.increment

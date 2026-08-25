@@ -233,6 +233,8 @@ export async function updatePreferencesAction(values: {
   }
 }
 
+import { sendOtpEmail } from '@/lib/email/send-email'
+
 // In-memory store for account deletion OTP codes: userId -> { code, expiresAt, email }
 interface DeletionEntry {
   code: string
@@ -257,7 +259,6 @@ export async function requestAccountDeletionCodeAction(): Promise<{
   success: boolean
   error?: string
   message?: string
-  debugCode?: string
 }> {
   try {
     const sessionUser = await requireSessionUser()
@@ -274,12 +275,26 @@ export async function requestAccountDeletionCodeAction(): Promise<{
       email: sessionUser.email,
     })
 
-    console.log(`[Account Deletion] Confirmation Code for ${sessionUser.email} is: ${code}`)
+    // Send real email via SMTP
+    const emailResult = await sendOtpEmail({
+      to: sessionUser.email,
+      subject: 'Security Alert: Confirm DigitalMix Account Deletion',
+      title: 'Confirm Account Deletion',
+      purposeText: 'We received a request to permanently delete your DigitalMix account and all associated data. If you wish to proceed, please enter the security confirmation code below.',
+      code,
+      validityMinutes: 10,
+    })
+
+    if (!emailResult.success) {
+      return {
+        success: false,
+        error: emailResult.error || 'Failed to send confirmation email. Please check your SMTP settings.',
+      }
+    }
 
     return {
       success: true,
       message: `A 6-digit confirmation code was sent to ${sessionUser.email}`,
-      debugCode: code,
     }
   } catch (error) {
     console.error('Request account deletion code error:', error)

@@ -68,7 +68,6 @@ export function SettingsForm({ user }: SettingsFormProps) {
   // Account Deletion States
   const [deletionStep, setDeletionStep] = useState<'idle' | 'code-sent'>('idle')
   const [deletionCode, setDeletionCode] = useState('')
-  const [deletionCodeHint, setDeletionCodeHint] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
@@ -201,7 +200,6 @@ export function SettingsForm({ user }: SettingsFormProps) {
     setThemePreference(user.themePreference === 'light' || user.themePreference === 'system' ? user.themePreference : 'dark')
     setDeletionStep('idle')
     setDeletionCode('')
-    setDeletionCodeHint(null)
   }
 
   // Account Deletion Handlers
@@ -214,10 +212,9 @@ export function SettingsForm({ user }: SettingsFormProps) {
         return
       }
 
-      setDeletionCodeHint(result.debugCode || null)
       setDeletionStep('code-sent')
       toast.success('Confirmation code sent to your email', {
-        description: `Check your inbox at ${user.email}`,
+        description: `Please check your inbox at ${user.email}`,
       })
     } catch {
       toast.error('An error occurred while requesting deletion code')
@@ -523,21 +520,12 @@ export function SettingsForm({ user }: SettingsFormProps) {
               </div>
             ) : (
               <form onSubmit={handleConfirmDeletion} className="space-y-4 max-w-md">
-                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
-                  A 6-digit confirmation code was sent to{' '}
-                  <span className="font-semibold text-foreground">{user.email}</span>.
-                  {deletionCodeHint && (
-                    <div className="mt-2 pt-2 border-t border-primary/20 flex items-center justify-between">
-                      <span>Confirmation Code:</span>
-                      <button
-                        type="button"
-                        onClick={() => setDeletionCode(deletionCodeHint)}
-                        className="font-mono font-bold text-primary hover:underline bg-primary/10 px-2 py-0.5 rounded"
-                      >
-                        {deletionCodeHint} (Click to Fill)
-                      </button>
-                    </div>
-                  )}
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground flex items-center gap-3">
+                  <Mail className="h-5 w-5 text-primary shrink-0" />
+                  <div>
+                    A 6-digit confirmation code was sent to{' '}
+                    <span className="font-semibold text-foreground">{user.email}</span>. Please check your inbox.
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -586,7 +574,6 @@ export function SettingsForm({ user }: SettingsFormProps) {
                     onClick={() => {
                       setDeletionStep('idle')
                       setDeletionCode('')
-                      setDeletionCodeHint(null)
                     }}
                     disabled={isDeleting}
                     className="h-11"
