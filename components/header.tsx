@@ -22,6 +22,7 @@ import {
   Layers,
   Maximize2,
   QrCode,
+  FileArchive,
   ChevronDown,
   Moon,
   Sun,
@@ -60,6 +61,7 @@ const toolIconMap: Record<string, LucideIcon> = {
   Layers,
   Maximize2,
   QrCode,
+  FileArchive,
 }
 
 function showComingSoon() {

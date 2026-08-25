@@ -13,6 +13,7 @@ export type ToolId =
   | 'pdf-merge'
   | 'image-resizer'
   | 'qr-code-generator'
+  | 'image-and-file-compressor'
 
 export type CategoryId = 'database' | 'developer' | 'calculators' | 'files'
 
@@ -203,6 +204,17 @@ export const ALL_TOOLS: ToolDefinition[] = [
     icon: 'QrCode',
     active: true,
     keywords: ['qr', 'qr code', 'generator', 'wifi', 'vcard', 'barcode', 'scan'],
+  },
+  {
+    id: 'image-and-file-compressor',
+    name: 'Image & File Compressor',
+    slug: 'image-and-file-compressor',
+    href: '/tools/image-and-file-compressor',
+    description: 'Compress images (JPG, PNG, WebP) and pack files into optimized ZIP archives with instant size reduction.',
+    categoryId: 'files',
+    icon: 'FileArchive',
+    active: true,
+    keywords: ['compress', 'image optimizer', 'file compression', 'zip', 'shrink', 'media', 'deflate'],
   },
 ]
 

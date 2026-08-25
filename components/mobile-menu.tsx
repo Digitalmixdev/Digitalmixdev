@@ -18,6 +18,7 @@ import {
   Layers,
   Maximize2,
   QrCode,
+  FileArchive,
   Menu,
   X,
   LayoutDashboard,
@@ -55,6 +56,7 @@ const toolIconMap: Record<string, LucideIcon> = {
   Layers,
   Maximize2,
   QrCode,
+  FileArchive,
 }
 
 interface MobileMenuProps {
