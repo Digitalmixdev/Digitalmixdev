@@ -13,10 +13,25 @@ function getEmailTransporter() {
   const host = process.env.SMTP_HOST || process.env.EMAIL_SERVER_HOST
   const port = Number(process.env.SMTP_PORT || process.env.EMAIL_SERVER_PORT || 587)
   const user = process.env.SMTP_USER || process.env.EMAIL_SERVER_USER
-  const pass = process.env.SMTP_PASS || process.env.EMAIL_SERVER_PASSWORD || process.env.SMTP_PASSWORD
+  const pass = (process.env.SMTP_PASS || process.env.EMAIL_SERVER_PASSWORD || process.env.SMTP_PASSWORD || '').replace(/\s+/g, '')
   const secure = process.env.SMTP_SECURE === 'true' || port === 465
 
-  if (!host || !user || !pass) {
+  if (!user || !pass) {
+    return null
+  }
+
+  // Optimize for Gmail if host is gmail or user is gmail
+  if (host === 'smtp.gmail.com' || user.endsWith('@gmail.com') || user.endsWith('@googlemail.com')) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user,
+        pass,
+      },
+    })
+  }
+
+  if (!host) {
     return null
   }
 
@@ -27,6 +42,9 @@ function getEmailTransporter() {
     auth: {
       user,
       pass,
+    },
+    tls: {
+      rejectUnauthorized: false,
     },
   })
 }
