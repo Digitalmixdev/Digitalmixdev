@@ -38,25 +38,8 @@ declare global {
 }
 
 if (!globalThis.__memoryDb) {
-  const defaultDemoUser: MemoryUser = {
-    id: 'user_demo_default',
-    email: 'demo@digitalmix.dev',
-    passwordHash: '$2a$10$wTqKj1y5eD8VfT5H49fD0e81Gq8pQv6hJ7u9hZgYfU1L7jWwQ7a7q', // hash for demo1234
-    name: 'Demo Developer',
-    avatarData: null,
-    emailNotifications: true,
-    themePreference: 'dark',
-    role: 'USER',
-    toolsUsedCount: 12,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }
-
-  const usersMap = new Map<string, MemoryUser>()
-  usersMap.set(defaultDemoUser.id, defaultDemoUser)
-
   globalThis.__memoryDb = {
-    users: usersMap,
+    users: new Map<string, MemoryUser>(),
     favorites: [],
     toolUsage: [],
   }
@@ -149,6 +132,16 @@ function createMemoryPrisma() {
         if (args.data.themePreference !== undefined) user.themePreference = args.data.themePreference
         user.updatedAt = new Date()
         return { ...user }
+      },
+      delete: async (args: { where: { id: string } }) => {
+        const user = memoryDb.users.get(args.where.id)
+        if (user) {
+          memoryDb.users.delete(args.where.id)
+        }
+        // Cascade delete favorites and tool usage
+        memoryDb.favorites = memoryDb.favorites.filter((f) => f.userId !== args.where.id)
+        memoryDb.toolUsage = memoryDb.toolUsage.filter((t) => t.userId !== args.where.id)
+        return user ? { ...user } : { id: args.where.id }
       },
     },
     favoriteTool: {

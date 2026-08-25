@@ -2,10 +2,26 @@
 
 import { useEffect, useState, useTransition, type ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, Check, Loader2, Moon, Shield, Sun, Trash2, Upload, User as UserIcon } from 'lucide-react'
+import {
+  AlertTriangle,
+  Bell,
+  Check,
+  KeyRound,
+  Loader2,
+  Mail,
+  Moon,
+  Shield,
+  Sun,
+  Trash2,
+  Upload,
+  User as UserIcon,
+  XCircle,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import {
   changePasswordAction,
+  confirmAccountDeletionAction,
+  requestAccountDeletionCodeAction,
   updatePreferencesAction,
   updateProfileAction,
 } from '@/actions/settings'
@@ -49,6 +65,12 @@ export function SettingsForm({ user }: SettingsFormProps) {
     user.themePreference === 'light' || user.themePreference === 'system' ? user.themePreference : 'dark',
   )
 
+  // Account Deletion States
+  const [deletionStep, setDeletionStep] = useState<'idle' | 'code-sent'>('idle')
+  const [deletionCode, setDeletionCode] = useState('')
+  const [deletionCodeHint, setDeletionCodeHint] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   useEffect(() => {
     setTheme(themePreference)
   }, [setTheme, themePreference])
@@ -58,25 +80,37 @@ export function SettingsForm({ user }: SettingsFormProps) {
     emailNotifications !== (user.emailNotifications ?? true) ||
     themePreference !== (user.themePreference || 'dark')
 
+  const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 // 2MB
+
   const handleAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
-      toast.error('Please choose an image file')
+      toast.error('Please choose a valid image file (PNG, JPG, WEBP)')
+      return
+    }
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      toast.error('Avatar image size must be less than 2MB', {
+        description: `Selected file is ${(file.size / (1024 * 1024)).toFixed(2)} MB. Maximum allowed is 2 MB.`,
+      })
+      event.target.value = ''
       return
     }
 
     const reader = new FileReader()
     reader.onload = () => {
       const result = typeof reader.result === 'string' ? reader.result : null
-      if (result && result.length > 750_000) {
-        toast.error('Avatar image is too large')
+      if (!result) {
+        toast.error('Failed to read image data')
         return
       }
 
       setAvatarData(result)
-      toast.success('Avatar preview updated')
+      toast.success('Avatar preview loaded', {
+        description: `File size: ${(file.size / 1024).toFixed(1)} KB (under 2MB limit)`,
+      })
     }
     reader.onerror = () => toast.error('Unable to preview that image')
     reader.readAsDataURL(file)
@@ -86,27 +120,33 @@ export function SettingsForm({ user }: SettingsFormProps) {
     startTransition(async () => {
       const result = await updateProfileAction({ name: displayName, avatarData })
 
-      if (!result.success || !result.data?.user) {
-        toast.error(result.error || 'Unable to save profile')
+      if (!result.success) {
+        toast.error(result.error || 'Failed to update profile')
         return
       }
 
-      setUser(result.data.user)
-      setDisplayName(result.data.user.name || '')
-      setAvatarData(result.data.user.avatarData || null)
-      toast.success('Profile updated')
+      if (result.data?.user) {
+        setUser(result.data.user)
+      }
+
+      toast.success('Profile updated successfully')
       router.refresh()
     })
   }
 
   const handlePasswordSave = () => {
-    if (!isStrongPassword(newPassword)) {
-      toast.error(PASSWORD_RULE_MESSAGE)
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('Please complete all password fields')
       return
     }
 
-    if (currentPassword === newPassword) {
-      toast.error('New password must be different from your current password')
+    if (!isStrongPassword(newPassword)) {
+      toast.error('Password requirements not met', { description: PASSWORD_RULE_MESSAGE })
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match')
       return
     }
 
@@ -118,28 +158,35 @@ export function SettingsForm({ user }: SettingsFormProps) {
       })
 
       if (!result.success) {
-        toast.error(result.error || 'Unable to change password')
+        toast.error(result.error || 'Failed to update password')
         return
       }
 
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-      toast.success('Password changed')
+      toast.success('Password updated successfully')
+      router.refresh()
     })
   }
 
   const handlePreferencesSave = () => {
     startTransition(async () => {
-      const result = await updatePreferencesAction({ emailNotifications, themePreference })
+      const result = await updatePreferencesAction({
+        emailNotifications,
+        themePreference,
+      })
 
-      if (!result.success || !result.data?.user) {
-        toast.error(result.error || 'Unable to save preferences')
+      if (!result.success) {
+        toast.error(result.error || 'Failed to update preferences')
         return
       }
 
-      setUser(result.data.user)
-      toast.success('Preferences saved')
+      if (result.data?.user) {
+        setUser(result.data.user)
+      }
+
+      toast.success('Preferences updated successfully')
       router.refresh()
     })
   }
@@ -151,60 +198,144 @@ export function SettingsForm({ user }: SettingsFormProps) {
     setNewPassword('')
     setConfirmPassword('')
     setEmailNotifications(user.emailNotifications ?? true)
-    setThemePreference(
-      user.themePreference === 'light' || user.themePreference === 'system'
-        ? user.themePreference
-        : 'dark',
-    )
+    setThemePreference(user.themePreference === 'light' || user.themePreference === 'system' ? user.themePreference : 'dark')
+    setDeletionStep('idle')
+    setDeletionCode('')
+    setDeletionCodeHint(null)
+  }
+
+  // Account Deletion Handlers
+  const handleRequestDeletionCode = async () => {
+    setIsDeleting(true)
+    try {
+      const result = await requestAccountDeletionCodeAction()
+      if (!result.success) {
+        toast.error('Failed to request deletion code', { description: result.error })
+        return
+      }
+
+      setDeletionCodeHint(result.debugCode || null)
+      setDeletionStep('code-sent')
+      toast.success('Confirmation code sent to your email', {
+        description: `Check your inbox at ${user.email}`,
+      })
+    } catch {
+      toast.error('An error occurred while requesting deletion code')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleConfirmDeletion = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!deletionCode || deletionCode.trim().length < 6) {
+      toast.error('Please enter the 6-digit confirmation code')
+      return
+    }
+
+    setIsDeleting(true)
+    try {
+      const result = await confirmAccountDeletionAction({ code: deletionCode.trim() })
+      if (!result.success) {
+        toast.error('Account deletion failed', { description: result.error })
+        return
+      }
+
+      setUser(null)
+      toast.success('Account permanently deleted', {
+        description: 'All your data has been removed from our database.',
+      })
+      router.push('/')
+      router.refresh()
+    } catch {
+      toast.error('An error occurred during account deletion')
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   return (
-    <Tabs defaultValue="profile" className="space-y-6">
-      <TabsList className="grid h-auto w-full grid-cols-3">
-        <TabsTrigger value="profile" className="gap-2">
+    <Tabs defaultValue="profile" className="w-full space-y-6">
+      <TabsList className="grid w-full grid-cols-4 bg-muted/60 p-1">
+        <TabsTrigger value="profile" className="flex items-center gap-2">
           <UserIcon className="h-4 w-4" />
-          Profile
+          <span className="hidden sm:inline">Profile</span>
         </TabsTrigger>
-        <TabsTrigger value="security" className="gap-2">
+        <TabsTrigger value="password" className="flex items-center gap-2">
           <Shield className="h-4 w-4" />
-          Security
+          <span className="hidden sm:inline">Security</span>
         </TabsTrigger>
-        <TabsTrigger value="preferences" className="gap-2">
+        <TabsTrigger value="preferences" className="flex items-center gap-2">
           <Bell className="h-4 w-4" />
-          Preferences
+          <span className="hidden sm:inline">Preferences</span>
+        </TabsTrigger>
+        <TabsTrigger value="danger" className="flex items-center gap-2 text-destructive data-[state=active]:text-destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <span className="hidden sm:inline">Delete Account</span>
         </TabsTrigger>
       </TabsList>
 
+      {/* PROFILE TAB */}
       <TabsContent value="profile">
-        <Card>
+        <Card className="border-border">
           <CardHeader>
-            <CardTitle>Profile</CardTitle>
+            <CardTitle>Profile Details</CardTitle>
             <CardDescription>Update the name shown across your DigitalMix account.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <UserAvatar
-                name={displayName}
-                email={user.email}
-                avatarData={avatarData}
-                className="h-20 w-20 text-xl shrink-0"
-              />
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center p-4 rounded-xl bg-secondary/20 border border-border/60">
+              <div className="relative group shrink-0">
+                <UserAvatar
+                  name={displayName}
+                  email={user.email}
+                  avatarData={avatarData}
+                  className="h-24 w-24 text-2xl shrink-0 ring-2 ring-primary/20 ring-offset-2 ring-offset-background transition-all"
+                />
+                {avatarData && (
+                  <div className="absolute -bottom-1.5 -right-1.5 rounded-full bg-primary p-1 text-primary-foreground shadow-md">
+                    <Check className="h-3.5 w-3.5" />
+                  </div>
+                )}
+              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="avatar">Avatar preview</Label>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Input id="avatar" type="file" accept="image/*" onChange={handleAvatarChange} />
+              <div className="space-y-2.5 flex-1">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="avatar" className="font-semibold text-foreground">
+                    Profile Picture Preview
+                  </Label>
+                  <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                    Max size: &lt; 2 MB
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Supports JPG, PNG, WEBP, or GIF. File size must be less than <strong>2 MB</strong>.
+                </p>
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                  <Input
+                    id="avatar"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    onChange={handleAvatarChange}
+                    className="bg-background/80 border-border file:mr-3 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                  />
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => setAvatarData(null)}
                     disabled={!avatarData || isPending}
+                    className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4 mr-1.5" />
                     Remove
                   </Button>
                 </div>
               </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" value={user.email} disabled className="bg-muted/40 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">Your email address is managed directly via authentication.</p>
             </div>
 
             <div className="grid gap-2">
@@ -213,35 +344,31 @@ export function SettingsForm({ user }: SettingsFormProps) {
                 id="display-name"
                 value={displayName}
                 onChange={(event) => setDisplayName(event.target.value)}
-                placeholder="Your display name"
-                maxLength={80}
+                placeholder="Alex Smith"
+                autoComplete="name"
               />
             </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" value={user.email} disabled />
-            </div>
           </CardContent>
-          <CardFooter className="justify-end gap-3">
+          <CardFooter className="justify-end gap-3 border-t border-border/40 pt-4">
             <Button type="button" variant="outline" onClick={handleCancel} disabled={isPending || !isProfileDirty}>
               Cancel
             </Button>
-            <Button type="button" onClick={handleProfileSave} disabled={isPending}>
-              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            <Button type="button" onClick={handleProfileSave} disabled={isPending || !isProfileDirty}>
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
               Save Profile
             </Button>
           </CardFooter>
         </Card>
       </TabsContent>
 
-      <TabsContent value="security">
-        <Card>
+      {/* SECURITY TAB */}
+      <TabsContent value="password">
+        <Card className="border-border">
           <CardHeader>
-            <CardTitle>Security</CardTitle>
-            <CardDescription>Change your password with your current credentials.</CardDescription>
+            <CardTitle>Change Password</CardTitle>
+            <CardDescription>Keep your account secure with a strong password containing letters and numbers.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-4">
             <div className="grid gap-2">
               <Label htmlFor="current-password">Current password</Label>
               <Input
@@ -260,7 +387,7 @@ export function SettingsForm({ user }: SettingsFormProps) {
                 value={newPassword}
                 onChange={(event) => setNewPassword(event.target.value)}
                 autoComplete="new-password"
-                placeholder="Letters and numbers, 6+ characters"
+                placeholder="Min. 6 characters, letters + numbers"
               />
             </div>
             <div className="grid gap-2">
@@ -274,7 +401,7 @@ export function SettingsForm({ user }: SettingsFormProps) {
               />
             </div>
           </CardContent>
-          <CardFooter className="justify-end gap-3">
+          <CardFooter className="justify-end gap-3 border-t border-border/40 pt-4">
             <Button type="button" variant="outline" onClick={handleCancel} disabled={isPending}>
               Cancel
             </Button>
@@ -286,8 +413,9 @@ export function SettingsForm({ user }: SettingsFormProps) {
         </Card>
       </TabsContent>
 
+      {/* PREFERENCES TAB */}
       <TabsContent value="preferences">
-        <Card>
+        <Card className="border-border">
           <CardHeader>
             <CardTitle>Preferences</CardTitle>
             <CardDescription>Choose how DigitalMix looks and when it can contact you.</CardDescription>
@@ -340,12 +468,135 @@ export function SettingsForm({ user }: SettingsFormProps) {
               </span>
             </label>
           </CardContent>
-          <CardFooter className="justify-end">
+          <CardFooter className="justify-end border-t border-border/40 pt-4">
             <Button type="button" onClick={handlePreferencesSave} disabled={isPending || !isPreferencesDirty}>
               {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
               Save Preferences
             </Button>
           </CardFooter>
+        </Card>
+      </TabsContent>
+
+      {/* DANGER ZONE: DELETE ACCOUNT */}
+      <TabsContent value="danger">
+        <Card className="border-destructive/30 bg-destructive/5">
+          <CardHeader>
+            <div className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              <CardTitle className="text-destructive">Delete Account</CardTitle>
+            </div>
+            <CardDescription className="text-muted-foreground">
+              Permanently delete your account, saved tools, custom configurations, and usage history from our database.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="rounded-lg border border-destructive/20 bg-background/80 p-4 text-sm text-muted-foreground space-y-2">
+              <p className="font-semibold text-foreground">⚠️ This action is permanent and cannot be undone:</p>
+              <ul className="list-disc list-inside space-y-1 text-xs">
+                <li>Your profile and login credentials will be removed.</li>
+                <li>Your favorite tools list and workspace configurations will be deleted.</li>
+                <li>To protect against accidental deletion, a 6-digit confirmation code must be verified.</li>
+              </ul>
+            </div>
+
+            {deletionStep === 'idle' ? (
+              <div className="pt-2">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleRequestDeletionCode}
+                  disabled={isDeleting}
+                  className="h-11 px-5 font-semibold shadow-sm"
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending confirmation code...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="mr-2 h-4 w-4" />
+                      Send Deletion Confirmation Code to {user.email}
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={handleConfirmDeletion} className="space-y-4 max-w-md">
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                  A 6-digit confirmation code was sent to{' '}
+                  <span className="font-semibold text-foreground">{user.email}</span>.
+                  {deletionCodeHint && (
+                    <div className="mt-2 pt-2 border-t border-primary/20 flex items-center justify-between">
+                      <span>Confirmation Code:</span>
+                      <button
+                        type="button"
+                        onClick={() => setDeletionCode(deletionCodeHint)}
+                        className="font-mono font-bold text-primary hover:underline bg-primary/10 px-2 py-0.5 rounded"
+                      >
+                        {deletionCodeHint} (Click to Fill)
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="deletionCode" className="text-sm font-semibold text-foreground">
+                    Enter 6-Digit Deletion Code
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="deletionCode"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="123456"
+                      value={deletionCode}
+                      onChange={(e) => setDeletionCode(e.target.value.replace(/\D/g, ''))}
+                      disabled={isDeleting}
+                      required
+                      className="bg-background border-destructive/40 focus-visible:ring-destructive h-12 text-center text-xl font-mono tracking-widest text-destructive"
+                    />
+                    <KeyRound className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground/60" />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <Button
+                    type="submit"
+                    variant="destructive"
+                    disabled={isDeleting || deletionCode.length < 6}
+                    className="h-11 flex-1 font-semibold"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Deleting Account...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Permanently Delete Account
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setDeletionStep('idle')
+                      setDeletionCode('')
+                      setDeletionCodeHint(null)
+                    }}
+                    disabled={isDeleting}
+                    className="h-11"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            )}
+          </CardContent>
         </Card>
       </TabsContent>
     </Tabs>

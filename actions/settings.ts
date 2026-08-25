@@ -6,14 +6,24 @@ import { prisma } from '@/lib/prisma'
 import { createSessionToken, type SessionUser } from '@/lib/auth/jwt'
 import { hashPassword, verifyPassword } from '@/lib/auth/password'
 import { PASSWORD_RULE_MESSAGE, isStrongPassword } from '@/lib/auth/password-rules'
-import { getSession, setSessionCookie } from '@/lib/auth/session'
+import { getSession, setSessionCookie, clearSessionCookie } from '@/lib/auth/session'
 import type { ActionResult } from '@/actions/auth'
+
+const MAX_AVATAR_SIZE = 2 * 1024 * 1024 // 2MB
 
 const profileSchema = z.object({
   name: z.string().trim().max(80, { message: 'Display name must be 80 characters or fewer' }).optional(),
   avatarData: z
     .string()
-    .max(750_000, { message: 'Avatar image is too large' })
+    .refine(
+      (val) => {
+        if (!val) return true
+        // Base64 size estimation or direct length check
+        // A 2MB binary image in base64 string is ~2.7MB (approx 2,800,000 chars)
+        return val.length <= 2_900_000
+      },
+      { message: 'Avatar image size must be less than 2MB' }
+    )
     .nullable()
     .optional(),
 })
@@ -222,3 +232,115 @@ export async function updatePreferencesAction(values: {
     return { success: false, error: 'Failed to update your preferences. Please try again.' }
   }
 }
+
+// In-memory store for account deletion OTP codes: userId -> { code, expiresAt, email }
+interface DeletionEntry {
+  code: string
+  expiresAt: number
+  email: string
+}
+
+declare global {
+  var __deletionCodes: Map<string, DeletionEntry> | undefined
+}
+
+if (!globalThis.__deletionCodes) {
+  globalThis.__deletionCodes = new Map<string, DeletionEntry>()
+}
+
+const deletionCodesStore = globalThis.__deletionCodes
+
+/**
+ * Step 1: Send confirmation code to user's email before account deletion
+ */
+export async function requestAccountDeletionCodeAction(): Promise<{
+  success: boolean
+  error?: string
+  message?: string
+  debugCode?: string
+}> {
+  try {
+    const sessionUser = await requireSessionUser()
+    if (!sessionUser) {
+      return { success: false, error: 'You must be signed in to perform this action' }
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString()
+    const expiresAt = Date.now() + 10 * 60 * 1000 // 10 minutes
+
+    deletionCodesStore.set(sessionUser.id, {
+      code,
+      expiresAt,
+      email: sessionUser.email,
+    })
+
+    console.log(`[Account Deletion] Confirmation Code for ${sessionUser.email} is: ${code}`)
+
+    return {
+      success: true,
+      message: `A 6-digit confirmation code was sent to ${sessionUser.email}`,
+      debugCode: code,
+    }
+  } catch (error) {
+    console.error('Request account deletion code error:', error)
+    return { success: false, error: 'Failed to request deletion code. Please try again.' }
+  }
+}
+
+/**
+ * Step 2: Verify code, delete user from database/store, and clear session
+ */
+export async function confirmAccountDeletionAction(values: { code: string }): Promise<{
+  success: boolean
+  error?: string
+}> {
+  try {
+    const sessionUser = await requireSessionUser()
+    if (!sessionUser) {
+      return { success: false, error: 'You must be signed in to delete your account' }
+    }
+
+    const entry = deletionCodesStore.get(sessionUser.id)
+    if (!entry) {
+      return {
+        success: false,
+        error: 'No deletion code requested or session expired. Please request a new code.',
+      }
+    }
+
+    if (Date.now() > entry.expiresAt) {
+      deletionCodesStore.delete(sessionUser.id)
+      return {
+        success: false,
+        error: 'Confirmation code has expired. Please request a new code.',
+      }
+    }
+
+    if (entry.code !== values.code.trim()) {
+      return {
+        success: false,
+        error: 'Invalid confirmation code. Please check the 6-digit code sent to your email.',
+      }
+    }
+
+    // Delete user from database (cascades favorites & toolUsage)
+    await prisma.user.delete({
+      where: { id: sessionUser.id },
+    })
+
+    deletionCodesStore.delete(sessionUser.id)
+
+    // Clear session cookies
+    await clearSessionCookie()
+
+    revalidatePath('/')
+    revalidatePath('/dashboard')
+    revalidatePath('/settings')
+
+    return { success: true }
+  } catch (error) {
+    console.error('Confirm account deletion action error:', error)
+    return { success: false, error: 'Failed to delete account. Please try again.' }
+  }
+}
+

@@ -1,16 +1,28 @@
 'use client'
 
-import React, { useState, Suspense } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Wrench, Eye, EyeOff, Loader2, ArrowRight, ShieldCheck, Check, ArrowLeft } from 'lucide-react'
+import {
+  Wrench,
+  Eye,
+  EyeOff,
+  Loader2,
+  ArrowRight,
+  ShieldCheck,
+  ArrowLeft,
+  Mail,
+  KeyRound,
+  CheckCircle2,
+  XCircle,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { signupAction } from '@/actions/auth'
 import { PASSWORD_RULE_MESSAGE, isStrongPassword } from '@/lib/auth/password-rules'
+import { sendVerificationCodeAction, verifyEmailAndRegisterAction } from '@/actions/verification'
 import { useAuth } from '@/components/auth-provider'
 
 function SignupForm() {
@@ -19,15 +31,27 @@ function SignupForm() {
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
   const { setUser } = useAuth()
 
+  // Step 1: Account info, Step 2: Email code verification
+  const [step, setStep] = useState<'info' | 'verify'>('info')
+
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [verificationCode, setVerificationCode] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [sentCodeHint, setSentCodeHint] = useState<string | null>(null)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Real-time password criteria
+  const hasMinLength = password.length >= 6
+  const hasLetter = /[a-zA-Z]/.test(password)
+  const hasNumber = /\d/.test(password)
+  const isPassValid = hasMinLength && hasLetter && hasNumber
+
+  // Step 1: Validate info & request verification code
+  const handleInitiateSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMessage(null)
 
@@ -36,7 +60,7 @@ function SignupForm() {
       return
     }
 
-    if (!isStrongPassword(password)) {
+    if (!isPassValid) {
       setErrorMessage(PASSWORD_RULE_MESSAGE)
       return
     }
@@ -49,29 +73,24 @@ function SignupForm() {
     setIsLoading(true)
 
     try {
-      const result = await signupAction({
+      const result = await sendVerificationCodeAction({
         name: name.trim() || undefined,
         email,
         password,
       })
 
       if (!result.success) {
-        const errorText = result.error || 'Failed to create account'
+        const errorText = result.error || 'Failed to send verification code'
         setErrorMessage(errorText)
         toast.error('Registration failed', { description: errorText })
         return
       }
 
-      if (result.data?.user) {
-        setUser(result.data.user)
-      }
-
-      toast.success('Account created successfully!', {
-        description: 'Welcome to DigitalMix. Redirecting...',
+      setSentCodeHint(result.debugCode || null)
+      setStep('verify')
+      toast.success('Verification code generated', {
+        description: `Please enter the 6-digit code for ${email}`,
       })
-
-      router.push(callbackUrl)
-      router.refresh()
     } catch (err) {
       const errorMsg = 'An unexpected error occurred. Please try again.'
       setErrorMessage(errorMsg)
@@ -81,146 +100,338 @@ function SignupForm() {
     }
   }
 
+  // Step 2: Submit 6-digit code to complete registration
+  const handleVerifyAndRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErrorMessage(null)
+
+    if (!verificationCode || verificationCode.trim().length < 6) {
+      setErrorMessage('Please enter the complete 6-digit verification code')
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const result = await verifyEmailAndRegisterAction({
+        email,
+        code: verificationCode.trim(),
+      })
+
+      if (!result.success) {
+        const errorText = result.error || 'Verification failed'
+        setErrorMessage(errorText)
+        toast.error('Verification failed', { description: errorText })
+        return
+      }
+
+      if (result.data?.user) {
+        setUser(result.data.user)
+      }
+
+      toast.success('Email verified & account created!', {
+        description: 'Welcome to DigitalMix. Redirecting...',
+      })
+
+      router.push(callbackUrl)
+      router.refresh()
+    } catch {
+      const errorMsg = 'An unexpected error occurred. Please try again.'
+      setErrorMessage(errorMsg)
+      toast.error('Error', { description: errorMsg })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleResendCode = async () => {
+    setIsLoading(true)
+    setErrorMessage(null)
+    try {
+      const result = await sendVerificationCodeAction({
+        name: name.trim() || undefined,
+        email,
+        password,
+      })
+      if (result.success) {
+        setSentCodeHint(result.debugCode || null)
+        toast.success('New verification code sent', {
+          description: `Check code for ${email}`,
+        })
+      } else {
+        setErrorMessage(result.error || 'Failed to resend code')
+      }
+    } catch {
+      setErrorMessage('Failed to resend code')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="w-full max-w-md">
       <Button asChild variant="ghost" className="mb-3 gap-2 text-muted-foreground">
-        <Link href="/"><ArrowLeft className="h-4 w-4" />Back to Home</Link>
+        <Link href="/">
+          <ArrowLeft className="h-4 w-4" />
+          Back to Home
+        </Link>
       </Button>
       <Card className="w-full border-border/80 bg-card/95 shadow-2xl backdrop-blur-xl">
-      <CardHeader className="space-y-3 text-center pb-6">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20">
-          <Wrench className="h-6 w-6 text-primary-foreground" />
-        </div>
-        <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
-          Create an account
-        </CardTitle>
-        <CardDescription className="text-sm text-muted-foreground">
-          Get started with free developer and productivity tools
-        </CardDescription>
-      </CardHeader>
+        <CardHeader className="space-y-3 text-center pb-6">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20">
+            {step === 'info' ? (
+              <Wrench className="h-6 w-6 text-primary-foreground" />
+            ) : (
+              <Mail className="h-6 w-6 text-primary-foreground" />
+            )}
+          </div>
+          <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
+            {step === 'info' ? 'Create an account' : 'Verify your email'}
+          </CardTitle>
+          <CardDescription className="text-sm text-muted-foreground">
+            {step === 'info'
+              ? 'Get started with free developer and productivity tools'
+              : `Enter the 6-digit confirmation code for ${email}`}
+          </CardDescription>
+        </CardHeader>
 
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <CardContent>
           {errorMessage && (
-            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium">
+            <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium">
               {errorMessage}
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="name" className="text-sm font-medium text-foreground">
-              Full Name <span className="text-muted-foreground text-xs font-normal">(optional)</span>
-            </Label>
-            <Input
-              id="name"
-              type="text"
-              autoComplete="name"
-              placeholder="Alex Smith"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={isLoading}
-              className="bg-background/50 border-border focus-visible:ring-primary h-10"
-            />
-          </div>
+          {step === 'info' ? (
+            <form onSubmit={handleInitiateSignup} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-sm font-medium text-foreground">
+                  Full Name <span className="text-muted-foreground text-xs font-normal">(optional)</span>
+                </Label>
+                <Input
+                  id="name"
+                  type="text"
+                  autoComplete="name"
+                  placeholder="Alex Smith"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={isLoading}
+                  className="bg-background/50 border-border focus-visible:ring-primary h-10"
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm font-medium text-foreground">
-              Email Address <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              placeholder="name@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={isLoading}
-              required
-              className="bg-background/50 border-border focus-visible:ring-primary h-10"
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm font-medium text-foreground">
+                  Email Address <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
+                  required
+                  className="bg-background/50 border-border focus-visible:ring-primary h-10"
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-sm font-medium text-foreground">
-              Password <span className="text-destructive">*</span>
-            </Label>
-            <div className="relative">
-              <Input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="new-password"
-                placeholder="Letters and numbers, 6+ characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-                required
-                className="bg-background/50 border-border focus-visible:ring-primary h-10 pr-10"
-              />
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-sm font-medium text-foreground">
+                  Password <span className="text-destructive">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    placeholder="e.g. MyPass123"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                    required
+                    className="bg-background/50 border-border focus-visible:ring-primary h-10 pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-0 top-0 h-10 w-10 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+
+                {/* Password Criteria Feedback */}
+                {password.length > 0 && (
+                  <div className="mt-2 space-y-1.5 rounded-lg border border-border/50 bg-secondary/30 p-2.5 text-xs">
+                    <div className="font-medium text-foreground mb-1">Password Requirements:</div>
+                    <div className="flex items-center gap-1.5">
+                      {hasMinLength ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      ) : (
+                        <XCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      )}
+                      <span className={hasMinLength ? 'text-foreground' : 'text-muted-foreground'}>
+                        At least 6 characters
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {hasLetter ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      ) : (
+                        <XCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      )}
+                      <span className={hasLetter ? 'text-foreground' : 'text-muted-foreground'}>
+                        Contains letters (a-z, A-Z)
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {hasNumber ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      ) : (
+                        <XCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      )}
+                      <span className={hasNumber ? 'text-foreground' : 'text-muted-foreground'}>
+                        Contains at least one number (0-9)
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">
+                  Confirm Password <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="confirmPassword"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  placeholder="Repeat your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  disabled={isLoading}
+                  required
+                  className="bg-background/50 border-border focus-visible:ring-primary h-10"
+                />
+              </div>
+
               <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-0 top-0 h-10 w-10 text-muted-foreground hover:text-foreground"
-                tabIndex={-1}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-all shadow-md shadow-primary/10 mt-2"
               >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending verification code...
+                  </>
+                ) : (
+                  <>
+                    Continue to Email Verification <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
+                )}
               </Button>
-            </div>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyAndRegister} className="space-y-4">
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                We sent a 6-digit confirmation code to{' '}
+                <span className="font-semibold text-foreground">{email}</span>.
+                {sentCodeHint && (
+                  <div className="mt-2 pt-2 border-t border-primary/20 flex items-center justify-between">
+                    <span>Verification Code:</span>
+                    <button
+                      type="button"
+                      onClick={() => setVerificationCode(sentCodeHint)}
+                      className="font-mono font-bold text-primary hover:underline bg-primary/10 px-2 py-0.5 rounded"
+                    >
+                      {sentCodeHint} (Click to Fill)
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="verificationCode" className="text-sm font-medium text-foreground">
+                  6-Digit Verification Code
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="verificationCode"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    autoComplete="one-time-code"
+                    placeholder="123456"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                    disabled={isLoading}
+                    required
+                    className="bg-background/50 border-border focus-visible:ring-primary h-12 text-center text-xl font-mono tracking-widest"
+                  />
+                  <KeyRound className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground/60" />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={isLoading || verificationCode.length < 6}
+                className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-all shadow-md shadow-primary/10 mt-2"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Verifying & creating account...
+                  </>
+                ) : (
+                  <>
+                    Verify & Create Account <CheckCircle2 className="ml-2 h-4 w-4" />
+                  </>
+                )}
+              </Button>
+
+              <div className="flex items-center justify-between text-xs pt-2">
+                <button
+                  type="button"
+                  onClick={() => setStep('info')}
+                  className="text-muted-foreground hover:text-foreground underline"
+                >
+                  Edit details
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  disabled={isLoading}
+                  className="text-primary hover:underline font-medium"
+                >
+                  Resend code
+                </button>
+              </div>
+            </form>
+          )}
+        </CardContent>
+
+        <CardFooter className="flex flex-col space-y-4 pt-2 border-t border-border/40 text-center text-sm text-muted-foreground">
+          <div>
+            Already have an account?{' '}
+            <Link
+              href={callbackUrl !== '/dashboard' ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : '/login'}
+              className="font-semibold text-primary hover:underline"
+            >
+              Sign in
+            </Link>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">
-              Confirm Password <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="confirmPassword"
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="new-password"
-              placeholder="Repeat your password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              disabled={isLoading}
-              required
-              className="bg-background/50 border-border focus-visible:ring-primary h-10"
-            />
+          <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground/80">
+            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+            <span>Encrypted Password Hashing & Email Verification</span>
           </div>
-
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-all shadow-md shadow-primary/10 mt-2"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating account...
-              </>
-            ) : (
-              <>
-                Create Account <ArrowRight className="ml-2 h-4 w-4" />
-              </>
-            )}
-          </Button>
-        </form>
-      </CardContent>
-
-      <CardFooter className="flex flex-col space-y-4 pt-2 border-t border-border/40 text-center text-sm text-muted-foreground">
-        <div>
-          Already have an account?{' '}
-          <Link
-            href={callbackUrl !== '/dashboard' ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : '/login'}
-            className="font-semibold text-primary hover:underline"
-          >
-            Sign in
-          </Link>
-        </div>
-        <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground/80">
-          <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-          <span>Encrypted Password Hashing & JWT Sessions</span>
-        </div>
-      </CardFooter>
+        </CardFooter>
       </Card>
     </div>
   )
@@ -232,11 +443,13 @@ export default function SignupPage() {
       {/* Background ambient glow */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-125 h-125 bg-primary/10 blur-[120px] rounded-full pointer-events-none -z-10" />
 
-      <Suspense fallback={
-        <div className="w-full max-w-md h-120 rounded-xl bg-card/50 animate-pulse flex items-center justify-center">
-          <Loader2 className="h-8 w-8 text-primary animate-spin" />
-        </div>
-      }>
+      <Suspense
+        fallback={
+          <div className="w-full max-w-md h-120 rounded-xl bg-card/50 animate-pulse flex items-center justify-center">
+            <Loader2 className="h-8 w-8 text-primary animate-spin" />
+          </div>
+        }
+      >
         <SignupForm />
       </Suspense>
     </div>
