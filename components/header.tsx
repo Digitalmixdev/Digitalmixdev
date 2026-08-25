@@ -161,6 +161,18 @@ export function Header() {
 
           {/* Header Actions */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Theme Toggle */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={toggleTheme} 
+              className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all active:scale-95"
+              aria-label="Toggle theme"
+              suppressHydrationWarning
+            >
+              {mounted && resolvedTheme === 'dark' ? <Sun className="h-4.5 w-4.5 text-amber-400" /> : <Moon className="h-4.5 w-4.5" />}
+            </Button>
+
             {/* Quick Favorites Link (Desktop) */}
             {!isLoading && isAuthenticated && (
               <Button
@@ -175,18 +187,6 @@ export function Header() {
                 </Link>
               </Button>
             )}
-
-            {/* Theme Toggle */}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={toggleTheme} 
-              className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all active:scale-95"
-              aria-label="Toggle theme"
-              suppressHydrationWarning
-            >
-              {mounted && resolvedTheme === 'dark' ? <Sun className="h-4.5 w-4.5 text-amber-400" /> : <Moon className="h-4.5 w-4.5" />}
-            </Button>
 
             {/* Auth Section */}
             <div className="hidden sm:flex items-center min-h-[36px]">

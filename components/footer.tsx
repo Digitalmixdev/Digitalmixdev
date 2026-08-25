@@ -87,14 +87,6 @@ export function Footer() {
                         </Link>
                       </li>
                     ))}
-                    <li>
-                      <Link
-                        href="/tools"
-                        className="text-sm font-medium text-primary hover:underline"
-                      >
-                        All Tools →
-                      </Link>
-                    </li>
                   </ul>
                 </div>
 
