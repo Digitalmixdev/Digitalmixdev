@@ -84,7 +84,7 @@ function SignupForm() {
   return (
     <div className="w-full max-w-md">
       <Button asChild variant="ghost" className="mb-3 gap-2 text-muted-foreground">
-        <Link href="/dashboard"><ArrowLeft data-icon="inline-start" />Return to Dashboard</Link>
+        <Link href="/"><ArrowLeft className="h-4 w-4" />Back to Home</Link>
       </Button>
       <Card className="w-full border-border/80 bg-card/95 shadow-2xl backdrop-blur-xl">
       <CardHeader className="space-y-3 text-center pb-6">

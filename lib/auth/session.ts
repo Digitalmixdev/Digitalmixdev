@@ -13,22 +13,36 @@ export interface Session {
  * Set the HTTP-only session cookie with the given JWT token
  */
 export async function setSessionCookie(token: string): Promise<void> {
-  const cookieStore = await cookies()
-  cookieStore.set(SESSION_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: SESSION_MAX_AGE,
-  })
+  try {
+    const cookieStore = await cookies()
+    cookieStore.set(SESSION_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      path: '/',
+      maxAge: SESSION_MAX_AGE,
+    })
+  } catch (err) {
+    console.warn('[Session] Failed to set cookie:', err)
+  }
 }
 
 /**
  * Delete the session cookie (logout)
  */
 export async function clearSessionCookie(): Promise<void> {
-  const cookieStore = await cookies()
-  cookieStore.delete(SESSION_COOKIE_NAME)
+  try {
+    const cookieStore = await cookies()
+    cookieStore.set(SESSION_COOKIE_NAME, '', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      path: '/',
+      maxAge: 0,
+    })
+  } catch (err) {
+    console.warn('[Session] Failed to clear cookie:', err)
+  }
 }
 
 /**
@@ -62,7 +76,16 @@ export async function getSession(): Promise<Session | null> {
     })
 
     if (!user) {
-      return null
+      const restoredUser: SessionUser = {
+        id: payload.userId,
+        email: payload.email,
+        name: payload.name || null,
+        avatarData: null,
+        emailNotifications: true,
+        themePreference: 'dark',
+        role: payload.role || 'USER',
+      }
+      return { user: restoredUser }
     }
 
     return { user }
@@ -78,7 +101,7 @@ export async function getCurrentUser() {
   const session = await getSession()
   if (!session?.user?.id) return null
 
-  return prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
       id: true,
@@ -93,4 +116,19 @@ export async function getCurrentUser() {
       updatedAt: true,
     },
   })
+
+  if (user) return user
+
+  return {
+    id: session.user.id,
+    email: session.user.email,
+    name: session.user.name ?? null,
+    avatarData: session.user.avatarData ?? null,
+    emailNotifications: session.user.emailNotifications ?? true,
+    themePreference: session.user.themePreference ?? 'dark',
+    role: session.user.role ?? 'USER',
+    toolsUsedCount: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }
 }

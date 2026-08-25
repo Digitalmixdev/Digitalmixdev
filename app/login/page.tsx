@@ -61,10 +61,42 @@ function LoginForm() {
     }
   }
 
+  const handleDemoLogin = async () => {
+    setEmail('demo@digitalmix.dev')
+    setPassword('demo1234')
+    setIsLoading(true)
+    setErrorMessage(null)
+
+    try {
+      const result = await loginAction({ email: 'demo@digitalmix.dev', password: 'demo1234' })
+
+      if (!result.success) {
+        const errorText = result.error || 'Failed to sign in'
+        setErrorMessage(errorText)
+        toast.error('Authentication failed', { description: errorText })
+        return
+      }
+
+      if (result.data?.user) {
+        setUser(result.data.user)
+      }
+
+      toast.success('Welcome back, Demo Developer!', { description: 'Signed in successfully.' })
+      router.push(callbackUrl)
+      router.refresh()
+    } catch {
+      const errorMsg = 'An unexpected error occurred. Please try again.'
+      setErrorMessage(errorMsg)
+      toast.error('Error', { description: errorMsg })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="w-full max-w-md">
       <Button asChild variant="ghost" className="mb-3 gap-2 text-muted-foreground">
-        <Link href="/dashboard"><ArrowLeft data-icon="inline-start" />Return to Dashboard</Link>
+        <Link href="/"><ArrowLeft className="h-4 w-4" />Back to Home</Link>
       </Button>
       <Card className="w-full border-border/80 bg-card/95 shadow-2xl backdrop-blur-xl">
       <CardHeader className="space-y-3 text-center pb-6">
@@ -151,6 +183,25 @@ function LoginForm() {
                 Sign In <ArrowRight className="ml-2 h-4 w-4" />
               </>
             )}
+          </Button>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border/60" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Or for preview</span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleDemoLogin}
+            disabled={isLoading}
+            className="w-full h-10 border-dashed text-xs font-semibold hover:bg-secondary"
+          >
+            ✨ 1-Click Demo Account Sign In
           </Button>
         </form>
       </CardContent>

@@ -1,0 +1,6 @@
+{
+  "name": "DigitalMix",
+  "description": "Free, privacy-first developer tools and utilities including JSON/SQL formatters, Base64 & JWT tools, UUID generator, and calculators.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

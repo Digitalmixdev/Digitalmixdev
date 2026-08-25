@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   images: {
     unoptimized: true,
   },
@@ -11,11 +12,6 @@ const nextConfig = {
         {
           key: 'X-Content-Type-Options',
           value: 'nosniff',
-        },
-        // Prevent clickjacking attacks
-        {
-          key: 'X-Frame-Options',
-          value: 'SAMEORIGIN',
         },
         // Enable XSS protection in older browsers
         {
