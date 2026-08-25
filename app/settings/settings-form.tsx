@@ -239,11 +239,15 @@ export function SettingsForm({ user }: SettingsFormProps) {
       }
 
       setUser(null)
+      try {
+        localStorage.removeItem('digitalmix_auth_user')
+      } catch {
+        // ignore
+      }
       toast.success('Account permanently deleted', {
         description: 'All your data has been removed from our database.',
       })
-      router.push('/')
-      router.refresh()
+      window.location.href = '/'
     } catch {
       toast.error('An error occurred during account deletion')
     } finally {

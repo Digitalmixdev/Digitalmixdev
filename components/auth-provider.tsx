@@ -48,61 +48,39 @@ export function AuthProvider({
       if (currentUser) {
         setUser(currentUser)
       } else {
-        // Check localStorage fallback for iframe resilience
-        try {
-          const cached = localStorage.getItem(STORAGE_KEY)
-          if (cached) {
-            const parsed = JSON.parse(cached) as SessionUser
-            if (parsed && parsed.id && parsed.email) {
-              setUserState(parsed)
-            }
-          }
-        } catch {
-          // ignore
-        }
+        // Explicitly clear local state if server has no session (account deleted or logged out)
+        setUser(null)
       }
     } catch {
-      try {
-        const cached = localStorage.getItem(STORAGE_KEY)
-        if (cached) {
-          const parsed = JSON.parse(cached) as SessionUser
-          if (parsed && parsed.id && parsed.email) {
-            setUserState(parsed)
-          }
-        }
-      } catch {
-        setUserState(null)
-      }
+      setUser(null)
     } finally {
       setIsLoading(false)
     }
   }, [setUser])
 
   useEffect(() => {
-    // Check initial cached user immediately on mount to prevent flash of unauthenticated state
-    try {
-      const cached = localStorage.getItem(STORAGE_KEY)
-      if (cached && !initialUser) {
-        const parsed = JSON.parse(cached) as SessionUser
-        if (parsed && parsed.id) {
-          setUserState(parsed)
-        }
-      }
-    } catch {
-      // ignore
-    }
-
     refreshSession()
-  }, [initialUser, refreshSession])
+  }, [refreshSession])
 
   const logout = useCallback(async () => {
     try {
       setUser(null)
+      try {
+        localStorage.removeItem(STORAGE_KEY)
+      } catch {
+        // ignore
+      }
       await logoutAction()
       router.push('/')
       router.refresh()
     } catch (error) {
       console.error('Failed to log out:', error)
+      setUser(null)
+      try {
+        localStorage.removeItem(STORAGE_KEY)
+      } catch {
+        // ignore
+      }
     }
   }, [router, setUser])
 
