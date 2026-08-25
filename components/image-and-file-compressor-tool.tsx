@@ -87,8 +87,17 @@ const toolMeta: ToolMetadata = {
       title: 'Batch Optimization & ZIP Export',
       desc: 'Process dozens of files concurrently and download individually or in a single packaged bundle.',
     },
+    {
+      icon: ShieldCheck,
+      title: '100% Client-Side Privacy',
+      desc: 'All operations execute directly in your browser memory with zero server uploads or tracking.',
+    },
   ],
   faqs: [
+    {
+      q: 'What is Deflate level?',
+      a: 'Deflate level (ranging from 1 to 9) determines the balance between compression speed and file size reduction in ZIP archives. Level 1 provides the fastest compression with standard file reduction, Level 6 is the balanced industry default, and Level 9 performs the deepest search for maximum byte savings.',
+    },
     {
       q: 'Does compressing my images or files upload them to a server?',
       a: 'No. All processing happens 100% locally inside your browser using HTML5 Canvas and WebAssembly. Your photos and documents never touch external servers.',

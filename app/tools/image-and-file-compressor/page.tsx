@@ -91,6 +91,14 @@ export default function ImageAndFileCompressorPage() {
         mainEntity: [
           {
             '@type': 'Question',
+            name: 'What is Deflate level?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Deflate level (ranging from 1 to 9) determines the balance between compression speed and file size reduction in ZIP archives. Level 1 is fastest, Level 6 is balanced, and Level 9 provides maximum compression.',
+            },
+          },
+          {
+            '@type': 'Question',
             name: 'Are my files or images uploaded to a server?',
             acceptedAnswer: {
               '@type': 'Answer',
