@@ -26,7 +26,7 @@ export function CTASection() {
               className="gap-2 rounded-xl px-7 py-5 text-sm font-bold bg-white text-slate-900 hover:bg-white/90 hover:scale-105 transition-all shadow-xl"
             >
               <Link href="/tools">
-                Explore All 14 Tools
+                Explore All 16 Tools
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>

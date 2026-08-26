@@ -474,25 +474,25 @@ export default function ImageAndFileCompressorTool() {
 
   return (
     <ToolLayout metadata={toolMeta}>
-      <div className="space-y-6">
+      <div className="space-y-6 overflow-x-hidden w-full max-w-full">
         {/* Compression Mode Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'image' | 'file')} className="w-full">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-            <TabsList className="bg-secondary/60 p-1 rounded-xl">
-              <TabsTrigger value="image" className="rounded-lg gap-2 data-[state=active]:bg-background">
-                <ImageIcon className="h-4 w-4" />
-                Image Compressor (PNG/JPG/WebP)
+          <div className="flex flex-col gap-4 mb-4">
+            <TabsList className="w-full grid grid-cols-1 sm:grid-cols-2 bg-secondary/60 p-1.5 rounded-xl h-auto gap-1">
+              <TabsTrigger value="image" className="rounded-lg gap-2 data-[state=active]:bg-background py-2 text-xs sm:text-sm justify-center truncate">
+                <ImageIcon className="h-4 w-4 shrink-0" />
+                <span className="truncate">Image Compressor <span className="hidden md:inline">(PNG/JPG/WebP)</span></span>
               </TabsTrigger>
-              <TabsTrigger value="file" className="rounded-lg gap-2 data-[state=active]:bg-background">
-                <FileArchive className="h-4 w-4" />
-                File Compressor
+              <TabsTrigger value="file" className="rounded-lg gap-2 data-[state=active]:bg-background py-2 text-xs sm:text-sm justify-center truncate">
+                <FileArchive className="h-4 w-4 shrink-0" />
+                <span className="truncate">File Compressor</span>
               </TabsTrigger>
             </TabsList>
 
             {/* Quick Presets */}
             {activeTab === 'image' && (
-              <div className="flex items-center gap-1.5 bg-secondary/40 p-1 rounded-xl border border-border/50 text-xs">
-                <span className="text-muted-foreground px-2 font-medium">Presets:</span>
+              <div className="flex flex-wrap items-center gap-1.5 bg-secondary/40 p-2 rounded-xl border border-border/50 text-xs w-full justify-start sm:justify-end">
+                <span className="text-muted-foreground px-1.5 font-medium">Presets:</span>
                 <Button
                   size="sm"
                   variant={preset === 'high_compression' ? 'default' : 'ghost'}
@@ -688,7 +688,7 @@ export default function ImageAndFileCompressorTool() {
           <Card className="border-border bg-card shadow-sm">
             <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
               {/* Summary Stats */}
-              <div className="flex items-center gap-6 text-sm">
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm w-full md:w-auto">
                 <div>
                   <div className="text-xs text-muted-foreground">Files Selected</div>
                   <div className="font-bold text-foreground">{items.length}</div>
@@ -712,13 +712,13 @@ export default function ImageAndFileCompressorTool() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-2.5 w-full md:w-auto">
+              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={clearAll}
                   disabled={isProcessing}
-                  className="rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  className="rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 text-xs"
                 >
                   <Trash2 className="h-4 w-4 mr-1.5" />
                   Clear All
@@ -728,7 +728,7 @@ export default function ImageAndFileCompressorTool() {
                   size="sm"
                   onClick={processItems}
                   disabled={isProcessing || items.length === 0}
-                  className="rounded-xl shadow-sm"
+                  className="rounded-xl shadow-sm text-xs"
                 >
                   <RefreshCw className={`h-4 w-4 mr-1.5 ${isProcessing ? 'animate-spin' : ''}`} />
                   {isProcessing ? 'Compressing...' : 'Start Compression'}
@@ -738,10 +738,10 @@ export default function ImageAndFileCompressorTool() {
                   size="sm"
                   onClick={downloadAllAsZip}
                   disabled={isProcessing || items.length === 0}
-                  className="rounded-xl shadow-sm"
+                  className="rounded-xl shadow-sm text-xs"
                 >
                   <Download className="h-4 w-4 mr-1.5" />
-                  Download All as ZIP
+                  Download ZIP
                 </Button>
               </div>
             </CardContent>

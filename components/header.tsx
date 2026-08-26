@@ -23,6 +23,7 @@ import {
   Maximize2,
   QrCode,
   FileArchive,
+  Flame,
   ChevronDown,
   Moon,
   Sun,
@@ -62,6 +63,7 @@ const toolIconMap: Record<string, LucideIcon> = {
   Maximize2,
   QrCode,
   FileArchive,
+  Flame,
 }
 
 function showComingSoon() {

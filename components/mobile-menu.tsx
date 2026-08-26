@@ -19,6 +19,7 @@ import {
   Maximize2,
   QrCode,
   FileArchive,
+  Flame,
   Menu,
   X,
   LayoutDashboard,
@@ -57,6 +58,7 @@ const toolIconMap: Record<string, LucideIcon> = {
   Maximize2,
   QrCode,
   FileArchive,
+  Flame,
 }
 
 interface MobileMenuProps {
@@ -122,7 +124,7 @@ export function MobileMenu({
               <div className="p-1 rounded-lg bg-primary/10 text-primary">
                 <LayoutDashboard className="h-3.5 w-3.5" />
               </div>
-              <span>All Tools (14)</span>
+              <span>All Tools (16)</span>
             </Link>
 
             {isSignedIn && (

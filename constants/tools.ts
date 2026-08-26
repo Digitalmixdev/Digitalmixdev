@@ -10,6 +10,7 @@ export type ToolId =
   | 'kpi-calculator'
   | 'profit-calculator'
   | 'roi-calculator'
+  | 'calorie-calculator'
   | 'pdf-merge'
   | 'image-resizer'
   | 'qr-code-generator'
@@ -170,6 +171,17 @@ export const ALL_TOOLS: ToolDefinition[] = [
     active: true,
     keywords: ['roi', 'investment', 'return', 'finance', 'calculator'],
   },
+  {
+    id: 'calorie-calculator',
+    name: 'Calorie & BMR Calculator',
+    slug: 'calorie-calculator',
+    href: '/tools/calorie-calculator',
+    description: 'Calculate daily calorie needs, BMR, TDEE, and custom macronutrient breakdowns.',
+    categoryId: 'calculators',
+    icon: 'Flame',
+    active: true,
+    keywords: ['calorie', 'bmr', 'tdee', 'diet', 'macros', 'calculator', 'health', 'weight loss'],
+  },
 
   // File Tools
   {
@@ -243,8 +255,8 @@ export const TOOL_CATEGORIES: ToolCategory[] = [
   },
   {
     id: 'calculators',
-    name: 'Business Calculators',
-    description: 'ROI, CAC, LTV and other business metrics calculators',
+    name: 'Calculators',
+    description: 'Calorie, ROI, CAC, LTV and other professional calculators',
     slug: 'calculators',
     icon: '🧮',
     color: 'from-amber-500/20 to-amber-600/5',

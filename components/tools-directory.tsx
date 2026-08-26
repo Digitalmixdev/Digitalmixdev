@@ -17,6 +17,7 @@ import {
   Maximize2,
   QrCode,
   FileArchive,
+  Flame,
   File,
   Search,
   ArrowRight,
@@ -42,6 +43,7 @@ const ICON_MAP: Record<string, any> = {
   Layers,
   Maximize2,
   QrCode,
+  Flame,
 }
 
 const CATEGORY_ICON_MAP: Record<CategoryId, any> = {

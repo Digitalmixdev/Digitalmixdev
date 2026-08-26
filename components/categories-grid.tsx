@@ -9,7 +9,8 @@ import {
   Calculator,
   FileText,
   ArrowRight,
-  Rocket
+  Rocket,
+  Flame,
 } from "lucide-react"
 import { TOOL_CATEGORIES, ToolDefinition, ToolCategory, CategoryId } from "@/constants/tools"
 

@@ -190,7 +190,7 @@ function QRCodeToolContent() {
   return (
     <ToolLayout metadata={toolMeta} maxWidth="6xl">
       {/* Schema Template Tabs */}
-      <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mb-8 bg-muted/60 p-1.5 rounded-2xl border border-border/70 w-full sm:w-fit mx-auto overflow-x-auto">
+      <div className="flex flex-nowrap sm:flex-wrap items-center justify-start sm:justify-center gap-1.5 sm:gap-2 mb-8 bg-muted/60 p-1.5 rounded-2xl border border-border/70 w-full mx-auto overflow-x-auto">
         <button
           type="button"
           onClick={() => setQrType('url')}
@@ -406,7 +406,7 @@ function QRCodeToolContent() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">Foreground</label>
                 <div className="flex items-center gap-2 bg-background border border-border p-1.5 rounded-xl">
@@ -470,7 +470,7 @@ function QRCodeToolContent() {
 
           <div
             ref={qrRef}
-            className="p-5 rounded-2xl bg-white shadow-md border border-border/60 flex items-center justify-center max-w-70"
+            className="p-5 rounded-2xl bg-white shadow-md border border-border/60 flex items-center justify-center max-w-full sm:max-w-70 overflow-x-auto"
           >
             <QRCodeSVG
               value={payload}
