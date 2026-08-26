@@ -44,16 +44,13 @@ export async function loginAction(values: {
       where: { email },
     })
 
-    if (!user) {
+    if (!user || !user.passwordHash) {
       return { success: false, error: 'Invalid email or password' }
     }
 
-    // Check password if hash exists
-    if (user.passwordHash) {
-      const isPasswordValid = await verifyPassword(password, user.passwordHash)
-      if (!isPasswordValid) {
-        return { success: false, error: 'Invalid email or password' }
-      }
+    const isPasswordValid = await verifyPassword(password, user.passwordHash)
+    if (!isPasswordValid) {
+      return { success: false, error: 'Invalid email or password' }
     }
 
     const sessionUser: SessionUser = {

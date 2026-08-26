@@ -43,6 +43,14 @@ export function LazyThirdPartyScripts() {
       {/* Google Analytics */}
       {gaId && <GoogleAnalytics gaId={gaId} />}
 
+      {/* Google AdSense */}
+      <Script
+        id="google-adsense"
+        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5995253364983936"
+        crossOrigin="anonymous"
+        strategy="afterInteractive"
+      />
+
       {/* Microsoft Clarity Analytics */}
       {clarityId && (
         <Script
