@@ -16,6 +16,7 @@ import {
   Upload,
   User as UserIcon,
   XCircle,
+  Languages,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -28,6 +29,7 @@ import {
 import { PASSWORD_RULE_MESSAGE, isStrongPassword } from '@/lib/auth/password-rules'
 import { useAuth } from '@/components/auth-provider'
 import { useTheme } from '@/components/theme-provider'
+import { useLanguage } from '@/lib/i18n/context'
 import { UserAvatar } from '@/components/user-avatar'
 import { Button } from '@/components/ui/button'
 import {
@@ -53,6 +55,7 @@ export function SettingsForm({ user }: SettingsFormProps) {
   const router = useRouter()
   const { setUser } = useAuth()
   const { setTheme } = useTheme()
+  const { language, setLanguage, t } = useLanguage()
   const [isPending, startTransition] = useTransition()
 
   const [displayName, setDisplayName] = useState(user.name || '')
@@ -64,6 +67,7 @@ export function SettingsForm({ user }: SettingsFormProps) {
   const [themePreference, setThemePreference] = useState<ThemePreference>(
     user.themePreference === 'light' || user.themePreference === 'system' ? user.themePreference : 'dark',
   )
+  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'ar'>(language)
 
   // Account Deletion States
   const [deletionStep, setDeletionStep] = useState<'idle' | 'code-sent'>('idle')
@@ -74,10 +78,21 @@ export function SettingsForm({ user }: SettingsFormProps) {
     setTheme(themePreference)
   }, [setTheme, themePreference])
 
+  useEffect(() => {
+    setSelectedLanguage(language)
+  }, [language])
+
+  const handleLanguageChange = (newLang: 'en' | 'ar') => {
+    setSelectedLanguage(newLang)
+    setLanguage(newLang)
+    toast.success(newLang === 'ar' ? 'تم تغيير اللغة إلى العربية' : 'Language set to English')
+  }
+
   const isProfileDirty = displayName !== (user.name || '') || avatarData !== (user.avatarData || null)
   const isPreferencesDirty =
     emailNotifications !== (user.emailNotifications ?? true) ||
-    themePreference !== (user.themePreference || 'dark')
+    themePreference !== (user.themePreference || 'dark') ||
+    selectedLanguage !== language
 
   const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 // 2MB
 
@@ -260,19 +275,19 @@ export function SettingsForm({ user }: SettingsFormProps) {
       <TabsList className="grid w-full grid-cols-4 bg-muted/60 p-1">
         <TabsTrigger value="profile" className="flex items-center gap-2">
           <UserIcon className="h-4 w-4" />
-          <span className="hidden sm:inline">Profile</span>
+          <span className="hidden sm:inline">{t('settings.tab_profile', 'Profile')}</span>
         </TabsTrigger>
         <TabsTrigger value="password" className="flex items-center gap-2">
           <Shield className="h-4 w-4" />
-          <span className="hidden sm:inline">Security</span>
+          <span className="hidden sm:inline">{t('settings.tab_security', 'Security')}</span>
         </TabsTrigger>
         <TabsTrigger value="preferences" className="flex items-center gap-2">
           <Bell className="h-4 w-4" />
-          <span className="hidden sm:inline">Preferences</span>
+          <span className="hidden sm:inline">{t('settings.tab_preferences', 'Preferences')}</span>
         </TabsTrigger>
         <TabsTrigger value="danger" className="flex items-center gap-2 text-destructive data-[state=active]:text-destructive">
           <AlertTriangle className="h-4 w-4" />
-          <span className="hidden sm:inline">Delete Account</span>
+          <span className="hidden sm:inline">{t('settings.tab_danger', 'Delete Account')}</span>
         </TabsTrigger>
       </TabsList>
 
@@ -418,14 +433,50 @@ export function SettingsForm({ user }: SettingsFormProps) {
       <TabsContent value="preferences">
         <Card className="border-border">
           <CardHeader>
-            <CardTitle>Preferences</CardTitle>
-            <CardDescription>Choose how DigitalMix looks and when it can contact you.</CardDescription>
+            <CardTitle>{t('settings.tab_preferences', 'Preferences')}</CardTitle>
+            <CardDescription>{t('settings.subtitle', 'Choose how DigitalMix looks and when it can contact you.')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
+            {/* Language Selector */}
             <div className="flex flex-col gap-4 rounded-xl border border-border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <Label>Theme</Label>
-                <p className="mt-1 text-sm text-muted-foreground">Switch between light and dark mode.</p>
+                <div className="flex items-center gap-2">
+                  <Languages className="h-4 w-4 text-primary" />
+                  <Label className="font-semibold text-foreground">{t('settings.pref_language', 'Display Language')}</Label>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t('settings.pref_language_desc', 'Choose your preferred interface language (English or Arabic).')}
+                </p>
+              </div>
+              <div className="inline-flex rounded-xl border border-border bg-muted/60 p-1">
+                <Button
+                  type="button"
+                  variant={selectedLanguage === 'en' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => handleLanguageChange('en')}
+                  aria-pressed={selectedLanguage === 'en'}
+                  className="rounded-lg text-xs font-semibold"
+                >
+                  English
+                </Button>
+                <Button
+                  type="button"
+                  variant={selectedLanguage === 'ar' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => handleLanguageChange('ar')}
+                  aria-pressed={selectedLanguage === 'ar'}
+                  className="rounded-lg text-xs font-semibold"
+                >
+                  العربية
+                </Button>
+              </div>
+            </div>
+
+            {/* Theme Selector */}
+            <div className="flex flex-col gap-4 rounded-xl border border-border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <Label className="font-semibold text-foreground">{t('settings.pref_theme', 'Theme Mode')}</Label>
+                <p className="mt-1 text-sm text-muted-foreground">{t('settings.pref_theme_desc', 'Switch between light and dark mode.')}</p>
               </div>
               <div className="inline-flex rounded-xl border border-border bg-muted/60 p-1">
                 <Button
@@ -434,9 +485,10 @@ export function SettingsForm({ user }: SettingsFormProps) {
                   size="sm"
                   onClick={() => setThemePreference('light')}
                   aria-pressed={themePreference === 'light'}
+                  className="rounded-lg text-xs font-semibold"
                 >
-                  <Sun className="h-4 w-4" />
-                  Light
+                  <Sun className="h-4 w-4 mr-1.5" />
+                  {t('nav.light', 'Light')}
                 </Button>
                 <Button
                   type="button"
@@ -444,18 +496,19 @@ export function SettingsForm({ user }: SettingsFormProps) {
                   size="sm"
                   onClick={() => setThemePreference('dark')}
                   aria-pressed={themePreference === 'dark'}
+                  className="rounded-lg text-xs font-semibold"
                 >
-                  <Moon className="h-4 w-4" />
-                  Dark
+                  <Moon className="h-4 w-4 mr-1.5" />
+                  {t('nav.dark', 'Dark')}
                 </Button>
               </div>
             </div>
 
             <label className="flex cursor-pointer flex-col gap-4 rounded-xl border border-border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <span className="text-xs font-semibold text-foreground">Email notifications</span>
+                <span className="text-xs font-semibold text-foreground">{t('settings.pref_notifications', 'Email notifications')}</span>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Receive account and product updates by email.
+                  {t('settings.pref_notifications_desc', 'Receive account and product updates by email.')}
                 </p>
               </div>
               <span className="relative inline-flex h-7 w-12 shrink-0 items-center rounded-full bg-muted transition-colors has-[:checked]:bg-primary">
@@ -472,7 +525,7 @@ export function SettingsForm({ user }: SettingsFormProps) {
           <CardFooter className="justify-end border-t border-border/40 pt-4">
             <Button type="button" onClick={handlePreferencesSave} disabled={isPending || !isPreferencesDirty}>
               {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              Save Preferences
+              {t('settings.save_preferences', 'Save Preferences')}
             </Button>
           </CardFooter>
         </Card>

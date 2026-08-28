@@ -29,6 +29,8 @@ import {
 import { useAuth } from '@/components/auth-provider'
 import { UserMenu } from '@/components/user-menu'
 import { MobileMenu } from '@/components/mobile-menu'
+import { LanguageSwitcher } from '@/components/language-switcher'
+import { useLanguage } from '@/lib/i18n/context'
 import { Footer } from '@/components/footer'
 import {
   TOOL_CATEGORIES,
@@ -112,12 +114,37 @@ export function ToolLayout({
   const { resolvedTheme, toggleTheme } = useTheme()
   const router = useRouter()
   const { isAuthenticated, isLoading } = useAuth()
+  const { t, language } = useLanguage()
   const [mounted, setMounted] = useState(false)
   const [isFavorite, setIsFavorite] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const ToolIcon = metadata.icon || Wrench
-  const features = metadata.features && metadata.features.length > 0 ? metadata.features : DEFAULT_PILLARS
+
+  const defaultPillarsLocalized: ToolFeature[] = [
+    {
+      icon: Zap,
+      title: t('tool_layout.instant_title', 'Instant Execution'),
+      desc: t('tool_layout.instant_desc', 'Powered entirely by your browser thread with zero network latency.'),
+    },
+    {
+      icon: ShieldCheck,
+      title: t('tool_layout.client_side_title', '100% Client-Side'),
+      desc: t('tool_layout.client_side_desc', 'Your queries, texts, and files never leave your device.'),
+    },
+    {
+      icon: Lock,
+      title: t('tool_layout.secure_title', 'Sandboxed & Secure'),
+      desc: t('tool_layout.secure_desc', 'Local memory processing with zero server-side storage or tracking.'),
+    },
+    {
+      icon: Sparkles,
+      title: t('tool_layout.free_title', 'Free & Unlimited'),
+      desc: t('tool_layout.free_desc', 'No rate limits, subscription walls, or mandatory registrations.'),
+    },
+  ]
+
+  const features = metadata.features && metadata.features.length > 0 ? metadata.features : defaultPillarsLocalized
   const faqs = metadata.faqs || []
 
   // Compute related tools dynamically if not explicitly provided
@@ -238,8 +265,13 @@ export function ToolLayout({
               </Link>
             </div>
 
-            {/* Right: Actions (Theme, Tool Favorite Toggle, Auth Conditional Links) */}
+            {/* Right: Actions (Language, Theme, Tool Favorite Toggle, Auth Conditional Links) */}
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {/* Language Switcher */}
+              <div className="hidden sm:block">
+                <LanguageSwitcher variant="button" />
+              </div>
+
               {/* Favorite Button for the current tool */}
               {!isLoading && isAuthenticated && (
                 <Button
@@ -253,7 +285,7 @@ export function ToolLayout({
                       ? 'text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'
                       : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
                   )}
-                  title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                  title={isFavorite ? t('nav.favorites', 'Remove from favorites') : t('nav.favorites', 'Add to favorites')}
                   aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                 >
                   <Star
@@ -286,10 +318,10 @@ export function ToolLayout({
                   ) : (
                     <div className="hidden sm:flex items-center gap-2">
                       <Button asChild variant="ghost" size="sm" className="h-9 px-3 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground">
-                        <Link href="/login">Sign In</Link>
+                        <Link href="/login">{t('nav.signin', 'Sign In')}</Link>
                       </Button>
                       <Button asChild size="sm" className="h-9 px-3.5 text-xs font-bold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20">
-                        <Link href="/signup">Sign Up</Link>
+                        <Link href="/signup">{t('nav.signup', 'Sign Up')}</Link>
                       </Button>
                     </div>
                   )}
@@ -349,10 +381,10 @@ export function ToolLayout({
         <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-16 sm:mt-20 pt-12 border-t border-border/50">
           <div className="text-center max-w-2xl mx-auto mb-10">
             <h2 className="text-xs font-bold uppercase tracking-widest text-primary mb-2">
-              Performance & Privacy Guarantee
+              {t('tool_layout.guarantee_badge', 'Performance & Privacy Guarantee')}
             </h2>
             <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              Engineered for Modern Developers
+              {t('tool_layout.guarantee_title', 'Engineered for Modern Developers')}
             </h3>
           </div>
 
@@ -384,10 +416,10 @@ export function ToolLayout({
           <section className="mx-auto max-w-3xl px-4 sm:px-6 mt-16 sm:mt-20">
             <div className="text-center mb-8">
               <h2 className="text-xs font-bold uppercase tracking-widest text-primary mb-2">
-                Knowledge Base
+                {t('tool_layout.faq_badge', 'Knowledge Base')}
               </h2>
               <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-                Frequently Asked Questions
+                {t('tool_layout.faq_title', 'Frequently Asked Questions')}
               </h3>
             </div>
 
@@ -408,10 +440,10 @@ export function ToolLayout({
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
               <div>
                 <h3 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
-                  Explore More {metadata.category.name}
+                  {t('tool_layout.explore_more', 'Explore More')} {metadata.category.name}
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  Discover related utilities in the {metadata.category.name.toLowerCase()} suite.
+                  {t('tool_layout.related_desc', 'Discover related utilities in this suite.')}
                 </p>
               </div>
 
@@ -419,8 +451,8 @@ export function ToolLayout({
                 href={`/tools/${metadata.category.slug}`}
                 className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1 shrink-0"
               >
-                View all category tools
-                <ArrowRight className="h-3.5 w-3.5" />
+                {t('tool_layout.view_all_cat', 'View all category tools')}
+                <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
               </Link>
             </div>
 
@@ -434,7 +466,7 @@ export function ToolLayout({
                   <div>
                     <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors mb-1.5 flex items-center justify-between text-sm sm:text-base">
                       <span>{tool.name}</span>
-                      <ArrowRight className="h-4 w-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary" />
+                      <ArrowRight className="h-4 w-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary rtl:rotate-180" />
                     </h4>
                     {tool.description && (
                       <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
@@ -444,8 +476,8 @@ export function ToolLayout({
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-border/40 text-xs font-semibold text-primary inline-flex items-center gap-1">
-                    <span>Open Tool</span>
-                    <ArrowRight className="h-3 w-3" />
+                    <span>{t('tool_layout.open_tool', 'Open Tool')}</span>
+                    <ArrowRight className="h-3 w-3 rtl:rotate-180" />
                   </div>
                 </Link>
               ))}

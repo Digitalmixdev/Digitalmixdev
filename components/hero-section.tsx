@@ -3,6 +3,7 @@
 import { LazyMotion, domAnimation, m } from "framer-motion"
 import { Sparkles } from "lucide-react"
 import { SearchBox } from "@/components/search-box"
+import { useLanguage } from "@/lib/i18n/context"
 
 const heroVariants = {
   hidden: {},
@@ -27,6 +28,8 @@ const itemVariants = {
 }
 
 export function HeroSection() {
+  const { t, language } = useLanguage()
+
   return (
     <section className="relative overflow-visible">
       {/* Background Pattern */}
@@ -50,7 +53,7 @@ export function HeroSection() {
               variants={itemVariants}
             >
               <Sparkles className="h-4 w-4 text-primary" />
-              <span>18+ Essential Tools Launched</span>
+              <span>{t('hero.badge', '18+ Essential Tools Launched')}</span>
             </m.div>
 
             {/* Heading */}
@@ -58,8 +61,15 @@ export function HeroSection() {
               className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-foreground text-balance leading-tight"
               variants={itemVariants}
             >
-              Free Digital Tools to{" "}
-              <span className="text-primary">Simplify</span> Your Data & Dev Workflow
+              {language === 'ar' ? (
+                <>
+                  أدوات رقمية مجانية <span className="text-primary">لتسهيل</span> وإنجاز مهامك اليومية
+                </>
+              ) : (
+                <>
+                  Free Digital Tools to <span className="text-primary">Simplify</span> Your Data & Dev Workflow
+                </>
+              )}
             </m.h1>
 
             {/* Subheading */}
@@ -67,8 +77,10 @@ export function HeroSection() {
               className="mt-4 text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto text-pretty leading-relaxed"
               variants={itemVariants}
             >
-              Powerful, privacy-focused utilities for developers. No sign-up required.
-              Process files locally, convert data instantly, and boost your productivity.
+              {t(
+                'hero.subheading',
+                'Powerful, privacy-focused utilities for developers. No sign-up required. Process files locally, convert data instantly, and boost your productivity.',
+              )}
             </m.p>
 
             {/* Search Bar */}

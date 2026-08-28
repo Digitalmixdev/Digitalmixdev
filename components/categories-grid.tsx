@@ -13,6 +13,7 @@ import {
   Flame,
 } from "lucide-react"
 import { TOOL_CATEGORIES, ToolDefinition, ToolCategory, CategoryId } from "@/constants/tools"
+import { useLanguage } from "@/lib/i18n/context"
 
 const iconMap: Record<CategoryId, typeof Database> = {
   database: Database,
@@ -53,6 +54,7 @@ function showComingSoon() {
 
 export function CategoriesGrid() {
   const router = useRouter()
+  const { t } = useLanguage()
 
   const handleToolClick = (tool: ToolDefinition, e: React.MouseEvent) => {
     e.preventDefault()
@@ -64,19 +66,22 @@ export function CategoriesGrid() {
     }
   }
 
+  const getCategoryName = (id: string, defName: string) => t(`cat.${id}`, defName)
+  const getCategoryDesc = (id: string, defDesc: string) => t(`cat.${id}.desc`, defDesc)
+
   return (
     <section className="py-16 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-12 sm:mb-16">
           <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 px-3.5 py-1 rounded-full border border-primary/20">
-            Categorized Toolkits
+            {t('cat.toolkit_badge', 'Categorized Toolkits')}
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground text-balance mt-3">
-            Explore Powerful Developer Suites
+            {t('cat.toolkit_title', 'Explore Powerful Developer Suites')}
           </h2>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto text-pretty">
-            Discover lightweight, zero-latency utilities organized by workflow domain. All tools are free, private, and execute locally.
+            {t('cat.toolkit_subtitle', 'Discover lightweight, zero-latency utilities organized by workflow domain. All tools are free, private, and execute locally.')}
           </p>
         </div>
 
@@ -86,6 +91,8 @@ export function CategoriesGrid() {
             const IconComponent = iconMap[category.id] || Database
             const href = `/tools/${category.slug}`
             const catStyle = categoryStyles[category.id]
+            const categoryName = getCategoryName(category.id, category.name)
+            const categoryDesc = getCategoryDesc(category.id, category.description)
 
             return (
               <div
@@ -104,16 +111,16 @@ export function CategoriesGrid() {
                         <IconComponent className="h-6 w-6" />
                       </div>
                       <span className="inline-flex items-center rounded-full bg-secondary/80 border border-border/60 px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
-                        {category.tools.length} tools
+                        {category.tools.length} {t('cat.tools_count', 'tools')}
                       </span>
                     </div>
 
                     {/* Title and Description */}
                     <h3 className="text-lg font-bold text-foreground mb-1.5 group-hover:text-primary transition-colors">
-                      {category.name}
+                      {categoryName}
                     </h3>
                     <p className="text-xs sm:text-sm text-muted-foreground mb-4 leading-relaxed line-clamp-2">
-                      {category.description}
+                      {categoryDesc}
                     </p>
 
                     {/* Tool Tags with All Tools Visible from Outside in Category Colors */}
@@ -137,7 +144,7 @@ export function CategoriesGrid() {
                             <span className="flex items-center gap-1">
                               {tool.name}
                               {!tool.active && (
-                                <span className="text-[9px] opacity-70">Soon</span>
+                                <span className="text-[9px] opacity-70">{t('nav.coming_soon', 'Soon')}</span>
                               )}
                             </span>
                           </button>
@@ -148,8 +155,8 @@ export function CategoriesGrid() {
 
                   {/* Arrow CTA */}
                   <div className={`pt-3 border-t border-border/40 flex items-center justify-between text-xs font-semibold ${catStyle?.sublabelColor || 'text-primary'}`}>
-                    <span>Explore All {category.name}</span>
-                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                    <span>{t('cat.explore', 'Explore All')} {categoryName}</span>
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1 rtl:group-hover:-translate-x-1 rtl:rotate-180" />
                   </div>
                 </div>
               </div>

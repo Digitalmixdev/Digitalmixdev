@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { LayoutDashboard, Star, LogOut, Loader2, Settings } from 'lucide-react'
 import { useAuth } from '@/components/auth-provider'
+import { useLanguage } from '@/lib/i18n/context'
 import { UserAvatar } from '@/components/user-avatar'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,6 +23,7 @@ interface UserMenuProps {
 
 export function UserMenu({ align = 'end', className }: UserMenuProps) {
   const { user, logout } = useAuth()
+  const { t } = useLanguage()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   if (!user) return null
@@ -74,21 +76,21 @@ export function UserMenu({ align = 'end', className }: UserMenuProps) {
         <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-secondary">
           <Link href="/dashboard" className="flex items-center gap-2.5 px-2 py-2 text-sm font-medium">
             <LayoutDashboard className="h-4 w-4 text-primary" />
-            <span>Dashboard</span>
+            <span>{t('nav.dashboard', 'Dashboard')}</span>
           </Link>
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-secondary">
           <Link href="/settings" className="flex items-center gap-2.5 px-2 py-2 text-sm font-medium">
             <Settings className="h-4 w-4 text-emerald-500" />
-            <span>Settings</span>
+            <span>{t('nav.settings', 'Settings')}</span>
           </Link>
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-secondary">
           <Link href="/favorites" className="flex items-center gap-2.5 px-2 py-2 text-sm font-medium">
             <Star className="h-4 w-4 text-amber-500" />
-            <span>Favorites</span>
+            <span>{t('nav.favorites', 'Favorites')}</span>
           </Link>
         </DropdownMenuItem>
 
@@ -104,7 +106,7 @@ export function UserMenu({ align = 'end', className }: UserMenuProps) {
           ) : (
             <LogOut className="h-4 w-4 mr-2.5" />
           )}
-          <span>{isLoggingOut ? 'Logging out...' : 'Sign out'}</span>
+          <span>{isLoggingOut ? t('action.processing', 'Logging out...') : t('nav.logout', 'Sign out')}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -35,8 +35,8 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: 'Free Image & Media Converter | DigitalMix',
-    description: 'Convert JPG, PNG, WebP, SVG, and BMP with high quality. Combine pictures into a PDF album.',
+    title: 'Universal Image Converter | DigitalMix',
+    description: 'Convert between 14 image formats: AVIF, BMP, EPS, GIF, ICNS, ICO, JPG, ODD, PNG, PS, PSD, TIFF, WEBP, and XPS with client-side privacy.',
     type: 'website',
     url: 'https://www.digitalmix.dev/tools/image-converter',
     images: [
@@ -44,14 +44,14 @@ export const metadata: Metadata = {
         url: 'https://www.digitalmix.dev/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Image & Media Converter',
+        alt: 'Universal Image Converter',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Free Image & Media Converter',
-    description: 'Convert images to WebP, JPG, PNG or PDF album directly in browser.',
+    title: 'Universal Image Converter',
+    description: 'Convert between 14 image formats (AVIF, BMP, EPS, GIF, ICNS, ICO, JPG, ODD, PNG, PS, PSD, TIFF, WEBP, XPS) directly in browser.',
     images: ['https://www.digitalmix.dev/og-image.png'],
   },
 }
@@ -99,18 +99,34 @@ export default function ImageConverterPage() {
         mainEntity: [
           {
             '@type': 'Question',
-            name: 'Can I combine multiple pictures into a single PDF?',
+            name: 'Which image formats are supported by this tool?',
             acceptedAnswer: {
               '@type': 'Answer',
-              text: 'Yes! Select multiple photos, set the target format to PDF, pick your preferred page layout (Fit, A4 Portrait, or Letter), and download your compiled PDF.',
+              text: 'You can convert between 14 popular and specialized image formats: AVIF, BMP, EPS, GIF, ICNS, ICO, JPG, ODD, PNG, PS, PSD, TIFF, WEBP, and XPS.',
             },
           },
           {
             '@type': 'Question',
-            name: 'Is there any compression quality loss?',
+            name: 'How do I convert or combine photos into a PDF?',
             acceptedAnswer: {
               '@type': 'Answer',
-              text: 'You have full control over the quality slider. When converting to lossless formats like PNG, no compression artifacts are introduced.',
+              text: 'To convert single or multiple photos into PDF with custom page layouts (A4, Fit, Letter), margins, and live preview, use our Document & Office Converter tool.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Can I convert Adobe Photoshop PSD or Apple ICNS files in the browser?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Yes! Our custom decoders parse PSD layers and ICNS icon bundles directly inside your browser memory without uploading any files to a server.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Is there any quality loss during image conversion?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'You have full control over the quality slider. When converting to lossless formats like PNG, BMP, or TIFF, zero compression artifacts are introduced.',
             },
           },
         ],

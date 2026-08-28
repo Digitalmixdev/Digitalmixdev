@@ -1,10 +1,14 @@
+'use client'
+
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ALL_TOOLS } from "@/constants/tools"
+import { useLanguage } from "@/lib/i18n/context"
 
 export function CTASection() {
   const totalTools = ALL_TOOLS.length
+  const { t } = useLanguage()
 
   return (
     <section className="py-14 sm:py-20">
@@ -17,10 +21,10 @@ export function CTASection() {
           </div>
 
           <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white mb-3 text-balance">
-            Ready to Supercharge Your Workflow?
+            {t('cta.title', 'Ready to Supercharge Your Workflow?')}
           </h2>
           <p className="text-xs sm:text-base text-white/85 max-w-2xl mx-auto mb-7 text-pretty leading-relaxed">
-            Join thousands of developers using our {totalTools} free, zero-latency utilities every day. No subscription paywalls or registration required.
+            {t('cta.subtitle', `Join thousands of developers using our ${totalTools} free, zero-latency utilities every day. No subscription paywalls or registration required.`)}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Button
@@ -29,8 +33,8 @@ export function CTASection() {
               className="gap-2 rounded-xl px-7 py-5 text-sm font-bold bg-white text-slate-900 hover:bg-white/90 hover:scale-105 transition-all shadow-xl"
             >
               <Link href="/tools">
-                Explore All {totalTools} Tools
-                <ArrowRight className="h-4 w-4" />
+                {t('cta.explore_all', `Explore All ${totalTools} Tools`)}
+                <ArrowRight className="h-4 w-4 rtl:rotate-180" />
               </Link>
             </Button>
             <Button
@@ -40,7 +44,7 @@ export function CTASection() {
               className="gap-2 rounded-xl px-7 py-5 text-sm font-bold bg-black text-white border-white/20 hover:bg-white hover:text-black hover:border-white transition-all shadow-lg"
             >
               <Link href="/signup">
-                Create Free Account
+                {t('cta.create_account', 'Create Free Account')}
               </Link>
             </Button>
           </div>

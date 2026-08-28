@@ -41,7 +41,6 @@ import { markToolUsed } from '@/actions/toolUsage'
 import {
   convertSingleImage,
   decodeFileToCanvas,
-  imagesToPdf,
   SUPPORTED_IMAGE_FORMATS,
   type SupportedImageFormat,
 } from '@/lib/converters/image-converter'
@@ -101,11 +100,11 @@ const toolMeta: ToolMetadata = {
   faqs: [
     {
       q: 'Which image formats are supported?',
-      a: 'You can convert to and from all 15 formats: PDF, AVIF, BMP, EPS, GIF, ICNS, ICO, JPG, ODD, PNG, PS, PSD, TIFF, WEBP, and XPS.',
+      a: 'You can convert between 14 formats: AVIF, BMP, EPS, GIF, ICNS, ICO, JPG, ODD, PNG, PS, PSD, TIFF, WEBP, and XPS.',
     },
     {
-      q: 'Can I combine multiple images into a single PDF document?',
-      a: 'Yes! Select multiple images at once and use the "Merge All into 1 PDF" button to package all your images into a high-quality multi-page PDF.',
+      q: 'How can I convert or merge images into a PDF document?',
+      a: 'Use our dedicated Document & Office Converter tool to convert single or multiple photos (JPG, PNG, WEBP) into high-quality PDFs with custom page sizes, A4 layouts, and instant previews.',
     },
     {
       q: 'Can I convert Photoshop PSD and macOS ICNS files directly in my browser?',
@@ -308,31 +307,6 @@ export default function ImageConverterTool() {
     document.body.removeChild(a)
     URL.revokeObjectURL(zipUrl)
     toast.success('Downloaded all converted files as ZIP!')
-  }
-
-  const handleMergeAllToPdf = async () => {
-    if (items.length === 0) {
-      toast.error('Please upload images to combine into PDF')
-      return
-    }
-
-    try {
-      toast.info('Assembling images into a single PDF document...')
-      const files = items.map((it) => it.file)
-      const pdfBlob = await imagesToPdf(files, { pageSize: 'fit' })
-      const url = URL.createObjectURL(pdfBlob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `combined-images-${Date.now()}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      toast.success(`Generated PDF with ${items.length} images!`)
-    } catch (err: any) {
-      console.error(err)
-      toast.error('Failed to create PDF from images')
-    }
   }
 
   const openPreview = (item: ImageItem) => {
@@ -569,18 +543,6 @@ export default function ImageConverterTool() {
                 >
                   <Trash2 className="w-3.5 h-3.5 mr-1" /> Clear All
                 </Button>
-
-                {items.length > 1 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleMergeAllToPdf}
-                    className="text-xs h-9 rounded-xl gap-1.5 border-primary/40 hover:bg-primary/5 text-primary"
-                    title="Merge all selected images into a single multi-page PDF"
-                  >
-                    <Layers className="w-3.5 h-3.5" /> Merge All into 1 PDF
-                  </Button>
-                )}
 
                 {items.some((it) => it.status === 'success') && (
                   <Button

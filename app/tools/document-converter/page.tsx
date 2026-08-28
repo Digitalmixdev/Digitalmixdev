@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'Free Document & Office Converter | DigitalMix',
-    description: 'Convert between PDF, Word, PowerPoint, Excel, HTML, and Images with 100% client-side privacy.',
+    description: 'Convert Images (JPG, PNG, WEBP), Word, PowerPoint, Excel, HTML, and PDF with custom page layouts and 100% client-side privacy.',
     type: 'website',
     url: 'https://www.digitalmix.dev/tools/document-converter',
     images: [
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Free Document & Office Converter',
-    description: 'Convert Word, PDF, PPTX, Excel, HTML, and JPG safely in your browser memory.',
+    description: 'Convert multiple images to PDF with A4 layouts & live preview, plus Word, PPTX, Excel, HTML, and PDF.',
     images: ['https://www.digitalmix.dev/og-image.png'],
   },
 }
@@ -62,13 +62,13 @@ export default function DocumentConverterPage() {
       {
         '@type': 'SoftwareApplication',
         name: 'Document & Office Converter',
-        description: 'Free tool to convert between PDF, Word DOCX, PowerPoint PPTX, Excel XLSX, HTML, and Images',
+        description: 'Free tool to convert between PDF, Word DOCX, PowerPoint PPTX, Excel XLSX, HTML, and multiple Images (PNG, JPG, WEBP)',
         url: 'https://www.digitalmix.dev/tools/document-converter',
         applicationCategory: 'BusinessApplication',
         operatingSystem: 'Any',
         image: 'https://www.digitalmix.dev/og-image.png',
         featureList:
-          '100% client-side document conversion, Word to PDF, PDF to Word, Excel to PDF and HTML, PowerPoint to PDF, HTML to PDF, zero server uploads',
+          'Multi-image to PDF conversion, custom page layouts (A4, Fit, Letter), visual page preview, Word to PDF, PDF to Word, Excel to PDF and HTML, PowerPoint to PDF, HTML to PDF, zero server uploads',
         aggregateRating: {
           '@type': 'AggregateRating',
           ratingValue: '4.9',
@@ -98,26 +98,42 @@ export default function DocumentConverterPage() {
         mainEntity: [
           {
             '@type': 'Question',
-            name: 'Are my confidential documents uploaded to any server?',
+            name: 'How do I convert multiple PNG or JPG photos to PDF at once?',
             acceptedAnswer: {
               '@type': 'Answer',
-              text: 'No, all file conversions occur entirely within your browser memory using WebAssembly and client-side JavaScript. No file data is ever transmitted to a server.',
+              text: 'You can multi-select or drag & drop multiple JPG, PNG, WEBP, or AVIF photos into the upload area. You can reorder pages, configure layouts (A4, Fit, margins), preview the simulated PDF pages, and export them as a single merged PDF or individual PDF files.',
             },
           },
           {
             '@type': 'Question',
-            name: 'What formats can I convert?',
+            name: 'Can I customize the PDF page dimensions (A4, Fit to Image, Letter) and margins?',
             acceptedAnswer: {
               '@type': 'Answer',
-              text: 'You can convert between PDF, Microsoft Word (.docx), Microsoft PowerPoint (.pptx), Microsoft Excel (.xlsx, .csv), HTML, JPG, PNG, and Plain Text.',
+              text: 'Yes! You can choose between A4 Portrait, A4 Landscape, Fit to Image (dynamic aspect ratio), US Letter, adjust image scaling (Contain vs. Cover), and set custom page margins (0mm borderless, 5mm, 10mm, 18mm).',
             },
           },
           {
             '@type': 'Question',
-            name: 'Can I convert PowerPoint presentations to PDF?',
+            name: 'Can I preview how my images look in the PDF before downloading?',
             acceptedAnswer: {
               '@type': 'Answer',
-              text: 'Yes! The converter parses XML slide outlines and formatting inside the presentation and compiles them into a clean, multi-page PDF document.',
+              text: 'Yes, an interactive visual preview panel simulates the exact page dimensions, orientation, image positioning, and margins in real time, allowing you to browse through pages before exporting.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Can I download each converted image PDF separately or all together?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Both options are supported: you can download a consolidated multi-page PDF, download each page as an individual PDF file, or click "Download All ZIP" to get all individual PDFs in a single archive.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Are my confidential files or photos uploaded to any external server?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'No, all file conversions and PDF rendering happen entirely within your browser memory using WebAssembly. Your files never leave your device.',
             },
           },
         ],

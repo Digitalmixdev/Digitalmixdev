@@ -34,6 +34,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/components/auth-provider'
 import { UserAvatar } from '@/components/user-avatar'
+import { useLanguage } from '@/lib/i18n/context'
+import { LanguageSwitcher } from '@/components/language-switcher'
 import type { ToolCategory, ToolDefinition } from '@/constants/tools'
 
 const iconMap: Record<string, LucideIcon> = {
@@ -105,6 +107,12 @@ export function MobileMenu({
   }
 
   const displayName = user?.name || (user?.email ? user.email.split('@')[0] : 'User')
+  const { t } = useLanguage()
+
+  const getCategoryTitle = (categoryId: string, defaultName: string) => {
+    return t(`cat.${categoryId}`, defaultName)
+  }
+
   return (
     <>
       <Button
@@ -119,7 +127,12 @@ export function MobileMenu({
 
       {mobileMenuOpen && (
         <div className="lg:hidden fixed inset-x-0 top-16 z-50 bg-background/95 backdrop-blur-2xl border-t border-border/60 flex flex-col max-h-[calc(100vh-64px)] overflow-y-auto p-4 sm:p-6 space-y-4 pb-20 shadow-2xl animate-in slide-in-from-top-4 duration-200">
-          {/* Quick Hub Links */}
+          {/* Quick Hub Links & Language Switcher */}
+          <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-card border border-border/70">
+            <span className="text-xs font-semibold text-muted-foreground">{t('nav.language', 'Language')}</span>
+            <LanguageSwitcher variant="button" />
+          </div>
+
           <div className={`grid ${isSignedIn ? 'grid-cols-2' : 'grid-cols-1'} gap-2 shrink-0 pb-2 border-b border-border/40`}>
             <Link
               href="/tools"
@@ -129,7 +142,7 @@ export function MobileMenu({
               <div className="p-1 rounded-lg bg-primary/10 text-primary">
                 <LayoutDashboard className="h-3.5 w-3.5" />
               </div>
-              <span>All Tools ({totalToolsCount})</span>
+              <span>{t('nav.all_tools', 'All Tools')} ({totalToolsCount})</span>
             </Link>
 
             {isSignedIn && (
@@ -141,7 +154,7 @@ export function MobileMenu({
                 <div className="p-1 rounded-lg bg-amber-500/10 text-amber-500">
                   <Star className="h-3.5 w-3.5 fill-amber-500" />
                 </div>
-                <span>My Favorites</span>
+                <span>{t('nav.favorites', 'My Favorites')}</span>
               </Link>
             )}
           </div>
@@ -150,6 +163,7 @@ export function MobileMenu({
           <nav className="space-y-3 shrink-0">
             {categories.map((category) => {
               const IconComponent = iconMap[category.id] || Code
+              const categoryTitle = getCategoryTitle(category.id, category.name)
 
               return (
                 <div key={category.id} className="rounded-2xl border border-border/60 bg-card/60 p-2.5 space-y-1">
@@ -158,7 +172,7 @@ export function MobileMenu({
                       <div className="p-1 rounded-md bg-primary/10 text-primary">
                         <IconComponent className="h-3.5 w-3.5" />
                       </div>
-                      <span>{category.name}</span>
+                      <span>{categoryTitle}</span>
                     </div>
                     <span className="text-[10px] font-semibold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
                       {category.tools.length}
@@ -189,7 +203,7 @@ export function MobileMenu({
                           </div>
                           {!isActive && (
                             <span className="text-[9px] font-bold bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground/70 ml-2 shrink-0">
-                              Soon
+                              {t('nav.coming_soon', 'Soon')}
                             </span>
                           )}
                         </Link>
@@ -207,12 +221,12 @@ export function MobileMenu({
               <div className="grid grid-cols-2 gap-2">
                 <Button asChild variant="outline" className="w-full h-11 text-xs font-semibold rounded-xl border-border">
                   <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                    Sign In
+                    {t('nav.signin', 'Sign In')}
                   </Link>
                 </Button>
                 <Button asChild className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-11 text-xs font-bold rounded-xl shadow-md shadow-primary/20">
                   <Link href="/signup" onClick={() => setMobileMenuOpen(false)}>
-                    Sign Up
+                    {t('nav.signup', 'Sign Up')}
                   </Link>
                 </Button>
               </div>
@@ -235,17 +249,17 @@ export function MobileMenu({
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <Button asChild variant="ghost" size="sm" className="justify-start text-xs font-semibold rounded-xl" onClick={() => setMobileMenuOpen(false)}>
                     <Link href="/dashboard" className="flex items-center gap-2">
-                      <LayoutDashboard className="h-3.5 w-3.5 text-primary" /> Dashboard
+                      <LayoutDashboard className="h-3.5 w-3.5 text-primary" /> {t('nav.dashboard', 'Dashboard')}
                     </Link>
                   </Button>
                   <Button asChild variant="ghost" size="sm" className="justify-start text-xs font-semibold rounded-xl" onClick={() => setMobileMenuOpen(false)}>
                     <Link href="/settings" className="flex items-center gap-2">
-                      <Settings className="h-3.5 w-3.5 text-emerald-500" /> Settings
+                      <Settings className="h-3.5 w-3.5 text-emerald-500" /> {t('nav.settings', 'Settings')}
                     </Link>
                   </Button>
                   <Button asChild variant="ghost" size="sm" className="justify-start text-xs font-semibold rounded-xl" onClick={() => setMobileMenuOpen(false)}>
                     <Link href="/favorites" className="flex items-center gap-2">
-                      <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> Favorites
+                      <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> {t('nav.favorites', 'Favorites')}
                     </Link>
                   </Button>
                 </div>
@@ -262,7 +276,7 @@ export function MobileMenu({
                   ) : (
                     <LogOut className="h-3.5 w-3.5 mr-1.5" />
                   )}
-                  <span>{isLoggingOut ? 'Logging out...' : 'Sign out'}</span>
+                  <span>{isLoggingOut ? t('action.processing', 'Logging out...') : t('nav.logout', 'Sign out')}</span>
                 </Button>
               </div>
             )}

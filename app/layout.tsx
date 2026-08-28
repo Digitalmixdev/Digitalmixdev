@@ -7,6 +7,7 @@ import { UserPreferencesSync } from '@/components/user-preferences-sync'
 import { PWAInstaller } from '@/components/pwa-installer'
 import { LazyThirdPartyScripts } from '@/components/lazy-third-party-scripts'
 import Script from 'next/script'
+import { LanguageProvider } from '@/lib/i18n/context'
 import './globals.css'
 
 const inter = Inter({
@@ -167,10 +168,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Anti-flash inline theme loader */}
+        {/* Anti-flash inline theme and language loader */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('digitalmix-theme');var d=t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d){document.documentElement.classList.add('dark');document.documentElement.style.colorScheme='dark';}else{document.documentElement.classList.remove('dark');document.documentElement.style.colorScheme='light';}}catch(e){}})()`,
+            __html: `(function(){try{var t=localStorage.getItem('digitalmix-theme');var d=t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d){document.documentElement.classList.add('dark');document.documentElement.style.colorScheme='dark';}else{document.documentElement.classList.remove('dark');document.documentElement.style.colorScheme='light';}var l=localStorage.getItem('digitalmix-language');if(l==='ar'){document.documentElement.lang='ar';document.documentElement.dir='rtl';document.documentElement.classList.add('rtl-mode');}else{document.documentElement.lang='en';document.documentElement.dir='ltr';document.documentElement.classList.remove('rtl-mode');}}catch(e){}})()`,
           }}
         />
         {/* JSON-LD Schema */}
@@ -184,14 +185,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${inter.variable} ${geistMono.variable} font-sans antialiased bg-background`}>
         <AuthProvider>
-          <PWAInstaller />
-          <ThemeProvider defaultTheme="dark" enableSystem>
-            <UserPreferencesSync />
-            {children}
-            <Toaster />
-          </ThemeProvider>
+          <LanguageProvider>
+            <PWAInstaller />
+            <ThemeProvider defaultTheme="dark" enableSystem>
+              <UserPreferencesSync />
+              {children}
+              <Toaster />
+            </ThemeProvider>
 
-          <LazyThirdPartyScripts />
+            <LazyThirdPartyScripts />
+          </LanguageProvider>
         </AuthProvider>
       </body>
     </html>

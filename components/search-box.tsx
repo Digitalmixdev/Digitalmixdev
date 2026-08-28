@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { Search, Rocket } from "lucide-react"
 import { popularSearches, ToolDefinition } from "@/constants/tools"
 import { toolsFuse } from "@/lib/fuse"
+import { useLanguage } from "@/lib/i18n/context"
 
 function showComingSoon() {
   toast("Coming Soon!", {
@@ -17,6 +18,7 @@ function showComingSoon() {
 
 export function SearchBox() {
   const router = useRouter()
+  const { t } = useLanguage()
   const [searchFocused, setSearchFocused] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<ToolDefinition[]>([])
@@ -65,25 +67,25 @@ export function SearchBox() {
         {/* Search Input Bar */}
         <div className="relative">
           <div className={`relative rounded-2xl border-2 bg-card shadow-lg transition-all duration-300 ${searchFocused ? 'border-primary shadow-primary/20 shadow-xl' : 'border-border/60 hover:border-border'}`}>
-            <Search className={`absolute left-4 sm:left-5 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${searchFocused ? 'text-primary' : 'text-muted-foreground'}`} />
+            <Search className={`absolute start-4 sm:start-5 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${searchFocused ? 'text-primary' : 'text-muted-foreground'}`} />
             <input
               type="text"
-              placeholder="Search tools... (e.g., QR, SQL, JSON, JWT, UUID)"
+              placeholder={t('hero.search_placeholder', 'Search tools... (e.g., PDF, QR, SQL, JSON, JWT, UUID)')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setSearchFocused(true)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="h-13 sm:h-15 w-full rounded-2xl bg-transparent pl-11 sm:pl-14 pr-36 sm:pr-40 text-sm sm:text-base text-foreground placeholder:text-muted-foreground focus:outline-none"
+              className="h-13 sm:h-15 w-full rounded-2xl bg-transparent ps-11 sm:ps-14 pe-36 sm:pe-40 text-sm sm:text-base text-foreground placeholder:text-muted-foreground focus:outline-none"
             />
 
-            <div className="absolute right-2 sm:right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-2">
+            <div className="absolute end-2 sm:end-2.5 top-1/2 -translate-y-1/2 flex items-center gap-2">
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
                   className="text-xs font-semibold text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 border border-border/60 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer shadow-2xs"
                 >
-                  Clear
+                  {t('action.cancel', 'Clear')}
                 </button>
               )}
               <button
@@ -91,7 +93,7 @@ export function SearchBox() {
                 onClick={handleSearch}
                 className="rounded-xl bg-primary px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-sm transition-all cursor-pointer"
               >
-                Search
+                {t('action.search', 'Search')}
               </button>
             </div>
           </div>
@@ -114,11 +116,11 @@ export function SearchBox() {
                     </span>
                   </div>
                   {!tool.active ? (
-                    <span className="text-[10px] font-bold bg-muted px-2 py-0.5 rounded-full text-muted-foreground shrink-0 ml-2">
-                      Coming Soon
+                    <span className="text-[10px] font-bold bg-muted px-2 py-0.5 rounded-full text-muted-foreground shrink-0 ms-2">
+                      {t('nav.coming_soon', 'Coming Soon')}
                     </span>
                   ) : (
-                    <span className="text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
+                    <span className="text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ms-2">
                       Open →
                     </span>
                   )}
@@ -137,7 +139,7 @@ export function SearchBox() {
         {/* Popular Tags - Hidden when searching */}
         {!searchQuery.trim() && (
           <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 animate-in fade-in duration-200">
-            <span className="text-xs font-semibold text-muted-foreground">Popular:</span>
+            <span className="text-xs font-semibold text-muted-foreground">{t('hero.popular', 'Popular')}:</span>
             {popularSearches.map((search) => (
               <button
                 key={search.name}

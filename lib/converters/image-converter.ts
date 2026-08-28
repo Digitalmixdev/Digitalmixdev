@@ -1,16 +1,21 @@
 import JSZip from 'jszip'
 import { PDFDocument, PageSizes } from 'pdf-lib'
 
+export interface ImageToPdfOptions {
+  pageSize?: 'fit' | 'a4-portrait' | 'a4-landscape' | 'letter-portrait' | 'letter-landscape' | 'auto'
+  fitMode?: 'contain' | 'cover' | 'original'
+  margin?: number
+  backgroundColor?: string
+}
+
 export async function imagesToPdf(
   files: (File | Blob)[],
-  options: {
-    pageSize?: 'fit' | 'a4-portrait' | 'a4-landscape' | 'letter'
-    margin?: number
-  } = {}
+  options: ImageToPdfOptions = {}
 ): Promise<Blob> {
   const pdfDoc = await PDFDocument.create()
   const margin = options.margin ?? 30
-  const layout = options.pageSize ?? 'fit'
+  const layout = options.pageSize ?? 'a4-portrait'
+  const fitMode = options.fitMode ?? 'contain'
 
   for (const file of files) {
     const canvas = await decodeFileToCanvas(file)
@@ -29,20 +34,45 @@ export async function imagesToPdf(
     } else if (layout === 'a4-landscape') {
       pWidth = PageSizes.A4[1]
       pHeight = PageSizes.A4[0]
-    } else if (layout === 'letter') {
+    } else if (layout === 'letter-portrait' || layout === 'letter' as any) {
       ;[pWidth, pHeight] = PageSizes.Letter
+    } else if (layout === 'letter-landscape') {
+      pWidth = PageSizes.Letter[1]
+      pHeight = PageSizes.Letter[0]
+    } else if (layout === 'auto') {
+      // If image is wider than tall, use landscape, else portrait
+      if (imgWidth > imgHeight) {
+        pWidth = PageSizes.A4[1]
+        pHeight = PageSizes.A4[0]
+      } else {
+        ;[pWidth, pHeight] = PageSizes.A4
+      }
     } else {
+      // 'fit' - Page size matches image aspect ratio exactly + margin
       pWidth = imgWidth + margin * 2
       pHeight = imgHeight + margin * 2
     }
 
     const page = pdfDoc.addPage([pWidth, pHeight])
-    const maxDrawWidth = pWidth - margin * 2
-    const maxDrawHeight = pHeight - margin * 2
+    const maxDrawWidth = Math.max(10, pWidth - margin * 2)
+    const maxDrawHeight = Math.max(10, pHeight - margin * 2)
 
-    const scale = Math.min(maxDrawWidth / imgWidth, maxDrawHeight / imgHeight, 1)
-    const drawWidth = imgWidth * scale
-    const drawHeight = imgHeight * scale
+    let drawWidth = imgWidth
+    let drawHeight = imgHeight
+
+    if (fitMode === 'contain') {
+      const scale = Math.min(maxDrawWidth / imgWidth, maxDrawHeight / imgHeight, 1)
+      drawWidth = imgWidth * scale
+      drawHeight = imgHeight * scale
+    } else if (fitMode === 'cover') {
+      const scale = Math.min(maxDrawWidth / imgWidth, maxDrawHeight / imgHeight)
+      drawWidth = imgWidth * scale
+      drawHeight = imgHeight * scale
+    } else if (fitMode === 'original') {
+      const scale = Math.min(maxDrawWidth / imgWidth, maxDrawHeight / imgHeight, 1)
+      drawWidth = imgWidth * scale
+      drawHeight = imgHeight * scale
+    }
 
     const x = (pWidth - drawWidth) / 2
     const y = (pHeight - drawHeight) / 2
@@ -74,7 +104,6 @@ export type SupportedImageFormat =
   | 'tiff'
   | 'webp'
   | 'xps'
-  | 'pdf'
 
 export interface ImageFormatDefinition {
   id: SupportedImageFormat
@@ -86,7 +115,6 @@ export interface ImageFormatDefinition {
 }
 
 export const SUPPORTED_IMAGE_FORMATS: ImageFormatDefinition[] = [
-  { id: 'pdf', name: 'PDF', extension: 'pdf', mimeType: 'application/pdf', description: 'Adobe PDF Document & Photo Album' },
   { id: 'avif', name: 'AVIF', extension: 'avif', mimeType: 'image/avif', description: 'Next-Gen HDR & High Compression' },
   { id: 'bmp', name: 'BMP', extension: 'bmp', mimeType: 'image/bmp', description: 'Windows Bitmap Uncompressed' },
   { id: 'eps', name: 'EPS', extension: 'eps', mimeType: 'application/postscript', description: 'Encapsulated PostScript Vector & Raster' },
@@ -594,22 +622,6 @@ export async function convertSingleImage(
     }
     case 'odd': {
       outputBlob = await encodeOdd(canvas)
-      break
-    }
-    case 'pdf': {
-      const pdfDoc = await PDFDocument.create()
-      const pngBlob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), 'image/png'))
-      const pngBytes = await pngBlob.arrayBuffer()
-      const embeddedImg = await pdfDoc.embedPng(pngBytes)
-      const page = pdfDoc.addPage([embeddedImg.width, embeddedImg.height])
-      page.drawImage(embeddedImg, {
-        x: 0,
-        y: 0,
-        width: embeddedImg.width,
-        height: embeddedImg.height,
-      })
-      const pdfBytes = await pdfDoc.save()
-      outputBlob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' })
       break
     }
     default: {

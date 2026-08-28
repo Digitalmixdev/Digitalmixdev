@@ -1,3 +1,5 @@
+'use client'
+
 import Link from "next/link"
 import {
   Wrench,
@@ -7,11 +9,7 @@ import {
   Github,
 } from "lucide-react"
 import { popularSearches } from "@/constants/tools"
-
-const legalLinks = [
-  { name: "Privacy Policy", href: "/privacy-policy" },
-  { name: "Terms of Service", href: "/terms" },
-]
+import { useLanguage } from "@/lib/i18n/context"
 
 const socialLinks = [
   { name: "GitHub", icon: Github, href: "https://github.com/Digitalmixdev" },
@@ -25,6 +23,13 @@ const socialLinks = [
 ]
 
 export function Footer() {
+  const { t } = useLanguage()
+
+  const legalLinks = [
+    { name: t('footer.privacy', 'Privacy Policy'), href: "/privacy-policy" },
+    { name: t('footer.terms', 'Terms of Service'), href: "/terms" },
+  ]
+
   return (
     <footer className="border-t border-border/40 bg-secondary/30">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -43,7 +48,7 @@ export function Footer() {
                 </span>
               </Link>
               <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
-                Free, privacy-focused digital utilities designed to streamline your data and dev workflow.
+                {t('footer.description', 'Free, privacy-focused digital utilities designed to streamline your data and dev workflow.')}
               </p>
             </div>
 
@@ -53,21 +58,21 @@ export function Footer() {
               
                 {/* 1. Company Column */}
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">Company</h3>
+                  <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">{t('footer.company', 'Company')}</h3>
                   <ul className="mt-4 space-y-3">
                     <li>
                       <Link href="/about" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                        About Us
+                        {t('footer.about_us', 'About Us')}
                       </Link>
                     </li>
                     <li>
                       <Link href="/blog" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                        Read Our Blog
+                        {t('footer.read_blog', 'Read Our Blog')}
                       </Link>
                     </li>
                     <li>
                       <Link href="/tools" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                        Tools Directory
+                        {t('footer.tools_directory', 'Tools Directory')}
                       </Link>
                     </li>
                   </ul>
@@ -75,7 +80,7 @@ export function Footer() {
 
                 {/* 2. Tools Column */}
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">Popular Tools</h3>
+                  <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">{t('footer.popular_tools', 'Popular Tools')}</h3>
                   <ul className="mt-4 space-y-3">
                     {popularSearches.map((link) => (
                       <li key={link.name}>
@@ -92,7 +97,7 @@ export function Footer() {
 
                 {/* 3. Legal Column */}
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">Legal</h3>
+                  <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">{t('footer.legal', 'Legal')}</h3>
                   <ul className="mt-4 space-y-3">
                     {legalLinks.map((link) => (
                       <li key={link.name}>
@@ -120,10 +125,10 @@ export function Footer() {
             {/* Text Group - Left */}
             <div className="flex flex-col gap-1">
               <p className="text-sm text-muted-foreground">
-                © 2026 DigitalMix. All rights reserved.
+                © {new Date().getFullYear()} DigitalMix. {t('footer.all_rights', 'All rights reserved.')}
               </p>
               <p className="text-sm text-muted-foreground">
-                Made In Egypt
+                {t('footer.made_in', 'Made In Egypt')}
               </p>
             </div>
 

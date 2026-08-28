@@ -40,6 +40,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 import { TOOL_CATEGORIES, type ToolDefinition } from "@/constants/tools"
 import { MobileMenu } from "./mobile-menu"
+import { LanguageSwitcher } from "./language-switcher"
+import { useLanguage } from "@/lib/i18n/context"
 
 const iconMap: Record<string, LucideIcon> = {
   database: Database,
@@ -81,6 +83,7 @@ function showComingSoon() {
 export function Header() {
   const { resolvedTheme, toggleTheme } = useTheme()
   const { isAuthenticated, isLoading } = useAuth()
+  const { t, language } = useLanguage()
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
 
@@ -89,6 +92,10 @@ export function Header() {
       e.preventDefault()
       showComingSoon()
     }
+  }
+
+  const getCategoryTitle = (categoryId: string, defaultName: string) => {
+    return t(`cat.${categoryId}`, defaultName)
   }
 
   return (
@@ -103,7 +110,7 @@ export function Header() {
             </div>
             <div className="flex flex-col">
               <span className="text-lg font-extrabold tracking-tight text-foreground group-hover:text-primary transition-colors">
-                DigitalMix
+                {language === 'ar' ? 'DigitalMix' : 'DigitalMix'}
               </span>
             </div>
           </Link>
@@ -112,13 +119,14 @@ export function Header() {
           <nav className="hidden lg:flex items-center justify-center gap-1.5 lg:mx-auto">
             {TOOL_CATEGORIES.map((category) => {
               const IconComponent = iconMap[category.id] || Code 
+              const categoryTitle = getCategoryTitle(category.id, category.name)
 
               return (
                 <DropdownMenu key={category.id}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="h-9 px-3 gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/70 rounded-xl transition-all">
                       <IconComponent className="h-3.5 w-3.5 text-primary" />
-                      {category.name}
+                      {categoryTitle}
                       <ChevronDown className="h-3 w-3 opacity-60 transition-transform duration-200" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -128,7 +136,7 @@ export function Header() {
                     className="w-68 z-60 bg-popover/95 backdrop-blur-xl border border-border/80 shadow-2xl p-1.5 rounded-2xl animate-in fade-in-0 zoom-in-95 data-[side=bottom]:slide-in-from-top-2"
                   >
                     <div className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 border-b border-border/40 mb-1">
-                      {category.name} ({category.tools.length} Tools)
+                      {categoryTitle} ({category.tools.length})
                     </div>
                     {category.tools.map((item) => {
                       const isActive = item.active !== false
@@ -154,7 +162,7 @@ export function Header() {
                             </div>
                             {!isActive && (
                               <span className="text-[9px] font-bold bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground shrink-0 ml-2">
-                                Soon
+                                {t('nav.coming_soon', 'Soon')}
                               </span>
                             )}
                           </Link>
@@ -169,6 +177,10 @@ export function Header() {
 
           {/* Header Actions */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Language Switcher */}
+            <LanguageSwitcher variant="dropdown" className="hidden sm:flex" />
+            <LanguageSwitcher variant="compact" className="sm:hidden flex" />
+
             {/* Theme Toggle */}
             <Button 
               variant="ghost" 
@@ -188,7 +200,7 @@ export function Header() {
                 variant="ghost"
                 size="icon"
                 className="h-9 w-9 rounded-xl text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 hidden sm:flex transition-all"
-                title="My Favorites"
+                title={t('nav.favorites', 'My Favorites')}
               >
                 <Link href="/favorites" aria-label="Favorites">
                   <Star className="h-4.5 w-4.5 text-amber-500" />
@@ -203,10 +215,10 @@ export function Header() {
               ) : !isAuthenticated ? (
                 <div className="flex items-center gap-2 animate-in fade-in duration-150">
                   <Button asChild variant="ghost" size="sm" className="h-9 px-3 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground">
-                    <Link href="/login">Sign In</Link>
+                    <Link href="/login">{t('nav.signin', 'Sign In')}</Link>
                   </Button>
                   <Button asChild size="sm" className="h-9 px-3.5 text-xs font-bold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20">
-                    <Link href="/signup">Sign Up</Link>
+                    <Link href="/signup">{t('nav.signup', 'Sign Up')}</Link>
                   </Button>
                 </div>
               ) : (
