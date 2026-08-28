@@ -8,8 +8,8 @@ import { Footer } from '@/components/footer'
 export const metadata: Metadata = {
   title: 'About Us & Contact | DigitalMix',
   description:
-    'Learn more about DigitalMix a privacy-first hub providing fast, free, and secure developer utilities and data analytics tools.',
-  keywords: ['About DigitalMix', 'Developer utilities', 'Privacy-first tools', 'Contact DigitalMix'],
+    'Learn more about DigitalMix — a privacy-first platform offering free online digital tools, office converters, calculators, PDF utilities, and developer suites.',
+  keywords: ['About DigitalMix', 'Free digital tools', 'Online file converters', 'Business calculators', 'Privacy-first utilities', 'Contact DigitalMix'],
   alternates: {
     canonical: 'https://www.digitalmix.dev/about',
   },
@@ -30,7 +30,7 @@ export default function AboutPage() {
               About DigitalMix
             </h1>
             <p className="text-muted-foreground text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
-              A curated ecosystem of lightning-fast, 100% free, and client-side utilities engineered for developers, data analysts, and tech creators. We eliminate latency and complexity so you can focus on building.
+              A curated suite of lightning-fast, 100% free, and privacy-first digital utilities engineered for professionals, developers, data analysts, content creators, and students. We eliminate latency and complexity so you can streamline your daily workflow.
             </p>
           </div>
 
@@ -42,7 +42,7 @@ export default function AboutPage() {
               </div>
               <h3 className="text-base font-bold text-foreground">Fast by Design</h3>
               <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed">
-                Optimized for instant execution without network hops or cloud queues, giving you results as you type.
+                Optimized for instant execution without network delays or server queues, giving you instant results directly in your browser.
               </p>
             </div>
 
@@ -52,7 +52,7 @@ export default function AboutPage() {
               </div>
               <h3 className="text-base font-bold text-foreground">Privacy-First</h3>
               <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed">
-                Your data never touches our servers. 100% in-browser processing guarantees strict enterprise confidentiality.
+                Your data stays strictly on your device. Local in-browser processing guarantees total security and confidentiality.
               </p>
             </div>
 
@@ -62,7 +62,7 @@ export default function AboutPage() {
               </div>
               <h3 className="text-base font-bold text-foreground">100% Free</h3>
               <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed">
-                No subscription paywalls, rate limits, or mandatory registrations. Built for the open-source community.
+                No subscription paywalls, hidden limits, or mandatory registrations. Built freely for everyone.
               </p>
             </div>
           </div>
@@ -70,10 +70,10 @@ export default function AboutPage() {
           {/* 3. The Vision */}
           <div className="bg-card border border-border/70 p-8 rounded-2xl space-y-4 shadow-xs">
             <h2 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2.5">
-              <Users size={22} className="text-primary" /> Built for the Modern Engineering Workflow
+              <Users size={22} className="text-primary" /> Built for Your Daily Digital Workflow
             </h2>
             <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
-              DigitalMix was conceived out of frustration with existing online developer tools that are cluttered with intrusive tracking, heavy ads, or arbitrary usage restrictions. We strive to provide a clean, high-performance, and delightful suite of daily utilities.
+              DigitalMix was created out of frustration with online tools that are cluttered with intrusive ads, paywalls, or strict limits. Whether you are converting document files, calculating financial metrics, merging PDFs, or formatting code, we strive to provide a clean, high-performance, and privacy-first solution.
             </p>
           </div>
 

@@ -23,9 +23,9 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'DigitalMix - Free Digital Tools for Developer',
-  description: 'Free digital tools to simplify your data and dev workflow. Database tools, developer utilities, business calculators, and file tools.',
-  keywords: ['developer tools', 'database tools', 'file utilities', 'KPI calculator', 'pdf tools', 'profit margins', 'json formatter', 'sql formatter', 'uuid generator', 'hash generator'],
+  title: 'DigitalMix - Free Digital Tools Hub',
+  description: 'Free Digital Tools to Simplify Your Data & Dev Workflow. Database tools, office & document converters, business calculators, PDF utilities, and developer tools.',
+  keywords: ['free digital tools', 'online utilities', 'pdf tools', 'office converter', 'document converter', 'calorie calculator', 'business calculators', 'KPI calculator', 'ROI calculator', 'developer tools', 'json formatter', 'sql formatter', 'data tools'],
   authors: [{ name: 'DigitalMix', url: 'https://www.digitalmix.dev' }],
   creator: 'DigitalMix',
   publisher: 'DigitalMix',
@@ -33,8 +33,8 @@ export const metadata: Metadata = {
     canonical: 'https://www.digitalmix.dev',
   },
   openGraph: {
-    title: 'DigitalMix - Free Digital Tools for Developers',
-    description: 'Technical solutions and smart tools for developers and creators.',
+    title: 'DigitalMix - Free Digital Tools Hub',
+    description: 'Free Digital Tools to Simplify Your Data & Dev Workflow. Smart, privacy-first online tools for everyone.',
     url: 'https://www.digitalmix.dev',
     siteName: 'DigitalMix',
     images: [
@@ -50,8 +50,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'DigitalMix - Free Digital Tools',
-    description: 'Free tools for developers: JSON formatter, SQL tools, hash generator, and more.',
+    title: 'DigitalMix - Free Digital Tools Hub',
+    description: 'Free Digital Tools to Simplify Your Data & Dev Workflow.',
     images: ['https://www.digitalmix.dev/og-image.png'],
   },
   robots: {
@@ -110,9 +110,9 @@ const schemaData = {
       '@type': 'WebApplication',
       '@id': 'https://www.digitalmix.dev/#webapp',
       name: 'DigitalMix',
-      description: 'Free digital tools for developers and creators',
+      description: 'Free Digital Tools to Simplify Your Data & Dev Workflow',
       url: 'https://www.digitalmix.dev',
-      applicationCategory: 'DeveloperApplication',
+      applicationCategory: 'UtilitiesApplication',
       offers: {
         '@type': 'Offer',
         price: '0',

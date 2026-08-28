@@ -193,11 +193,36 @@ export async function parseXlsx(file: File | Blob): Promise<{ sheets: ParsedShee
   }
 }
 
-// Helper to configure matching pdfjs worker version
+// Helper to configure matching pdfjs worker version with graceful main-thread fallback
 function configurePdfWorker(pdfjsLib: any) {
   if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
-    const version = pdfjsLib.version || '4.10.38'
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`
+    try {
+      const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : ''
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `${origin}/pdf.worker.min.mjs`
+    } catch {
+      // Ignore if workerSrc setting fails
+    }
+  }
+}
+
+async function getPdfDocumentSafe(pdfjsLib: any, arrayBuffer: ArrayBuffer) {
+  configurePdfWorker(pdfjsLib)
+  try {
+    const loadingTask = pdfjsLib.getDocument({
+      data: arrayBuffer,
+      cMapUrl: '/cmaps/',
+      cMapPacked: true,
+    })
+    return await loadingTask.promise
+  } catch (workerErr) {
+    console.warn('PDF worker load failed, falling back to main-thread PDF parsing:', workerErr)
+    const fallbackTask = pdfjsLib.getDocument({
+      data: arrayBuffer,
+      cMapUrl: '/cmaps/',
+      cMapPacked: true,
+      disableWorker: true,
+    } as any)
+    return await fallbackTask.promise
   }
 }
 
@@ -209,16 +234,9 @@ export async function parsePdf(
 ): Promise<{ text: string; pageCount: number; pages: { pageNumber: number; text: string }[] }> {
   try {
     const pdfjsLib = await import('pdfjs-dist')
-    configurePdfWorker(pdfjsLib)
-
     const arrayBuffer = await file.arrayBuffer()
-    const loadingTask = pdfjsLib.getDocument({
-      data: arrayBuffer,
-      cMapUrl: '/cmaps/',
-      cMapPacked: true,
-    })
+    const pdf = await getPdfDocumentSafe(pdfjsLib, arrayBuffer)
 
-    const pdf = await loadingTask.promise
     const pageCount = pdf.numPages
     const pages: { pageNumber: number; text: string }[] = []
     let fullText = ''
@@ -252,16 +270,9 @@ export async function renderPdfToImages(
   scale: number = 1.8
 ): Promise<{ pageNumber: number; blob: Blob; dataUrl: string; width: number; height: number }[]> {
   const pdfjsLib = await import('pdfjs-dist')
-  configurePdfWorker(pdfjsLib)
-
   const arrayBuffer = await file.arrayBuffer()
-  const loadingTask = pdfjsLib.getDocument({
-    data: arrayBuffer,
-    cMapUrl: '/cmaps/',
-    cMapPacked: true,
-  })
+  const pdf = await getPdfDocumentSafe(pdfjsLib, arrayBuffer)
 
-  const pdf = await loadingTask.promise
   const results: { pageNumber: number; blob: Blob; dataUrl: string; width: number; height: number }[] = []
 
   for (let i = 1; i <= pdf.numPages; i++) {

@@ -7,12 +7,12 @@ import { Footer } from "@/components/footer"
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'DigitalMix - Free Digital Tools for Developers',
-  description: 'Free digital tools to simplify your data and dev workflow. Database tools, developer utilities, business calculators, and file tools.',
-  keywords: ['free tools', 'developer tools', 'json formatter', 'sql tools', 'csv converter', 'regex tester', 'base64 encoder'],
+  title: 'DigitalMix - Free Digital Tools Hub',
+  description: 'Free Digital Tools to Simplify Your Data & Dev Workflow. Database tools, office & document converters, business calculators, PDF tools, and developer utilities.',
+  keywords: ['free digital tools', 'online utilities', 'pdf tools', 'office converter', 'document converter', 'calorie calculator', 'business calculators', 'KPI calculator', 'ROI calculator', 'developer tools', 'json formatter', 'sql formatter', 'data tools'],
   openGraph: {
-    title: 'DigitalMix - Free Digital Tools',
-    description: 'Technical solutions and smart tools for developers and creators.',
+    title: 'DigitalMix - Free Digital Tools Hub',
+    description: 'Free Digital Tools to Simplify Your Data & Dev Workflow. Smart, privacy-first online tools for everyone.',
     url: 'https://www.digitalmix.dev',
     siteName: 'DigitalMix',
     images: [
@@ -28,8 +28,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'DigitalMix - Free Developer Tools',
-    description: 'Free tools for developers: JSON, SQL, CSV, Regex, and more.',
+    title: 'DigitalMix - Free Digital Tools Hub',
+    description: 'Free Digital Tools to Simplify Your Data & Dev Workflow.',
     images: ['https://www.digitalmix.dev/og-image.png'],
   },
 }

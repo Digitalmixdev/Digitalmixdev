@@ -92,17 +92,34 @@ async function getCachedPdfDocument(file: File) {
   }
   const pdfjsLib = await import('pdfjs-dist')
   if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
-    const version = pdfjsLib.version || '4.10.38'
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`
+    try {
+      const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : ''
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `${origin}/pdf.worker.min.mjs`
+    } catch {
+      // ignore
+    }
   }
 
   const arrayBuffer = await file.arrayBuffer()
-  const loadingTask = pdfjsLib.getDocument({
-    data: arrayBuffer,
-    cMapUrl: '/cmaps/',
-    cMapPacked: true,
-  })
-  const pdf = await loadingTask.promise
+  let pdf: any
+  try {
+    const loadingTask = pdfjsLib.getDocument({
+      data: arrayBuffer,
+      cMapUrl: '/cmaps/',
+      cMapPacked: true,
+    })
+    pdf = await loadingTask.promise
+  } catch (workerErr) {
+    console.warn('PDF worker error in merge tool, falling back to main thread:', workerErr)
+    const fallbackTask = pdfjsLib.getDocument({
+      data: arrayBuffer,
+      cMapUrl: '/cmaps/',
+      cMapPacked: true,
+      disableWorker: true,
+    } as any)
+    pdf = await fallbackTask.promise
+  }
+
   pdfDocCache.set(file, pdf)
   return pdf
 }

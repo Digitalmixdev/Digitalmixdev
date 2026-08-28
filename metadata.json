@@ -1,6 +1,6 @@
 {
   "name": "DigitalMix",
-  "description": "Free, privacy-first developer tools and file utilities including JSON/SQL formatters, Document & Office converter, Image converter, Base64 & JWT tools, and calculators.",
+  "description": "Free Digital Tools to Simplify Your Data & Dev Workflow. All-in-one suite of free digital utilities including document converters, business calculators, text & PDF tools, database utilities, and developer tools.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
