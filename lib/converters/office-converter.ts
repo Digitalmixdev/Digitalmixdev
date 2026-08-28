@@ -193,6 +193,14 @@ export async function parseXlsx(file: File | Blob): Promise<{ sheets: ParsedShee
   }
 }
 
+// Helper to configure matching pdfjs worker version
+function configurePdfWorker(pdfjsLib: any) {
+  if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
+    const version = pdfjsLib.version || '4.10.38'
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`
+  }
+}
+
 // ----------------------------------------------------
 // 4. PDF Parsing & Page Extraction (via pdfjs-dist)
 // ----------------------------------------------------
@@ -201,7 +209,7 @@ export async function parsePdf(
 ): Promise<{ text: string; pageCount: number; pages: { pageNumber: number; text: string }[] }> {
   try {
     const pdfjsLib = await import('pdfjs-dist')
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+    configurePdfWorker(pdfjsLib)
 
     const arrayBuffer = await file.arrayBuffer()
     const loadingTask = pdfjsLib.getDocument({
@@ -244,7 +252,7 @@ export async function renderPdfToImages(
   scale: number = 1.8
 ): Promise<{ pageNumber: number; blob: Blob; dataUrl: string; width: number; height: number }[]> {
   const pdfjsLib = await import('pdfjs-dist')
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+  configurePdfWorker(pdfjsLib)
 
   const arrayBuffer = await file.arrayBuffer()
   const loadingTask = pdfjsLib.getDocument({

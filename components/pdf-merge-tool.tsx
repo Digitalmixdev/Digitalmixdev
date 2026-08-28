@@ -91,7 +91,10 @@ async function getCachedPdfDocument(file: File) {
     return pdfDocCache.get(file)
   }
   const pdfjsLib = await import('pdfjs-dist')
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+  if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
+    const version = pdfjsLib.version || '4.10.38'
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`
+  }
 
   const arrayBuffer = await file.arrayBuffer()
   const loadingTask = pdfjsLib.getDocument({

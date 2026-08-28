@@ -209,22 +209,20 @@ export function Header() {
             )}
 
             {/* Auth Section */}
-            <div className="hidden sm:flex items-center min-h-[36px]">
-              {isLoading ? (
-                <div className="w-[140px] h-9" />
-              ) : !isAuthenticated ? (
-                <div className="flex items-center gap-2 animate-in fade-in duration-150">
-                  <Button asChild variant="ghost" size="sm" className="h-9 px-3 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground">
-                    <Link href="/login">{t('nav.signin', 'Sign In')}</Link>
-                  </Button>
-                  <Button asChild size="sm" className="h-9 px-3.5 text-xs font-bold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20">
-                    <Link href="/signup">{t('nav.signup', 'Sign Up')}</Link>
-                  </Button>
-                </div>
-              ) : (
+            {!isLoading && !isAuthenticated ? (
+              <div className="hidden lg:flex items-center gap-2 animate-in fade-in duration-150">
+                <Button asChild variant="ghost" size="sm" className="h-9 px-3 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground">
+                  <Link href="/login">{t('nav.signin', 'Sign In')}</Link>
+                </Button>
+                <Button asChild size="sm" className="h-9 px-3.5 text-xs font-bold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/20">
+                  <Link href="/signup">{t('nav.signup', 'Sign Up')}</Link>
+                </Button>
+              </div>
+            ) : isAuthenticated ? (
+              <div className="hidden sm:flex items-center min-h-[36px]">
                 <UserMenu />
-              )}
-            </div>
+              </div>
+            ) : null}
 
             <MobileMenu 
               categories={TOOL_CATEGORIES} 

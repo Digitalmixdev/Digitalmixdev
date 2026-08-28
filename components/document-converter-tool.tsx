@@ -1135,15 +1135,19 @@ export default function DocumentConverterTool() {
                     </div>
 
                     <div className="flex items-center justify-between pt-2 border-t border-border/40 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setCurrentPreviewIndex(idx)}
-                        className={`text-[11px] font-medium transition-colors cursor-pointer ${
-                          isCurrentPreview ? 'text-primary font-bold' : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        {isCurrentPreview ? '● Active Preview' : 'Select for Preview'}
-                      </button>
+                      {isImagesToPdf ? (
+                        <button
+                          type="button"
+                          onClick={() => setCurrentPreviewIndex(idx)}
+                          className={`text-[11px] font-medium transition-colors cursor-pointer ${
+                            isCurrentPreview ? 'text-primary font-bold' : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          {isCurrentPreview ? '● Active Preview' : 'Select for Preview'}
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">{item.format.toUpperCase()}</span>
+                      )}
 
                       <div className="flex items-center gap-2">
                         {isConverted && (
@@ -1179,8 +1183,8 @@ export default function DocumentConverterTool() {
           </div>
         )}
 
-        {/* Live Visual Page & PDF Preview Section (معاينة الصفحة الحية تحت) */}
-        {items.length > 0 && activeSimulatedItem && (
+        {/* Live Visual Page & PDF Preview Section (Only for Images to PDF) */}
+        {items.length > 0 && activeSimulatedItem && isImagesToPdf && (
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-6 animate-in fade-in-50 duration-300">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
               <div className="flex items-center gap-3">
