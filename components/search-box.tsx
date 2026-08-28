@@ -70,6 +70,7 @@ export function SearchBox() {
             <Search className={`absolute start-4 sm:start-5 top-1/2 h-5 w-5 -translate-y-1/2 transition-colors ${searchFocused ? 'text-primary' : 'text-muted-foreground'}`} />
             <input
               type="text"
+              suppressHydrationWarning
               placeholder={t('hero.search_placeholder', 'Search tools... (e.g., PDF, QR, SQL, JSON, JWT, UUID)')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -82,6 +83,7 @@ export function SearchBox() {
               {searchQuery && (
                 <button
                   type="button"
+                  suppressHydrationWarning
                   onClick={() => setSearchQuery('')}
                   className="text-xs font-semibold text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 border border-border/60 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer shadow-2xs"
                 >
@@ -90,6 +92,7 @@ export function SearchBox() {
               )}
               <button
                 type="button"
+                suppressHydrationWarning
                 onClick={handleSearch}
                 className="rounded-xl bg-primary px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-bold text-primary-foreground hover:bg-primary/90 shadow-sm transition-all cursor-pointer"
               >
@@ -144,10 +147,11 @@ export function SearchBox() {
               <button
                 key={search.name}
                 type="button"
+                suppressHydrationWarning
                 onClick={() => router.push(search.href)}
                 className="rounded-full border border-border/60 bg-secondary/60 px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground hover:border-primary/40 transition-all cursor-pointer"
               >
-                {search.name}
+                {t(`tool.${search.href.replace('/tools/', '').replace(/-/g, '_')}`, search.name)}
               </button>
             ))}
           </div>

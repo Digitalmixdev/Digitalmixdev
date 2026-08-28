@@ -121,6 +121,10 @@ export function ToolLayout({
 
   const ToolIcon = metadata.icon || Wrench
 
+  const localizedToolName = t(`tool.${metadata.id.replace(/-/g, '_')}`, metadata.name)
+  const localizedToolDesc = t(`tool.${metadata.id.replace(/-/g, '_')}_desc`, metadata.description)
+  const localizedCategoryName = t(`cat.${metadata.category.id}`, metadata.category.name)
+
   const defaultPillarsLocalized: ToolFeature[] = [
     {
       icon: Zap,
@@ -247,12 +251,12 @@ export function ToolLayout({
                   href={`/tools/${metadata.category.slug}`}
                   className="hover:text-foreground transition-colors font-medium hover:underline underline-offset-2"
                 >
-                  {metadata.category.name}
+                  {localizedCategoryName}
                 </Link>
-                <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
+                <ChevronRight className="h-3 w-3 text-muted-foreground/50 rtl:rotate-180" />
                 <span className="text-foreground font-semibold truncate max-w-35 md:max-w-50 lg:max-w-70 flex items-center gap-1.5">
                   <ToolIcon className="h-3.5 w-3.5 text-primary shrink-0" />
-                  {metadata.name}
+                  {localizedToolName}
                 </span>
               </div>
 
@@ -261,7 +265,7 @@ export function ToolLayout({
                 href={`/tools/${metadata.category.slug}`}
                 className="sm:hidden flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-secondary/80 px-2 py-1 rounded-lg border border-border/60 truncate max-w-36"
               >
-                <span>{metadata.category.name}</span>
+                <span>{localizedCategoryName}</span>
               </Link>
             </div>
 
@@ -355,18 +359,18 @@ export function ToolLayout({
 
           {/* Tool Title */}
           <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-foreground mb-3 text-balance leading-tight">
-            {metadata.name}
+            {localizedToolName}
           </h1>
 
           {/* Tool Description */}
           <p className="text-xs sm:text-base text-muted-foreground max-w-2xl mx-auto leading-relaxed mb-5 text-pretty">
-            {metadata.description}
+            {localizedToolDesc}
           </p>
 
           {/* Privacy Guarantee Badge */}
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 shadow-xs">
             <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-            <span>{metadata.privacyBadge || '100% Client-Side • Zero Server Storage'}</span>
+            <span>{t('tool_layout.privacy_badge', metadata.privacyBadge || '100% Client-Side • Zero Server Storage')}</span>
           </div>
         </div>
       </section>
@@ -440,7 +444,7 @@ export function ToolLayout({
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
               <div>
                 <h3 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
-                  {t('tool_layout.explore_more', 'Explore More')} {metadata.category.name}
+                  {t('tool_layout.explore_more', 'Explore More')} {localizedCategoryName}
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-foreground">
                   {t('tool_layout.related_desc', 'Discover related utilities in this suite.')}
@@ -457,30 +461,36 @@ export function ToolLayout({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {relatedTools.map((tool) => (
-                <Link
-                  key={tool.href}
-                  href={tool.href}
-                  className="p-5 rounded-2xl border border-border/70 bg-card/60 hover:bg-card hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200 flex flex-col justify-between group"
-                >
-                  <div>
-                    <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors mb-1.5 flex items-center justify-between text-sm sm:text-base">
-                      <span>{tool.name}</span>
-                      <ArrowRight className="h-4 w-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary rtl:rotate-180" />
-                    </h4>
-                    {tool.description && (
-                      <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                        {tool.description}
-                      </p>
-                    )}
-                  </div>
+              {relatedTools.map((tool) => {
+                const toolSlug = tool.href.replace('/tools/', '').replace(/\?.*$/, '')
+                const relToolName = t(`tool.${toolSlug.replace(/-/g, '_')}`, tool.name)
+                const relToolDesc = t(`tool.${toolSlug.replace(/-/g, '_')}_desc`, tool.description || '')
 
-                  <div className="mt-4 pt-3 border-t border-border/40 text-xs font-semibold text-primary inline-flex items-center gap-1">
-                    <span>{t('tool_layout.open_tool', 'Open Tool')}</span>
-                    <ArrowRight className="h-3 w-3 rtl:rotate-180" />
-                  </div>
-                </Link>
-              ))}
+                return (
+                  <Link
+                    key={tool.href}
+                    href={tool.href}
+                    className="p-5 rounded-2xl border border-border/70 bg-card/60 hover:bg-card hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200 flex flex-col justify-between group"
+                  >
+                    <div>
+                      <h4 className="font-semibold text-foreground group-hover:text-primary transition-colors mb-1.5 flex items-center justify-between text-sm sm:text-base">
+                        <span>{relToolName}</span>
+                        <ArrowRight className="h-4 w-4 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary rtl:rotate-180" />
+                      </h4>
+                      {relToolDesc && (
+                        <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                          {relToolDesc}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-border/40 text-xs font-semibold text-primary inline-flex items-center gap-1">
+                      <span>{t('tool_layout.open_tool', 'Open Tool')}</span>
+                      <ArrowRight className="h-3 w-3 rtl:rotate-180" />
+                    </div>
+                  </Link>
+                )
+              })}
             </div>
           </section>
         )}

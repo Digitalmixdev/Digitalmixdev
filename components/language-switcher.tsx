@@ -25,7 +25,7 @@ export function LanguageSwitcher({ variant = 'dropdown', className = '' }: Langu
         variant="ghost"
         size="sm"
         onClick={toggleLanguage}
-        className={`h-9 px-2.5 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-all gap-1.5 ${className}`}
+        className={`h-9 px-2.5 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-all gap-1.5 shrink-0 ${className}`}
         aria-label="Toggle language between English and Arabic"
       >
         <Languages className="h-4 w-4 text-primary" />
@@ -40,7 +40,7 @@ export function LanguageSwitcher({ variant = 'dropdown', className = '' }: Langu
         variant="ghost"
         size="icon"
         onClick={toggleLanguage}
-        className={`h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all active:scale-95 ${className}`}
+        className={`h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all active:scale-95 shrink-0 ${className}`}
         title={language === 'en' ? 'التبديل إلى العربية' : 'Switch to English'}
         aria-label="Toggle Language"
       >
@@ -57,7 +57,7 @@ export function LanguageSwitcher({ variant = 'dropdown', className = '' }: Langu
         <Button
           variant="ghost"
           size="sm"
-          className={`h-9 px-2.5 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-all gap-1.5 ${className}`}
+          className={`h-9 px-2.5 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-all gap-1.5 shrink-0 ${className}`}
           aria-label="Select Language"
         >
           <Languages className="h-4 w-4 text-primary" />

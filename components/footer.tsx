@@ -82,16 +82,22 @@ export function Footer() {
                 <div>
                   <h3 className="text-sm font-semibold text-foreground tracking-wider uppercase">{t('footer.popular_tools', 'Popular Tools')}</h3>
                   <ul className="mt-4 space-y-3">
-                    {popularSearches.map((link) => (
-                      <li key={link.name}>
-                        <Link
-                          href={link.href}
-                          className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                        >
-                          {link.name}
-                        </Link>
-                      </li>
-                    ))}
+                    {popularSearches.map((link) => {
+                      const toolSlug = link.href.replace('/tools/', '').replace(/\?.*$/, '')
+                      const toolKey = `tool.${toolSlug.replace(/-/g, '_')}`
+                      const displayName = t(toolKey, link.name)
+
+                      return (
+                        <li key={link.name}>
+                          <Link
+                            href={link.href}
+                            className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            {displayName}
+                          </Link>
+                        </li>
+                      )
+                    })}
                   </ul>
                 </div>
 

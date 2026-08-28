@@ -48,7 +48,7 @@ function DropdownMenu({
 
   return (
     <DropdownContext.Provider value={{ open, setOpen, triggerRef }}>
-      <div className="relative inline-block text-left" data-slot="dropdown-menu">
+      <div className="relative inline-block text-start" data-slot="dropdown-menu">
         {children}
       </div>
     </DropdownContext.Provider>
@@ -145,9 +145,9 @@ function DropdownMenuContent({
   if (!open) return null
 
   const alignStyles = {
-    start: 'left-0 origin-top-left',
+    start: 'left-0 origin-top-left rtl:left-auto rtl:right-0 rtl:origin-top-right',
     center: 'left-1/2 -translate-x-1/2 origin-top',
-    end: 'right-0 origin-top-right',
+    end: 'right-0 origin-top-right rtl:right-auto rtl:left-0 rtl:origin-top-left',
   }[align]
 
   return (

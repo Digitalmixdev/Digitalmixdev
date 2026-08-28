@@ -327,6 +327,13 @@ export default function DocumentConverterTool() {
     ? targetFormat
     : availableTargets[0] || 'pdf'
 
+  // Check if current mode is Images -> PDF
+  const isImagesToPdf =
+    validTarget === 'pdf' &&
+    (sourceFormat === 'jpg' ||
+      sourceFormat === 'png' ||
+      (sourceFormat === 'auto' && (effectiveSource === 'jpg' || effectiveSource === 'png' || (items.length > 0 && hasImages))))
+
   const handleAddFiles = async (newFiles: FileList | File[]) => {
     const fileArray = Array.from(newFiles)
     if (fileArray.length === 0) return
@@ -832,8 +839,8 @@ export default function DocumentConverterTool() {
           </div>
         </div>
 
-        {/* Page & Layout Options (Displayed when converting to PDF, particularly with images) */}
-        {validTarget === 'pdf' && (
+        {/* Page & Layout Options (Displayed ONLY when converting images to PDF) */}
+        {isImagesToPdf && (
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/80 pb-4">
               <div>

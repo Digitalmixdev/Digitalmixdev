@@ -157,7 +157,7 @@ export function Header() {
                                 <ToolIcon className="h-3.5 w-3.5 shrink-0" />
                               </div>
                               <span className={`text-xs font-semibold ${!isActive ? "text-muted-foreground" : "text-foreground"} truncate`}>
-                                {item.name}
+                                {t(`tool.${item.id.replace(/-/g, '_')}`, item.name)}
                               </span>
                             </div>
                             {!isActive && (

@@ -179,37 +179,39 @@ export function MobileMenu({
                     </span>
                   </div>
 
-                  <div className="space-y-0.5 pt-0.5">
-                    {category.tools.map((item) => {
-                      const isActive = item.active !== false
-                      const ToolIcon = toolIconMap[item.icon] || Code
-                      return (
-                        <Link
-                          key={item.id}
-                          href={isActive ? item.href : '#'}
-                          onClick={(e) => {
-                            if (handleToolClick) handleToolClick(item, e)
-                            if (isActive) setMobileMenuOpen(false)
-                          }}
-                          className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-all ${
-                            isActive
-                              ? 'text-muted-foreground hover:bg-secondary hover:text-foreground active:scale-[0.99]'
-                              : 'text-muted-foreground/40'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <ToolIcon className="h-3.5 w-3.5 text-primary shrink-0" />
-                            <span className="truncate">{item.name}</span>
-                          </div>
-                          {!isActive && (
-                            <span className="text-[9px] font-bold bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground/70 ml-2 shrink-0">
-                              {t('nav.coming_soon', 'Soon')}
-                            </span>
-                          )}
-                        </Link>
-                      )
-                    })}
-                  </div>
+                    <div className="space-y-0.5 pt-0.5">
+                      {category.tools.map((item) => {
+                        const isActive = item.active !== false
+                        const ToolIcon = toolIconMap[item.icon] || Code
+                        const toolName = t(`tool.${item.id.replace(/-/g, '_')}`, item.name)
+
+                        return (
+                          <Link
+                            key={item.id}
+                            href={isActive ? item.href : '#'}
+                            onClick={(e) => {
+                              if (handleToolClick) handleToolClick(item, e)
+                              if (isActive) setMobileMenuOpen(false)
+                            }}
+                            className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-all ${
+                              isActive
+                                ? 'text-muted-foreground hover:bg-secondary hover:text-foreground active:scale-[0.99]'
+                                : 'text-muted-foreground/40'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <ToolIcon className="h-3.5 w-3.5 text-primary shrink-0" />
+                              <span className="truncate">{toolName}</span>
+                            </div>
+                            {!isActive && (
+                              <span className="text-[9px] font-bold bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground/70 ml-2 rtl:ml-0 rtl:mr-2 shrink-0">
+                                {t('nav.coming_soon', 'Soon')}
+                              </span>
+                            )}
+                          </Link>
+                        )
+                      })}
+                    </div>
                 </div>
               )
             })}
@@ -269,12 +271,12 @@ export function MobileMenu({
                   size="sm"
                   onClick={handleLogout}
                   disabled={isLoggingOut}
-                  className="w-full justify-center text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 h-9 rounded-xl"
+                  className="w-full justify-center text-xs font-semibold text-destructive hover:text-destructive hover:bg-destructive/10 h-9 rounded-xl gap-2"
                 >
                   {isLoggingOut ? (
-                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
-                    <LogOut className="h-3.5 w-3.5 mr-1.5" />
+                    <LogOut className="h-3.5 w-3.5 rtl:rotate-180" />
                   )}
                   <span>{isLoggingOut ? t('action.processing', 'Logging out...') : t('nav.logout', 'Sign out')}</span>
                 </Button>

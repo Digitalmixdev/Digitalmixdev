@@ -126,29 +126,35 @@ export function CategoriesGrid() {
                     {/* Tool Tags with All Tools Visible from Outside in Category Colors */}
                     <div className="mb-5">
                       <div className="flex flex-wrap gap-1.5">
-                        {category.tools.map((tool) => (
-                          <button
-                            key={tool.id}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleToolClick(tool, e)
-                            }}
-                            className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-all text-left ${
-                              tool.active
-                                ? `${catStyle?.activeButton || 'bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20'} hover:scale-[1.02]`
-                                : "bg-secondary text-muted-foreground/60 cursor-pointer border border-border/40"
-                            }`}
-                            title={tool.description}
-                          >
-                            <span className="flex items-center gap-1">
-                              {tool.name}
-                              {!tool.active && (
-                                <span className="text-[9px] opacity-70">{t('nav.coming_soon', 'Soon')}</span>
-                              )}
-                            </span>
-                          </button>
-                        ))}
+                        {category.tools.map((tool) => {
+                          const localizedToolName = t(`tool.${tool.id.replace(/-/g, '_')}`, tool.name)
+                          const localizedToolDesc = t(`tool.${tool.id.replace(/-/g, '_')}_desc`, tool.description)
+
+                          return (
+                            <button
+                              key={tool.id}
+                              type="button"
+                              suppressHydrationWarning
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleToolClick(tool, e)
+                              }}
+                              className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-all text-left rtl:text-right ${
+                                tool.active
+                                  ? `${catStyle?.activeButton || 'bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20'} hover:scale-[1.02]`
+                                  : "bg-secondary text-muted-foreground/60 cursor-pointer border border-border/40"
+                              }`}
+                              title={localizedToolDesc}
+                            >
+                              <span className="flex items-center gap-1">
+                                {localizedToolName}
+                                {!tool.active && (
+                                  <span className="text-[9px] opacity-70">{t('nav.coming_soon', 'Soon')}</span>
+                                )}
+                              </span>
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
                   </div>
