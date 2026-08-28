@@ -1,8 +1,11 @@
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ALL_TOOLS } from "@/constants/tools"
 
 export function CTASection() {
+  const totalTools = ALL_TOOLS.length
+
   return (
     <section className="py-14 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -17,7 +20,7 @@ export function CTASection() {
             Ready to Supercharge Your Workflow?
           </h2>
           <p className="text-xs sm:text-base text-white/85 max-w-2xl mx-auto mb-7 text-pretty leading-relaxed">
-            Join thousands of developers using our free, zero-latency utilities every day. No subscription paywalls or registration required.
+            Join thousands of developers using our {totalTools} free, zero-latency utilities every day. No subscription paywalls or registration required.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Button
@@ -26,7 +29,7 @@ export function CTASection() {
               className="gap-2 rounded-xl px-7 py-5 text-sm font-bold bg-white text-slate-900 hover:bg-white/90 hover:scale-105 transition-all shadow-xl"
             >
               <Link href="/tools">
-                Explore All 16 Tools
+                Explore All {totalTools} Tools
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>

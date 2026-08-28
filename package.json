@@ -25,9 +25,11 @@
     "embla-carousel-react": "8.6.0",
     "framer-motion": "^13.1.1",
     "fuse.js": "^7.4.2",
+    "html2canvas": "^1.4.1",
     "jose": "^6.2.10",
     "jszip": "^3.10.1",
     "lucide-react": "^0.564.0",
+    "mammoth": "^1.12.1",
     "next": "^16.3.2",
     "nodemailer": "^9.0.5",
     "papaparse": "^5.5.3",
@@ -44,6 +46,7 @@
     "sonner": "^1.7.1",
     "sql-formatter": "^15.8.0",
     "tailwind-merge": "^3.3.1",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.1"
   },
   "devDependencies": {

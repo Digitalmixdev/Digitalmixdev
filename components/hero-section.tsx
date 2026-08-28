@@ -50,7 +50,7 @@ export function HeroSection() {
               variants={itemVariants}
             >
               <Sparkles className="h-4 w-4 text-primary" />
-              <span>10+ Essential Tools Launched</span>
+              <span>18+ Essential Tools Launched</span>
             </m.div>
 
             {/* Heading */}

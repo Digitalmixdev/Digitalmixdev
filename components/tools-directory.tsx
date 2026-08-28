@@ -18,6 +18,8 @@ import {
   QrCode,
   FileArchive,
   Flame,
+  RefreshCw,
+  Image as ImageIcon,
   File,
   Search,
   ArrowRight,
@@ -44,6 +46,8 @@ const ICON_MAP: Record<string, any> = {
   Maximize2,
   QrCode,
   Flame,
+  RefreshCw,
+  Image: ImageIcon,
 }
 
 const CATEGORY_ICON_MAP: Record<CategoryId, any> = {

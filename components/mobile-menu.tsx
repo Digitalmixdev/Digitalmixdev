@@ -20,6 +20,8 @@ import {
   QrCode,
   FileArchive,
   Flame,
+  RefreshCw,
+  Image as ImageIcon,
   Menu,
   X,
   LayoutDashboard,
@@ -59,6 +61,8 @@ const toolIconMap: Record<string, LucideIcon> = {
   QrCode,
   FileArchive,
   Flame,
+  RefreshCw,
+  Image: ImageIcon,
 }
 
 interface MobileMenuProps {
@@ -77,6 +81,7 @@ export function MobileMenu({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { user, logout } = useAuth()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const totalToolsCount = categories.reduce((sum, c) => sum + (c.tools?.length || 0), 0) || 18
 
   useEffect(() => {
     if (mobileMenuOpen) {
@@ -124,7 +129,7 @@ export function MobileMenu({
               <div className="p-1 rounded-lg bg-primary/10 text-primary">
                 <LayoutDashboard className="h-3.5 w-3.5" />
               </div>
-              <span>All Tools (16)</span>
+              <span>All Tools ({totalToolsCount})</span>
             </Link>
 
             {isSignedIn && (

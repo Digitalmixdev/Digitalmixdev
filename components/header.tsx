@@ -24,6 +24,8 @@ import {
   QrCode,
   FileArchive,
   Flame,
+  RefreshCw,
+  Image as ImageIcon,
   ChevronDown,
   Moon,
   Sun,
@@ -64,6 +66,8 @@ const toolIconMap: Record<string, LucideIcon> = {
   QrCode,
   FileArchive,
   Flame,
+  RefreshCw,
+  Image: ImageIcon,
 }
 
 function showComingSoon() {

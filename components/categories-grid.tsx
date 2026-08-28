@@ -21,6 +21,28 @@ const iconMap: Record<CategoryId, typeof Database> = {
   files: FileText,
 }
 
+const categoryStyles: Record<CategoryId, {
+  activeButton: string
+  sublabelColor: string
+}> = {
+  database: {
+    activeButton: "bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 border border-blue-500/25 hover:border-blue-500/50",
+    sublabelColor: "text-blue-600 dark:text-blue-400",
+  },
+  developer: {
+    activeButton: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/25 hover:border-emerald-500/50",
+    sublabelColor: "text-emerald-600 dark:text-emerald-400",
+  },
+  calculators: {
+    activeButton: "bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/25 hover:border-amber-500/50",
+    sublabelColor: "text-amber-600 dark:text-amber-400",
+  },
+  files: {
+    activeButton: "bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 border border-rose-500/25 hover:border-rose-500/50",
+    sublabelColor: "text-rose-600 dark:text-rose-400",
+  },
+}
+
 function showComingSoon() {
   toast("Coming Soon!", {
     description: "We are working hard to build this tool for you.",
@@ -63,48 +85,54 @@ export function CategoriesGrid() {
           {TOOL_CATEGORIES.map((category) => {
             const IconComponent = iconMap[category.id] || Database
             const href = `/tools/${category.slug}`
+            const catStyle = categoryStyles[category.id]
 
             return (
-              <Link
+              <div
                 key={category.id}
-                href={href}
-                className="group relative flex flex-col"
+                onClick={() => router.push(href)}
+                className={`group relative flex flex-col rounded-2xl border border-border/70 bg-card/80 backdrop-blur-xs p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer ${category.borderColor || 'hover:border-primary/50'}`}
               >
-                <div className={`relative h-full rounded-2xl border border-border/70 bg-card/80 backdrop-blur-xs p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${category.borderColor || 'hover:border-primary/50'}`}>
-                  {/* Background Gradient */}
-                  <div className={`absolute inset-0 rounded-2xl bg-linear-to-br ${category.color || 'from-primary/20 to-primary/5'} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`} />
+                {/* Background Gradient */}
+                <div className={`absolute inset-0 rounded-2xl bg-linear-to-br ${category.color || 'from-primary/20 to-primary/5'} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`} />
 
-                  <div className="relative flex flex-col justify-between h-full">
-                    <div>
-                      {/* Icon and Tool Count */}
-                      <div className="flex items-start justify-between mb-4">
-                        <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/80 border border-border/60 ${category.iconColor || 'text-primary'} shadow-xs group-hover:scale-105 transition-transform duration-200`}>
-                          <IconComponent className="h-6 w-6" />
-                        </div>
-                        <span className="inline-flex items-center rounded-full bg-secondary/80 border border-border/60 px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
-                          {category.tools.length} tools
-                        </span>
+                <div className="relative flex flex-col justify-between h-full">
+                  <div>
+                    {/* Icon and Tool Count */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/80 border border-border/60 ${category.iconColor || 'text-primary'} shadow-xs group-hover:scale-105 transition-transform duration-200`}>
+                        <IconComponent className="h-6 w-6" />
                       </div>
+                      <span className="inline-flex items-center rounded-full bg-secondary/80 border border-border/60 px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                        {category.tools.length} tools
+                      </span>
+                    </div>
 
-                      {/* Title and Description */}
-                      <h3 className="text-lg font-bold text-foreground mb-1.5 group-hover:text-primary transition-colors">
-                        {category.name}
-                      </h3>
-                      <p className="text-xs sm:text-sm text-muted-foreground mb-4 leading-relaxed line-clamp-2">
-                        {category.description}
-                      </p>
+                    {/* Title and Description */}
+                    <h3 className="text-lg font-bold text-foreground mb-1.5 group-hover:text-primary transition-colors">
+                      {category.name}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-4 leading-relaxed line-clamp-2">
+                      {category.description}
+                    </p>
 
-                      {/* Tool Tags with Active/Soon States */}
-                      <div className="flex flex-wrap gap-1.5 mb-5">
-                        {category.tools.slice(0, 4).map((tool) => (
+                    {/* Tool Tags with All Tools Visible from Outside in Category Colors */}
+                    <div className="mb-5">
+                      <div className="flex flex-wrap gap-1.5">
+                        {category.tools.map((tool) => (
                           <button
                             key={tool.id}
-                            onClick={(e) => handleToolClick(tool, e)}
-                            className={`rounded-lg px-2 py-1 text-[11px] font-medium transition-all ${
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleToolClick(tool, e)
+                            }}
+                            className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-all text-left ${
                               tool.active
-                                ? "bg-primary/10 text-primary hover:bg-primary/20"
-                                : "bg-secondary text-muted-foreground/60 cursor-pointer"
+                                ? `${catStyle?.activeButton || 'bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20'} hover:scale-[1.02]`
+                                : "bg-secondary text-muted-foreground/60 cursor-pointer border border-border/40"
                             }`}
+                            title={tool.description}
                           >
                             <span className="flex items-center gap-1">
                               {tool.name}
@@ -116,15 +144,15 @@ export function CategoriesGrid() {
                         ))}
                       </div>
                     </div>
+                  </div>
 
-                    {/* Arrow CTA */}
-                    <div className="pt-3 border-t border-border/40 flex items-center justify-between text-xs font-semibold text-primary">
-                      <span>Explore Category</span>
-                      <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-                    </div>
+                  {/* Arrow CTA */}
+                  <div className={`pt-3 border-t border-border/40 flex items-center justify-between text-xs font-semibold ${catStyle?.sublabelColor || 'text-primary'}`}>
+                    <span>Explore All {category.name}</span>
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
                   </div>
                 </div>
-              </Link>
+              </div>
             )
           })}
         </div>

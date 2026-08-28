@@ -15,6 +15,8 @@ export type ToolId =
   | 'image-resizer'
   | 'qr-code-generator'
   | 'image-and-file-compressor'
+  | 'document-converter'
+  | 'image-converter'
 
 export type CategoryId = 'database' | 'developer' | 'calculators' | 'files'
 
@@ -185,6 +187,58 @@ export const ALL_TOOLS: ToolDefinition[] = [
 
   // File Tools
   {
+    id: 'document-converter',
+    name: 'Document & Office Converter',
+    slug: 'document-converter',
+    href: '/tools/document-converter',
+    description: 'Convert between PDF, Word (DOCX), Excel (XLSX), PowerPoint (PPTX), HTML, and JPG/PNG documents with full From/To matrix.',
+    categoryId: 'files',
+    icon: 'RefreshCw',
+    active: true,
+    keywords: ['convert', 'converter', 'pdf', 'word', 'docx', 'powerpoint', 'pptx', 'excel', 'xlsx', 'html', 'jpg', 'document', 'office'],
+    features: [
+      { title: 'Universal Format Matrix', desc: 'Convert seamlessly between PDF, Word DOCX, Excel XLSX, PPTX, HTML, and Images.' },
+      { title: '100% Client-Side Privacy', desc: 'All processing occurs locally in browser memory with zero document uploads.' },
+      { title: 'Interactive Live Preview', desc: 'Inspect slides, spreadsheet tables, or extracted text prior to saving.' },
+    ],
+    faqs: [
+      { q: 'Which formats are supported?', a: 'You can convert between PDF, Word (.docx), PowerPoint (.pptx), Excel (.xlsx, .csv), HTML, and Images (.jpg, .png).' },
+      { q: 'Can I convert PowerPoint to PDF or HTML?', a: 'Yes! PPTX files can be converted into formatted multi-page PDFs, interactive HTML slide decks, or text outlines.' },
+      { q: 'Can I convert Excel sheets to PDF or HTML?', a: 'Yes, spreadsheets can be converted into responsive HTML tables, CSVs, or formatted PDF documents.' },
+    ],
+  },
+  {
+    id: 'image-converter',
+    name: 'Image & Media Converter',
+    slug: 'image-converter',
+    href: '/tools/image-converter',
+    description: 'Convert between JPG, PNG, WebP, SVG, and BMP, turn photo albums into multi-page PDFs, or extract PDF pages to JPG.',
+    categoryId: 'files',
+    icon: 'Image',
+    active: true,
+    keywords: ['image converter', 'jpg to png', 'png to jpg', 'webp', 'svg', 'bmp', 'photo to pdf', 'pdf to jpg', 'media'],
+    features: [
+      { title: 'Multi-Image Formats', desc: 'Fast cross-conversion between JPG, PNG, WebP, SVG, and BMP.' },
+      { title: 'Photos to PDF Album', desc: 'Combine single or batch images into a professional, cleanly aligned PDF.' },
+      { title: 'PDF to High-Res JPG/PNG', desc: 'Extract all pages of any PDF document into crisp individual images or a ZIP archive.' },
+    ],
+    faqs: [
+      { q: 'How do I convert images to PDF?', a: 'Upload one or more photos, select PDF, choose your preferred page sizing (Fit, A4, Letter), and download.' },
+      { q: 'Is transparent background preserved in PNG to WebP?', a: 'Yes! Transparency is preserved for PNG and WebP formats.' },
+    ],
+  },
+  {
+    id: 'image-and-file-compressor',
+    name: 'Image & File Compressor',
+    slug: 'image-and-file-compressor',
+    href: '/tools/image-and-file-compressor',
+    description: 'Compress images (JPG, PNG, WebP) and pack files into optimized ZIP archives with instant size reduction.',
+    categoryId: 'files',
+    icon: 'FileText',
+    active: true,
+    keywords: ['compress', 'image optimizer', 'file compression', 'zip', 'shrink', 'media', 'deflate'],
+  },
+  {
     id: 'pdf-merge',
     name: 'PDF Merger & Organizer',
     slug: 'pdf-merge',
@@ -194,17 +248,6 @@ export const ALL_TOOLS: ToolDefinition[] = [
     icon: 'Layers',
     active: true,
     keywords: ['pdf', 'merge', 'organize', 'combine', 'reorder', 'document'],
-  },
-  {
-    id: 'image-resizer',
-    name: 'Image Resizer',
-    slug: 'image-resizer',
-    href: '/tools/image-resizer',
-    description: 'Resize, crop, and convert your images with custom dimensions and aspect ratios.',
-    categoryId: 'files',
-    icon: 'Maximize2',
-    active: true,
-    keywords: ['resize', 'image', 'crop', 'convert', 'scale', 'photo', 'png', 'jpg'],
   },
   {
     id: 'qr-code-generator',
@@ -218,15 +261,15 @@ export const ALL_TOOLS: ToolDefinition[] = [
     keywords: ['qr', 'qr code', 'generator', 'wifi', 'vcard', 'barcode', 'scan'],
   },
   {
-    id: 'image-and-file-compressor',
-    name: 'Image & File Compressor',
-    slug: 'image-and-file-compressor',
-    href: '/tools/image-and-file-compressor',
-    description: 'Compress images (JPG, PNG, WebP) and pack files into optimized ZIP archives with instant size reduction.',
+    id: 'image-resizer',
+    name: 'Image Resizer',
+    slug: 'image-resizer',
+    href: '/tools/image-resizer',
+    description: 'Resize, crop, and convert your images with custom dimensions and aspect ratios.',
     categoryId: 'files',
-    icon: 'FileText',
+    icon: 'Maximize2',
     active: true,
-    keywords: ['compress', 'image optimizer', 'file compression', 'zip', 'shrink', 'media', 'deflate'],
+    keywords: ['resize', 'image', 'crop', 'convert', 'scale', 'photo', 'png', 'jpg'],
   },
 ]
 
@@ -277,12 +320,13 @@ export const TOOL_CATEGORIES: ToolCategory[] = [
   },
 ]
 
-export const popularSearches = [
-  { name: 'QR Code Generator', href: '/tools/qr-code-generator' },
+export const popularSearches: { name: string; href: string }[] = [
+  { name: 'Document & Office Converter', href: '/tools/document-converter' },
   { name: 'SQL Formatter', href: '/tools/sql-formatter' },
-  { name: 'JWT Decoder/Encoder', href: '/tools/jwt' },
-  { name: 'Regex Tester', href: '/tools/regex-tester' },
-  { name: 'PDF Merger & Organizer', href: '/tools/pdf-merge' },
+  { name: 'JSON Formatter', href: '/tools/json-formatter' },
+  { name: 'JWT Decoder & Verifier', href: '/tools/jwt' },
+  { name: 'Image & File Compressor', href: '/tools/image-and-file-compressor' },
+  { name: 'ROI Calculator', href: '/tools/roi-calculator' },
 ]
 
 export function getAllTools(): ToolDefinition[] {

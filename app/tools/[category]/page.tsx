@@ -19,6 +19,8 @@ import {
   QrCode,
   FileArchive,
   Flame,
+  RefreshCw,
+  Image as ImageIcon,
   File,
   ArrowRight,
   ChevronRight,
@@ -59,6 +61,8 @@ const toolIcons: Record<string, LucideIcon> = {
   Maximize2,
   QrCode,
   Flame,
+  RefreshCw,
+  Image: ImageIcon,
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

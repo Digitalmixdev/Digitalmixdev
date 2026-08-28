@@ -1,0 +1,893 @@
+import JSZip from 'jszip'
+import * as XLSX from 'xlsx'
+import { PDFDocument, rgb, StandardFonts, PageSizes } from 'pdf-lib'
+
+export interface ParsedSlide {
+  slideNumber: number
+  title: string
+  bullets: string[]
+  rawText: string
+}
+
+export interface ParsedSheet {
+  name: string
+  htmlTable: string
+  csv: string
+  json: any[]
+  rowCount: number
+  colCount: number
+}
+
+export interface ConversionResult {
+  blob: Blob
+  filename: string
+  mimeType: string
+  previewText?: string
+  previewHtml?: string
+  pageCount?: number
+  items?: { name: string; blob: Blob; url: string }[]
+}
+
+// ----------------------------------------------------
+// 1. DOCX Parsing (via mammoth & JSZip)
+// ----------------------------------------------------
+export async function parseDocx(file: File | Blob): Promise<{ html: string; text: string }> {
+  try {
+    const arrayBuffer = await file.arrayBuffer()
+    // Dynamic import to avoid SSR issues
+    const mammoth = (await import('mammoth')).default || (await import('mammoth'))
+    const htmlResult = await mammoth.convertToHtml({ arrayBuffer })
+    const textResult = await mammoth.extractRawText({ arrayBuffer })
+    return {
+      html: htmlResult.value || '<p>No readable content found</p>',
+      text: textResult.value || '',
+    }
+  } catch (err: any) {
+    console.warn('Mammoth parsing error, attempting zip fallback:', err)
+    // Fallback: extract word/document.xml with JSZip
+    try {
+      const zip = await JSZip.loadAsync(file)
+      const docXml = await zip.file('word/document.xml')?.async('string')
+      if (docXml) {
+        // Strip XML tags for basic text
+        const text = docXml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+        const html = `<div class="docx-extracted">${text.split('. ').map((p) => `<p>${escapeHtml(p)}.</p>`).join('')}</div>`
+        return { html, text }
+      }
+    } catch {
+      // ignore fallback error
+    }
+    throw new Error(`Failed to parse Word document: ${err?.message || 'Unknown error'}`)
+  }
+}
+
+// ----------------------------------------------------
+// 2. PPTX Parsing (via JSZip)
+// ----------------------------------------------------
+export async function parsePptx(file: File | Blob): Promise<{ slides: ParsedSlide[]; text: string; html: string }> {
+  try {
+    const zip = await JSZip.loadAsync(file)
+    const slideFiles = Object.keys(zip.files)
+      .filter((name) => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
+      .sort((a, b) => {
+        const numA = parseInt(a.match(/\d+/)![0], 10)
+        const numB = parseInt(b.match(/\d+/)![0], 10)
+        return numA - numB
+      })
+
+    if (slideFiles.length === 0) {
+      throw new Error('No slides found in PowerPoint file')
+    }
+
+    const slides: ParsedSlide[] = []
+    let fullText = ''
+    let htmlOutput = '<div class="presentation-slides space-y-6">'
+
+    for (let i = 0; i < slideFiles.length; i++) {
+      const slidePath = slideFiles[i]
+      const xml = await zip.files[slidePath].async('string')
+
+      // Simple regex parser for slide text elements <a:t>...</a:t> and paragraphs <a:p>...</a:p>
+      const paragraphs: string[] = []
+      const pMatches = xml.match(/<a:p[\s\S]*?<\/a:p>/g) || []
+
+      for (const pXml of pMatches) {
+        const tMatches = pXml.match(/<a:t[^>]*>([\s\S]*?)<\/a:t>/g) || []
+        const pText = tMatches
+          .map((m) => m.replace(/<\/?a:t[^>]*>/g, ''))
+          .join('')
+          .trim()
+        if (pText) {
+          paragraphs.push(pText)
+        }
+      }
+
+      const title = paragraphs[0] || `Slide ${i + 1}`
+      const bullets = paragraphs.slice(1)
+      const slideText = paragraphs.join('\n')
+
+      slides.push({
+        slideNumber: i + 1,
+        title,
+        bullets,
+        rawText: slideText,
+      })
+
+      fullText += `\n--- Slide ${i + 1}: ${title} ---\n${bullets.join('\n')}\n`
+
+      htmlOutput += `
+        <div class="slide-card p-6 rounded-xl border border-border bg-card shadow-sm">
+          <div class="flex items-center justify-between pb-3 border-b border-border/60 mb-4">
+            <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Slide ${i + 1}</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">PowerPoint</span>
+          </div>
+          <h3 class="text-lg font-bold text-foreground mb-3">${escapeHtml(title)}</h3>
+          ${
+            bullets.length > 0
+              ? `<ul class="list-disc list-inside space-y-1.5 text-muted-foreground text-sm">
+                  ${bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join('')}
+                </ul>`
+              : '<p class="text-sm text-muted-foreground italic">No bullet points</p>'
+          }
+        </div>
+      `
+    }
+
+    htmlOutput += '</div>'
+    return { slides, text: fullText.trim(), html: htmlOutput }
+  } catch (err: any) {
+    throw new Error(`Failed to parse PowerPoint presentation: ${err?.message || 'Invalid PPTX file'}`)
+  }
+}
+
+// ----------------------------------------------------
+// 3. XLSX Parsing (via SheetJS)
+// ----------------------------------------------------
+export async function parseXlsx(file: File | Blob): Promise<{ sheets: ParsedSheet[]; html: string; text: string }> {
+  try {
+    const arrayBuffer = await file.arrayBuffer()
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' })
+    const sheets: ParsedSheet[] = []
+    let fullText = ''
+    let fullHtml = '<div class="excel-sheets space-y-8">'
+
+    for (const sheetName of workbook.SheetNames) {
+      const ws = workbook.Sheets[sheetName]
+      const htmlTable = XLSX.utils.sheet_to_html(ws, { id: `sheet-${sheetName}` })
+      const csv = XLSX.utils.sheet_to_csv(ws)
+      const json: any[] = XLSX.utils.sheet_to_json(ws)
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1')
+      const rowCount = range.e.r - range.s.r + 1
+      const colCount = range.e.c - range.s.c + 1
+
+      sheets.push({
+        name: sheetName,
+        htmlTable,
+        csv,
+        json,
+        rowCount,
+        colCount,
+      })
+
+      fullText += `\n=== Sheet: ${sheetName} ===\n${csv}\n`
+      fullHtml += `
+        <div class="sheet-section rounded-xl border border-border bg-card p-4 overflow-hidden shadow-sm">
+          <div class="flex items-center justify-between pb-3 mb-3 border-b border-border">
+            <h4 class="font-bold text-foreground flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              ${escapeHtml(sheetName)}
+            </h4>
+            <span class="text-xs text-muted-foreground">${rowCount} rows × ${colCount} cols</span>
+          </div>
+          <div class="overflow-x-auto max-h-96 text-xs custom-scrollbar">
+            ${htmlTable}
+          </div>
+        </div>
+      `
+    }
+
+    fullHtml += '</div>'
+    return { sheets, html: fullHtml, text: fullText.trim() }
+  } catch (err: any) {
+    throw new Error(`Failed to parse Excel spreadsheet: ${err?.message || 'Invalid spreadsheet file'}`)
+  }
+}
+
+// ----------------------------------------------------
+// 4. PDF Parsing & Page Extraction (via pdfjs-dist)
+// ----------------------------------------------------
+export async function parsePdf(
+  file: File | Blob
+): Promise<{ text: string; pageCount: number; pages: { pageNumber: number; text: string }[] }> {
+  try {
+    const pdfjsLib = await import('pdfjs-dist')
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+
+    const arrayBuffer = await file.arrayBuffer()
+    const loadingTask = pdfjsLib.getDocument({
+      data: arrayBuffer,
+      cMapUrl: '/cmaps/',
+      cMapPacked: true,
+    })
+
+    const pdf = await loadingTask.promise
+    const pageCount = pdf.numPages
+    const pages: { pageNumber: number; text: string }[] = []
+    let fullText = ''
+
+    for (let i = 1; i <= pageCount; i++) {
+      const page = await pdf.getPage(i)
+      const textContent = await page.getTextContent()
+      const pageText = textContent.items
+        .map((item: any) => item.str || '')
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+
+      pages.push({ pageNumber: i, text: pageText })
+      fullText += `\n--- Page ${i} ---\n${pageText}\n`
+    }
+
+    return { text: fullText.trim(), pageCount, pages }
+  } catch (err: any) {
+    throw new Error(`Failed to read PDF document: ${err?.message || 'Invalid or encrypted PDF'}`)
+  }
+}
+
+// ----------------------------------------------------
+// 5. Render PDF Pages to Images (JPG / PNG)
+// ----------------------------------------------------
+export async function renderPdfToImages(
+  file: File | Blob,
+  format: 'jpg' | 'png' = 'jpg',
+  quality: number = 0.92,
+  scale: number = 1.8
+): Promise<{ pageNumber: number; blob: Blob; dataUrl: string; width: number; height: number }[]> {
+  const pdfjsLib = await import('pdfjs-dist')
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+
+  const arrayBuffer = await file.arrayBuffer()
+  const loadingTask = pdfjsLib.getDocument({
+    data: arrayBuffer,
+    cMapUrl: '/cmaps/',
+    cMapPacked: true,
+  })
+
+  const pdf = await loadingTask.promise
+  const results: { pageNumber: number; blob: Blob; dataUrl: string; width: number; height: number }[] = []
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i)
+    const viewport = page.getViewport({ scale })
+
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx) continue
+
+    canvas.width = viewport.width
+    canvas.height = viewport.height
+
+    // Fill white background for JPG or transparent-friendly canvas
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.imageSmoothingEnabled = true
+
+    await page.render({
+      canvasContext: ctx,
+      viewport,
+      canvas,
+    } as any).promise
+
+    const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png'
+    const dataUrl = canvas.toDataURL(mimeType, quality)
+
+    const blob = await new Promise<Blob>((resolve) => {
+      canvas.toBlob((b) => resolve(b || new Blob([], { type: mimeType })), mimeType, quality)
+    })
+
+    results.push({
+      pageNumber: i,
+      blob,
+      dataUrl,
+      width: canvas.width,
+      height: canvas.height,
+    })
+  }
+
+  return results
+}
+
+// ----------------------------------------------------
+// 6. DOCX Generation (OpenXML via JSZip)
+// ----------------------------------------------------
+export async function generateDocxFile(options: {
+  title?: string
+  text?: string
+  html?: string
+  paragraphs?: string[]
+}): Promise<Blob> {
+  const zip = new JSZip()
+
+  const paragraphsList: string[] = []
+  if (options.paragraphs && options.paragraphs.length > 0) {
+    paragraphsList.push(...options.paragraphs)
+  } else if (options.text) {
+    const lines = options.text.split(/\r?\n\r?\n|\r?\n/).map((l) => l.trim()).filter(Boolean)
+    paragraphsList.push(...lines)
+  } else if (options.html) {
+    // Extract text paragraphs from HTML
+    const tempDiv = document.createElement('div')
+    tempDiv.innerHTML = options.html
+    const pElements = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li, tr')
+    if (pElements.length > 0) {
+      pElements.forEach((el) => {
+        const text = el.textContent?.trim()
+        if (text) paragraphsList.push(text)
+      })
+    } else {
+      paragraphsList.push(tempDiv.textContent?.trim() || 'Empty document')
+    }
+  }
+
+  const titleText = options.title || paragraphsList[0] || 'Converted Document'
+
+  // Construct WordprocessingML
+  let bodyXml = ''
+
+  // Title paragraph
+  bodyXml += `
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Title"/>
+        <w:jc w:val="center"/>
+        <w:spacing w:before="240" w:after="240"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
+          <w:b/>
+          <w:sz w:val="48"/>
+          <w:szCs w:val="48"/>
+          <w:color w:val="1E293B"/>
+        </w:rPr>
+        <w:t xml:space="preserve">${escapeXml(titleText)}</w:t>
+      </w:r>
+    </w:p>
+  `
+
+  // Body paragraphs
+  for (const para of paragraphsList) {
+    if (para === titleText) continue
+    bodyXml += `
+      <w:p>
+        <w:pPr>
+          <w:spacing w:before="120" w:after="120" w:line="276" w:lineRule="auto"/>
+        </w:pPr>
+        <w:r>
+          <w:rPr>
+            <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
+            <w:sz w:val="24"/>
+            <w:szCs w:val="24"/>
+            <w:color w:val="334155"/>
+          </w:rPr>
+          <w:t xml:space="preserve">${escapeXml(para)}</w:t>
+        </w:r>
+      </w:p>
+    `
+  }
+
+  // Section properties (Letter/A4 standard layout)
+  bodyXml += `
+    <w:sectPr>
+      <w:pgSz w:w="11906" w:h="16838"/>
+      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/>
+      <w:cols w:space="720"/>
+      <w:docGrid w:linePitch="360"/>
+    </w:sectPr>
+  `
+
+  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    ${bodyXml}
+  </w:body>
+</w:document>`
+
+  const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>`
+
+  const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`
+
+  const wordRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`
+
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault>
+      <w:rPr>
+        <w:rFonts w:ascii="Calibri" w:eastAsia="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>
+        <w:sz w:val="22"/>
+        <w:szCs w:val="22"/>
+        <w:lang w:val="en-US"/>
+      </w:rPr>
+    </w:rPrDefault>
+  </w:docDefaults>
+</w:styles>`
+
+  zip.file('[Content_Types].xml', contentTypesXml)
+  zip.file('_rels/.rels', relsXml)
+  zip.file('word/_rels/document.xml.rels', wordRelsXml)
+  zip.file('word/document.xml', documentXml)
+  zip.file('word/styles.xml', stylesXml)
+
+  const docxBuffer = await zip.generateAsync({
+    type: 'blob',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  })
+
+  return docxBuffer
+}
+
+// ----------------------------------------------------
+// 7. PPTX Generation (OpenXML via JSZip)
+// ----------------------------------------------------
+export async function generatePptxFile(options: {
+  title?: string
+  slides: { title: string; bullets: string[]; body?: string }[]
+}): Promise<Blob> {
+  const zip = new JSZip()
+  const presentationTitle = options.title || 'Presentation'
+  const slides = options.slides.length > 0 ? options.slides : [{ title: presentationTitle, bullets: ['Slide 1 content'] }]
+
+  let contentTypesOverrides = ''
+  let presentationSlideRels = ''
+  let presentationSlidesList = ''
+
+  for (let i = 0; i < slides.length; i++) {
+    const slideNum = i + 1
+    const relId = `rId${slideNum + 1}`
+
+    contentTypesOverrides += `<Override PartName="/ppt/slides/slide${slideNum}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>\n`
+    presentationSlideRels += `<Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${slideNum}.xml"/>\n`
+    presentationSlidesList += `<p:sldId id="${255 + slideNum}" r:id="${relId}"/>\n`
+
+    const slide = slides[i]
+    let bulletsXml = ''
+
+    for (const bullet of slide.bullets) {
+      bulletsXml += `
+        <a:p>
+          <a:pPr lvl="0"/>
+          <a:r>
+            <a:rPr lang="en-US" sz="2000">
+              <a:solidFill><a:srgbClr val="334155"/></a:solidFill>
+            </a:rPr>
+            <a:t>${escapeXml(bullet)}</a:t>
+          </a:r>
+        </a:p>
+      `
+    }
+
+    if (slide.body && slide.bullets.length === 0) {
+      bulletsXml += `
+        <a:p>
+          <a:r>
+            <a:rPr lang="en-US" sz="2000">
+              <a:solidFill><a:srgbClr val="334155"/></a:solidFill>
+            </a:rPr>
+            <a:t>${escapeXml(slide.body)}</a:t>
+          </a:r>
+        </a:p>
+      `
+    }
+
+    const slideXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+       xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+       xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:cSld>
+    <p:spTree>
+      <p:nvGrpSpPr>
+        <p:cNvPr id="1" name=""/>
+        <p:cNvGrpSpPr/>
+        <p:nvPr/>
+      </p:nvGrpSpPr>
+      <p:grpSpPr>
+        <a:xfrm>
+          <a:off x="0" y="0"/>
+          <a:ext cx="0" cy="0"/>
+          <a:chOff x="0" y="0"/>
+          <a:chExt cx="0" cy="0"/>
+        </a:xfrm>
+      </p:grpSpPr>
+      <!-- Title Box -->
+      <p:sp>
+        <p:nvSpPr>
+          <p:cNvPr id="2" name="Title"/>
+          <p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr>
+          <p:nvPr><p:ph type="title"/></p:nvPr>
+        </p:nvSpPr>
+        <p:spPr>
+          <a:xfrm>
+            <a:off x="838200" y="609600"/>
+            <a:ext cx="10515600" cy="1325563"/>
+          </a:xfrm>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr/>
+          <a:lstStyle/>
+          <a:p>
+            <a:r>
+              <a:rPr lang="en-US" b="1" sz="4000">
+                <a:solidFill><a:srgbClr val="0F172A"/></a:solidFill>
+              </a:rPr>
+              <a:t>${escapeXml(slide.title)}</a:t>
+            </a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>
+      <!-- Body Text Box -->
+      <p:sp>
+        <p:nvSpPr>
+          <p:cNvPr id="3" name="Content"/>
+          <p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr>
+          <p:nvPr><p:ph idx="1"/></p:nvPr>
+        </p:nvSpPr>
+        <p:spPr>
+          <a:xfrm>
+            <a:off x="838200" y="2100000"/>
+            <a:ext cx="10515600" cy="4500000"/>
+          </a:xfrm>
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr/>
+          <a:lstStyle/>
+          ${bulletsXml}
+        </p:txBody>
+      </p:sp>
+    </p:spTree>
+  </p:cSld>
+</p:sld>`
+
+    zip.file(`ppt/slides/slide${slideNum}.xml`, slideXml)
+  }
+
+  const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
+  ${contentTypesOverrides}
+</Types>`
+
+  const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/>
+</Relationships>`
+
+  const presentationXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+                xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+                xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:sldMasterIdLst/>
+  <p:sldIdLst>
+    ${presentationSlidesList}
+  </p:sldIdLst>
+  <p:sldSz cx="12192000" cy="6858000" type="screen16x9"/>
+  <p:notesSz cx="6858000" cy="9144000"/>
+</p:presentation>`
+
+  const presentationRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  ${presentationSlideRels}
+</Relationships>`
+
+  zip.file('[Content_Types].xml', contentTypesXml)
+  zip.file('_rels/.rels', relsXml)
+  zip.file('ppt/presentation.xml', presentationXml)
+  zip.file('ppt/_rels/presentation.xml.rels', presentationRelsXml)
+
+  return await zip.generateAsync({
+    type: 'blob',
+    mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  })
+}
+
+// ----------------------------------------------------
+// 8. Excel Generation (via SheetJS)
+// ----------------------------------------------------
+export function generateXlsxFromData(data: {
+  sheetName?: string
+  rows?: any[][]
+  htmlTable?: string
+  csv?: string
+}): Blob {
+  const wb = XLSX.utils.book_new()
+  const sheetName = (data.sheetName || 'Sheet1').slice(0, 31)
+
+  let ws: XLSX.WorkSheet
+  if (data.rows && data.rows.length > 0) {
+    ws = XLSX.utils.aoa_to_sheet(data.rows)
+  } else if (data.csv) {
+    ws = XLSX.utils.aoa_to_sheet(
+      data.csv.split('\n').map((row) => row.split(',').map((cell) => cell.replace(/^"(.*)"$/, '$1').trim()))
+    )
+  } else if (data.htmlTable) {
+    const div = document.createElement('div')
+    div.innerHTML = data.htmlTable
+    const table = div.querySelector('table')
+    if (table) {
+      ws = XLSX.utils.table_to_sheet(table)
+    } else {
+      ws = XLSX.utils.aoa_to_sheet([['No tabular data found']])
+    }
+  } else {
+    ws = XLSX.utils.aoa_to_sheet([['Converted Sheet'], ['No data']])
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, sheetName)
+  const arrayBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+  return new Blob([arrayBuffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
+}
+
+// ----------------------------------------------------
+// 9. PDF Generation (via pdf-lib)
+// ----------------------------------------------------
+export async function generatePdfDocument(options: {
+  title?: string
+  text?: string
+  paragraphs?: string[]
+  images?: { data: ArrayBuffer | Uint8Array; type: 'jpg' | 'png' }[]
+  pageSize?: [number, number]
+}): Promise<Blob> {
+  const pdfDoc = await PDFDocument.create()
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+
+  const [pageWidth, pageHeight] = options.pageSize || PageSizes.A4
+  const margin = 50
+  const contentWidth = pageWidth - margin * 2
+
+  // If images are provided:
+  if (options.images && options.images.length > 0) {
+    for (const img of options.images) {
+      const page = pdfDoc.addPage([pageWidth, pageHeight])
+      let embeddedImg
+      if (img.type === 'png') {
+        embeddedImg = await pdfDoc.embedPng(img.data)
+      } else {
+        embeddedImg = await pdfDoc.embedJpg(img.data)
+      }
+
+      // Calculate scale to fit page margins proportionally
+      const imgWidth = embeddedImg.width
+      const imgHeight = embeddedImg.height
+      const scaleFactor = Math.min(contentWidth / imgWidth, (pageHeight - margin * 2) / imgHeight, 1)
+
+      const drawWidth = imgWidth * scaleFactor
+      const drawHeight = imgHeight * scaleFactor
+      const xPos = margin + (contentWidth - drawWidth) / 2
+      const yPos = margin + (pageHeight - margin * 2 - drawHeight) / 2
+
+      page.drawImage(embeddedImg, {
+        x: xPos,
+        y: yPos,
+        width: drawWidth,
+        height: drawHeight,
+      })
+    }
+
+    const pdfBytes = await pdfDoc.save()
+    return new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' })
+  }
+
+  // Otherwise, render structured text paragraphs:
+  let page = pdfDoc.addPage([pageWidth, pageHeight])
+  let y = pageHeight - margin
+
+  const title = options.title || 'Document'
+  page.drawText(title, {
+    x: margin,
+    y: y - 18,
+    size: 20,
+    font: boldFont,
+    color: rgb(0.06, 0.09, 0.16),
+  })
+  y -= 45
+
+  const paragraphs = options.paragraphs || (options.text ? options.text.split('\n') : ['No text provided'])
+
+  for (const para of paragraphs) {
+    const trimmed = para.trim()
+    if (!trimmed) {
+      y -= 12
+      continue
+    }
+
+    // Wrap lines
+    const words = trimmed.split(/\s+/)
+    let currentLine = ''
+
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word
+      const textWidth = font.widthOfTextAtSize(testLine, 10.5)
+
+      if (textWidth > contentWidth) {
+        if (y < margin + 25) {
+          page = pdfDoc.addPage([pageWidth, pageHeight])
+          y = pageHeight - margin
+        }
+        page.drawText(currentLine, {
+          x: margin,
+          y,
+          size: 10.5,
+          font,
+          color: rgb(0.2, 0.25, 0.35),
+        })
+        y -= 16
+        currentLine = word
+      } else {
+        currentLine = testLine
+      }
+    }
+
+    if (currentLine) {
+      if (y < margin + 25) {
+        page = pdfDoc.addPage([pageWidth, pageHeight])
+        y = pageHeight - margin
+      }
+      page.drawText(currentLine, {
+        x: margin,
+        y,
+        size: 10.5,
+        font,
+        color: rgb(0.2, 0.25, 0.35),
+      })
+      y -= 18
+    }
+  }
+
+  const pdfBytes = await pdfDoc.save()
+  return new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' })
+}
+
+// ----------------------------------------------------
+// 10. HTML Document Export
+// ----------------------------------------------------
+export function generateHtmlDocument(options: {
+  title: string
+  bodyHtml: string
+  sourceType: string
+}): Blob {
+  const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(options.title)}</title>
+  <style>
+    :root {
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --bg: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #2563eb;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f172a;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --border: #334155;
+        --primary: #3b82f6;
+      }
+    }
+    body {
+      font-family: var(--font-family);
+      line-height: 1.6;
+      color: var(--text);
+      background-color: var(--bg);
+      margin: 0;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      background: var(--bg);
+    }
+    .header {
+      padding-bottom: 24px;
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 {
+      font-size: 2rem;
+      margin: 0 0 8px 0;
+      color: var(--text);
+    }
+    .meta {
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 24px 0;
+    }
+    th, td {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      text-align: left;
+      font-size: 0.875rem;
+    }
+    th {
+      background-color: rgba(148, 163, 184, 0.1);
+      font-weight: 600;
+    }
+    p, li {
+      font-size: 1rem;
+      color: var(--text);
+    }
+    .slide-card {
+      margin-bottom: 24px;
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    @media print {
+      body { padding: 0; }
+      .container { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>${escapeHtml(options.title)}</h1>
+      <div class="meta">Converted from ${escapeHtml(options.sourceType.toUpperCase())} • Generated cleanly</div>
+    </div>
+    <div class="content">
+      ${options.bodyHtml}
+    </div>
+  </div>
+</body>
+</html>`
+
+  return new Blob([fullHtml], { type: 'text/html;charset=utf-8' })
+}
+
+// ----------------------------------------------------
+// Helpers
+// ----------------------------------------------------
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
