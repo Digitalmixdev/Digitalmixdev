@@ -194,7 +194,7 @@ export function Header() {
             </Button>
 
             {/* Quick Favorites Link (Desktop) */}
-            {!isLoading && isAuthenticated && (
+            {mounted && !isLoading && isAuthenticated && (
               <Button
                 asChild
                 variant="ghost"
@@ -209,7 +209,7 @@ export function Header() {
             )}
 
             {/* Auth Section */}
-            {!isLoading && !isAuthenticated ? (
+            {mounted && !isLoading && !isAuthenticated ? (
               <div className="hidden lg:flex items-center gap-2 animate-in fade-in duration-150">
                 <Button asChild variant="ghost" size="sm" className="h-9 px-3 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground">
                   <Link href="/login">{t('nav.signin', 'Sign In')}</Link>
@@ -218,7 +218,7 @@ export function Header() {
                   <Link href="/signup">{t('nav.signup', 'Sign Up')}</Link>
                 </Button>
               </div>
-            ) : isAuthenticated ? (
+            ) : mounted && isAuthenticated ? (
               <div className="hidden sm:flex items-center min-h-[36px]">
                 <UserMenu />
               </div>

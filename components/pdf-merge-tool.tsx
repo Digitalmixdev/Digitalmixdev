@@ -23,6 +23,7 @@ import { PDFDocument } from 'pdf-lib'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
+import { useLanguage } from '@/lib/i18n/context'
 
 interface PDFPageItem {
   id: string
@@ -104,7 +105,7 @@ async function getCachedPdfDocument(file: File) {
   let pdf: any
   try {
     const loadingTask = pdfjsLib.getDocument({
-      data: arrayBuffer,
+      data: new Uint8Array(arrayBuffer.slice(0)),
       cMapUrl: '/cmaps/',
       cMapPacked: true,
     })
@@ -112,7 +113,7 @@ async function getCachedPdfDocument(file: File) {
   } catch (workerErr) {
     console.warn('PDF worker error in merge tool, falling back to main thread:', workerErr)
     const fallbackTask = pdfjsLib.getDocument({
-      data: arrayBuffer,
+      data: new Uint8Array(arrayBuffer.slice(0)),
       cMapUrl: '/cmaps/',
       cMapPacked: true,
       disableWorker: true,
@@ -289,6 +290,7 @@ function LazyPageCard({
 }
 
 export default function PdfMergeTool() {
+  const { t } = useLanguage()
   const [pages, setPages] = useState<PDFPageItem[]>([])
   const [isMerging, setIsMerging] = useState(false)
   const [isProcessingFiles, setIsProcessingFiles] = useState(false)
@@ -306,7 +308,7 @@ export default function PdfMergeTool() {
     }
   }
 
-  const handleFilesUpload = async (files: FileList | null) => {
+  const handleFilesUpload = async (files: FileList | File[] | null) => {
     if (!files || files.length === 0) return
     setIsProcessingFiles(true)
 
@@ -315,10 +317,19 @@ export default function PdfMergeTool() {
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
-        if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+        const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf') || file.type === ''
+        if (isPdf) {
           try {
-            const pdf = await getCachedPdfDocument(file)
-            const pageCount = pdf.numPages
+            let pageCount = 0
+            try {
+              const pdf = await getCachedPdfDocument(file)
+              pageCount = pdf.numPages
+            } catch (pdfJsErr) {
+              console.warn('pdfjs failed, using pdf-lib fallback for page count:', pdfJsErr)
+              const fileBuffer = await file.arrayBuffer()
+              const pdfDoc = await PDFDocument.load(fileBuffer.slice(0), { ignoreEncryption: true })
+              pageCount = pdfDoc.getPageCount()
+            }
 
             for (let p = 1; p <= pageCount; p++) {
               newPageItems.push({
@@ -357,6 +368,19 @@ export default function PdfMergeTool() {
       console.error('Error processing PDF documents:', err)
     } finally {
       setIsProcessingFiles(false)
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFilesUpload(e.dataTransfer.files)
     }
   }
 
@@ -430,8 +454,11 @@ export default function PdfMergeTool() {
       <input
         type="file"
         ref={fileInputRef}
-        onChange={(e) => handleFilesUpload(e.target.files)}
-        accept="application/pdf"
+        onChange={(e) => {
+          handleFilesUpload(e.target.files)
+          e.target.value = ''
+        }}
+        accept="application/pdf,.pdf"
         multiple
         className="hidden"
       />
@@ -439,6 +466,8 @@ export default function PdfMergeTool() {
       {pages.length === 0 ? (
         <div
           onClick={() => fileInputRef.current?.click()}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
           className="border-2 border-dashed border-border/80 hover:border-primary/50 bg-card/50 hover:bg-card/90 rounded-3xl p-10 sm:p-16 text-center cursor-pointer transition-all duration-200 shadow-xs flex flex-col items-center justify-center gap-4 group"
         >
           <div className="p-4 rounded-2xl bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-200">
@@ -450,14 +479,14 @@ export default function PdfMergeTool() {
           </div>
           <div>
             <h3 className="text-lg font-bold text-foreground mb-1">
-              Select or Drop PDF Files
+              {t('pdf_merge.dropzone_title', 'Select or Drop PDF Files')}
             </h3>
             <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
-              Upload multiple PDF documents to reorder pages, remove sheets, and merge into one.
+              {t('pdf_merge.dropzone_desc', 'Upload multiple PDF documents to reorder pages, remove sheets, and merge into one.')}
             </p>
           </div>
           <Button size="lg" className="rounded-xl font-bold gap-2 pointer-events-none mt-2">
-            <Plus className="h-4 w-4" /> Choose PDF Files
+            <Plus className="h-4 w-4" /> {t('pdf_merge.choose_btn', 'Choose PDF Files')}
           </Button>
         </div>
       ) : (
@@ -473,10 +502,10 @@ export default function PdfMergeTool() {
                 className="gap-2 text-xs font-semibold rounded-xl"
               >
                 {isProcessingFiles ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                Add More PDFs
+                {t('pdf_merge.add_more', 'Add More PDFs')}
               </Button>
               <span className="text-xs font-medium text-muted-foreground">
-                {pages.length} {pages.length === 1 ? 'page' : 'pages'} total
+                {pages.length} {t('pdf_merge.pages_total', 'pages total')}
               </span>
             </div>
 
@@ -487,7 +516,7 @@ export default function PdfMergeTool() {
                 onClick={handleClearAll}
                 className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1.5"
               >
-                <Trash2 className="h-3.5 w-3.5" /> Clear All
+                <Trash2 className="h-3.5 w-3.5" /> {t('action.clear', 'Clear All')}
               </Button>
               <Button
                 size="sm"
@@ -498,12 +527,12 @@ export default function PdfMergeTool() {
                 {isMerging ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Downloading...
+                    {t('action.processing', 'Downloading...')}
                   </>
                 ) : (
                   <>
                     <Download className="h-4 w-4" />
-                    Download
+                    {t('action.download', 'Download')}
                   </>
                 )}
               </Button>

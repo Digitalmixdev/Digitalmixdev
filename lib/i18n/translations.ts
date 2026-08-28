@@ -8,7 +8,7 @@ export const translations: Record<Language, TranslationDictionary> = {
   en: {
     // Brand & Header
     'brand.name': 'DigitalMix',
-    'brand.tagline': 'Free Digital Tools Hub',
+    'brand.tagline': 'Free Digital Tools for Developers',
     'nav.all_tools': 'All Tools',
     'nav.database': 'Database Tools',
     'nav.developer': 'Developer Utilities',
@@ -35,8 +35,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     'hero.title_highlight': 'Simplify',
     'hero.title_end': 'Your Data & Dev Workflow',
     'hero.subtitle':
-      'Powerful, privacy-focused digital tools for developers, creators, and professionals. No sign-up required. Process files locally, convert data instantly, and boost your productivity.',
-    'hero.search_placeholder': 'Search 18+ tools (e.g. Document Converter, PDF Merge, Calorie Calculator, JSON, SQL)...',
+      'Powerful, privacy-focused utilities for developers. No sign-up required. Process files locally, convert data instantly, and boost your productivity.',
+    'hero.search_placeholder': 'Search 18+ developer tools (e.g. JSON, SQL, KPI, Image Converter)...',
     'hero.popular': 'Popular:',
 
     // Common Actions
@@ -241,11 +241,34 @@ export const translations: Record<Language, TranslationDictionary> = {
     'tool.merge_all_pdf': 'Merge All into 1 PDF',
     'tool.drop_images': 'Drop multiple images or click to select files',
     'tool.multi_select_enabled': 'Multi-Select Enabled',
+
+    // About Page Keys
+    'about.badge': 'Our Mission',
+    'about.title': 'About DigitalMix',
+    'about.tagline': 'A curated suite of fast, 100% free, and privacy-first digital tools engineered for professionals, creators, students, and developers. We eliminate paywalls and complexity so you can focus on getting things done.',
+    'about.pillar1_title': 'Fast by Design',
+    'about.pillar1_desc': 'Optimized for instant execution without network delays or server queues, giving you instant results directly in your browser.',
+    'about.pillar2_title': 'Privacy-First',
+    'about.pillar2_desc': 'Your data stays strictly on your device. Local in-browser processing guarantees total security and confidentiality.',
+    'about.pillar3_title': '100% Free',
+    'about.pillar3_desc': 'No subscription paywalls, hidden limits, or mandatory registrations. Built freely for everyone.',
+    'about.vision_title': 'Built for Your Daily Digital Workflow',
+    'about.vision_desc': 'DigitalMix was created out of frustration with online tools that are cluttered with intrusive ads, paywalls, or strict limits. Whether you are converting document files, calculating financial metrics, merging PDFs, or formatting code, we strive to provide a clean, high-performance, and privacy-first solution.',
+    'about.contact_title': 'Get in Touch',
+    'about.contact_desc': 'Have a tool suggestion or discovered an edge-case bug? We love feedback from professionals, engineers, and creators.',
+    'about.explore_button': 'Explore All Tools',
+
+    // PDF Merge Specific Keys
+    'pdf_merge.dropzone_title': 'Select or Drop PDF Files',
+    'pdf_merge.dropzone_desc': 'Upload multiple PDF documents to reorder pages, remove sheets, and merge into one.',
+    'pdf_merge.choose_btn': 'Choose PDF Files',
+    'pdf_merge.add_more': 'Add More PDFs',
+    'pdf_merge.pages_total': 'pages total',
   },
   ar: {
     // Brand & Header
     'brand.name': 'ديجيتال ميكس',
-    'brand.tagline': 'منصة الأدوات الرقمية المجانية',
+    'brand.tagline': 'أدوات رقمية مجانية للمطورين وصناع المحتوى',
     'nav.all_tools': 'جميع الأدوات',
     'nav.database': 'أدوات قواعد البيانات',
     'nav.developer': 'أدوات المطورين',
@@ -272,8 +295,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     'hero.title_highlight': 'لتبسيط',
     'hero.title_end': 'سير عملك والتعامل مع البيانات',
     'hero.subtitle':
-      'أدوات رقمية قوية وسريعة تحافظ على خصوصيتك بالكامل للمطورين والمهنيين وصناع المحتوى. دون تسجيل إجباري، معالجة الملفات محلياً داخل جهازك تحويل فوري وزيادة في الإنتاجية.',
-    'hero.search_placeholder': 'ابحث بين أكثر من 18 أداة (مثل: محول المستندات، حاسبة السعرات، دمج PDF، منسق JSON)...',
+      'أدوات قوية وسريعة تحافظ على خصوصيتك بالكامل. بدون تسجيل، معالجة الملفات محلياً داخل جهازك دون رفعها لأي سيرفر، تحويل فوري وزيادة في الإنتاجية.',
+    'hero.search_placeholder': 'ابحث بين أكثر من 18 أداة (مثل: محول الصور، دمج PDF، منسق JSON، حاسبة KPI)...',
     'hero.popular': 'الأكثر طلباً:',
 
     // Common Actions
@@ -478,6 +501,29 @@ export const translations: Record<Language, TranslationDictionary> = {
     'tool.merge_all_pdf': 'دمج جميع الصور في ملف PDF واحد',
     'tool.drop_images': 'اسحب وأفلت عدة صور هنا أو انقر للاختيار',
     'tool.multi_select_enabled': 'التحديد المتعدد مفعل',
+
+    // About Page Keys
+    'about.badge': 'مهمتنا ورؤيتنا',
+    'about.title': 'عن ديجيتال ميكس',
+    'about.tagline': 'مجموعة متميزة من الأدوات الرقمية السريعة والمجانية 100% المصممة لمعالجة بياناتك ومستنداتك داخل متصفحك مباشرة لحماية الخصوصية وخدمة جميع المهنيين وصناع المحتوى والطلاب والمطورين.',
+    'about.pillar1_title': 'سرعة فائقة بالأداء',
+    'about.pillar1_desc': 'مصممة للعمل الفوري بدون أي تأخير عبر الشبكة أو الانتظار في خوادم سحابية، لتحصل على النتائج فوراً داخل جهازك.',
+    'about.pillar2_title': 'الخصوصية أولاً والأمان',
+    'about.pillar2_desc': 'ملفاتك وبياناتك لا تغادر جهازك أبداً. معالجة محلية بالكامل داخل المتصفح لضمان الخصوصية التامة والاستخدام الآمن.',
+    'about.pillar3_title': 'مجانية بالكامل 100%',
+    'about.pillar3_desc': 'بدون اشتراكات، ولا قيود مخفية، ولا تسجيل إجباري. أدوات رقمية متاحة للجميع مجاناً ودون حدود.',
+    'about.vision_title': 'مصممة لتبسيط سير عملك الرقمي اليومي',
+    'about.vision_desc': 'تم إنشاء ديجيتال ميكس للتخلص من عناء المواقع المليئة بالإعلانات المزعجة أو اشتراكات الاستخدام المعقدة. سواء كنت تقوم بتحويل ملفات المستندات، حساب المؤشرات المالية، دمج ملفات PDF، أو تنسيق البيانات والرموز البرمجية، فنحن نوفر لك حلولاً سريعة ونظيفة وآمنة تماماً.',
+    'about.contact_title': 'تواصل معنا',
+    'about.contact_desc': 'هل لديك اقتراح لأداة جديدة أو واجهت مشكلة؟ نرحب دائماً بملاحظاتكم واستفساراتكم من المهنيين والمطورين والمبدعين.',
+    'about.explore_button': 'استكشف جميع الأدوات',
+
+    // PDF Merge Specific Keys
+    'pdf_merge.dropzone_title': 'اختر أو اسحب ملفات PDF هنا',
+    'pdf_merge.dropzone_desc': 'قم برفع مستندات PDF متعددة لإعادة ترتيب الصفحات وحذفها ودمجها في ملف واحد.',
+    'pdf_merge.choose_btn': 'اختر ملفات PDF',
+    'pdf_merge.add_more': 'إضافة المزيد من ملفات PDF',
+    'pdf_merge.pages_total': 'صفحة إجمالاً',
   },
 }
 

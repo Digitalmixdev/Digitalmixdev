@@ -116,10 +116,10 @@ export function CategoriesGrid() {
                     </div>
 
                     {/* Title and Description */}
-                    <h3 className="text-lg font-bold text-foreground mb-1.5 group-hover:text-primary transition-colors">
+                    <h3 className="text-lg font-bold text-foreground mb-1.5 group-hover:text-primary transition-colors" suppressHydrationWarning>
                       {categoryName}
                     </h3>
-                    <p className="text-xs sm:text-sm text-muted-foreground mb-4 leading-relaxed line-clamp-2">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-4 leading-relaxed line-clamp-2" suppressHydrationWarning>
                       {categoryDesc}
                     </p>
 
