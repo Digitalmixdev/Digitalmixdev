@@ -3,18 +3,21 @@ import Script from 'next/script'
 import ImageConverterTool from '@/components/image-converter-tool'
 
 export const metadata: Metadata = {
-  title: 'Free Image & Media Converter Online (JPG, PNG, WebP, SVG, PDF) | DigitalMix',
+  title: 'Universal Image Converter (AVIF, BMP, EPS, GIF, ICNS, ICO, JPG, ODD, PNG, PS, PSD, TIFF, WEBP, XPS) | DigitalMix',
   description:
-    'Convert between JPG, PNG, WebP, SVG, and BMP images, pack photos into clean multi-page PDF albums, or extract PDF pages to JPG with 100% browser privacy.',
+    'Convert between 14 image formats: AVIF, BMP, EPS, GIF, ICNS, ICO, JPG, ODD, PNG, PS, PSD, TIFF, WEBP, and XPS with 100% browser-side privacy and instant download.',
   keywords: [
     'image converter',
-    'jpg to png',
-    'png to jpg',
+    'avif converter',
+    'psd to png',
+    'icns to ico',
+    'tiff to jpg',
+    'eps converter',
     'webp converter',
-    'convert image to pdf',
-    'photos to pdf',
-    'pdf to jpg converter',
-    'image resizer and converter',
+    'png to jpg',
+    'jpg to png',
+    'odd converter',
+    'xps to image',
     'free image converter online',
   ],
   alternates: {
@@ -59,14 +62,14 @@ export default function ImageConverterPage() {
     '@graph': [
       {
         '@type': 'SoftwareApplication',
-        name: 'Image & Media Converter',
-        description: 'Free tool to convert between JPG, PNG, WebP, BMP, and combine images into PDF albums',
+        name: 'Universal Image Converter',
+        description: 'Free tool to convert between 14 image formats: AVIF, BMP, EPS, GIF, ICNS, ICO, JPG, ODD, PNG, PS, PSD, TIFF, WEBP, and XPS',
         url: 'https://www.digitalmix.dev/tools/image-converter',
         applicationCategory: 'MultimediaApplication',
         operatingSystem: 'Any',
         image: 'https://www.digitalmix.dev/og-image.png',
         featureList:
-          '100% client-side image conversion, JPG to PNG, PNG to WebP, WebP to JPG, images to PDF album, quality scaling, zero server uploads',
+          '100% client-side conversion across AVIF, BMP, EPS, GIF, ICNS, ICO, JPG, ODD, PNG, PS, PSD, TIFF, WEBP, and XPS, quality scaling, zero server uploads',
         aggregateRating: {
           '@type': 'AggregateRating',
           ratingValue: '4.9',
