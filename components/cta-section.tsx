@@ -20,11 +20,11 @@ export function CTASection() {
             <div className="absolute -bottom-24 right-1/4 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
           </div>
 
-          <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white mb-3 text-balance">
+          <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white mb-3 text-balance" suppressHydrationWarning>
             {t('cta.title', 'Ready to Supercharge Your Workflow?')}
           </h2>
-          <p className="text-xs sm:text-base text-white/85 max-w-2xl mx-auto mb-7 text-pretty leading-relaxed">
-            {t('cta.subtitle', `Join thousands of developers using our ${totalTools} free, zero-latency utilities every day. No subscription paywalls or registration required.`)}
+          <p className="text-xs sm:text-base text-white/85 max-w-2xl mx-auto mb-7 text-pretty leading-relaxed" suppressHydrationWarning>
+            {t('cta.subtitle', 'Join thousands of developers using our free, zero-latency utilities every day. No subscription paywalls or registration required.')}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Button
@@ -32,8 +32,8 @@ export function CTASection() {
               size="lg"
               className="gap-2 rounded-xl px-7 py-5 text-sm font-bold bg-white text-slate-900 hover:bg-white/90 hover:scale-105 transition-all shadow-xl"
             >
-              <Link href="/tools">
-                {t('cta.explore_all', `Explore All ${totalTools} Tools`)}
+              <Link href="/tools" suppressHydrationWarning>
+                {t('cta.explore_all', 'Explore All Tools')}
                 <ArrowRight className="h-4 w-4 rtl:rotate-180" />
               </Link>
             </Button>

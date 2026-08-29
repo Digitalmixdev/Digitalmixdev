@@ -27,6 +27,7 @@ import {
   Wrench,
   Sparkles,
   CheckCircle2,
+  ScanLine,
 } from 'lucide-react'
 import { ALL_TOOLS, TOOL_CATEGORIES, CategoryId } from '@/constants/tools'
 import { useLanguage } from '@/lib/i18n/context'
@@ -49,6 +50,7 @@ const ICON_MAP: Record<string, any> = {
   Flame,
   RefreshCw,
   Image: ImageIcon,
+  ScanLine,
 }
 
 const CATEGORY_ICON_MAP: Record<CategoryId, any> = {

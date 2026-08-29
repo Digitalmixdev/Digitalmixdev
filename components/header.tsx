@@ -33,6 +33,7 @@ import {
   Rocket,
   LayoutDashboard,
   Star,
+  ScanLine,
   type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -70,6 +71,7 @@ const toolIconMap: Record<string, LucideIcon> = {
   Flame,
   RefreshCw,
   Image: ImageIcon,
+  ScanLine,
 }
 
 function showComingSoon() {

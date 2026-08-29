@@ -26,6 +26,7 @@ const LEGACY_SLUG_MAP: Record<string, ToolId> = {
   'sql-formatter': 'sql-formatter',
   'json-formatter': 'json-formatter',
   'qr-code-generator': 'qr-code-generator',
+  'qr-barcode-scanner': 'qr-barcode-scanner',
 }
 
 export function normalizeToolId(toolIdOrSlug: string): ToolId | string {

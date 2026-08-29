@@ -60,6 +60,7 @@ export function HeroSection() {
             <m.h1
               className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-foreground text-balance leading-tight"
               variants={itemVariants}
+              suppressHydrationWarning
             >
               {language === 'ar' ? (
                 <>
@@ -76,6 +77,7 @@ export function HeroSection() {
             <m.p
               className="mt-4 text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto text-pretty leading-relaxed"
               variants={itemVariants}
+              suppressHydrationWarning
             >
               {t(
                 'hero.subheading',

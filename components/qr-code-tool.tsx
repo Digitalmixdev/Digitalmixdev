@@ -1,8 +1,10 @@
 'use client'
 
 import React, { useState, useRef, useEffect, Suspense } from 'react'
+import Link from 'next/link'
 import {
   QrCode,
+  ScanLine,
   Download,
   Copy,
   Share2,
@@ -189,6 +191,20 @@ function QRCodeToolContent() {
 
   return (
     <ToolLayout metadata={toolMeta} maxWidth="6xl">
+      {/* Scanner Cross-Link */}
+      <div className="flex items-center justify-between mb-4 px-1">
+        <span className="text-xs text-muted-foreground hidden sm:inline">
+          Create customized QR codes for links, WiFi, contacts, and text
+        </span>
+        <Link
+          href="/tools/qr-barcode-scanner"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline bg-primary/10 hover:bg-primary/15 px-3 py-1.5 rounded-xl border border-primary/20 transition-colors ms-auto"
+        >
+          <ScanLine className="w-3.5 h-3.5" />
+          Need to scan a code? Open QR & Barcode Scanner &rarr;
+        </Link>
+      </div>
+
       {/* Schema Template Tabs */}
       <div className="flex flex-nowrap sm:flex-wrap items-center justify-start sm:justify-center gap-1.5 sm:gap-2 mb-8 bg-muted/60 p-1.5 rounded-2xl border border-border/70 w-full mx-auto overflow-x-auto">
         <button

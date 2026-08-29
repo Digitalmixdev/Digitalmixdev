@@ -663,8 +663,189 @@ export function generateXlsxFromData(data: {
 }
 
 // ----------------------------------------------------
-// 9. PDF Generation (via pdf-lib)
+// 9. PDF Generation (via pdf-lib) & WinAnsi Encoding Sanitizer
 // ----------------------------------------------------
+
+const UNICODE_TO_ASCII_MAP: [RegExp, string][] = [
+  // Arrows
+  [/↔/g, '<->'],
+  [/↕/g, '<|>'],
+  [/[→➔➜➤⟶⇒]/g, '->'],
+  [/[←⟵⇐]/g, '<-'],
+  [/[↑⇑]/g, '^'],
+  [/[↓⇓]/g, 'v'],
+  [/[⇔⟺]/g, '<=>'],
+  [/↗/g, '/^'],
+  [/↘/g, '\\v'],
+  [/↖/g, '^\\'],
+  [/↙/g, 'v/'],
+
+  // Checkmarks and crosses
+  [/[✓✔☑]/g, '[v]'],
+  [/[✗✘☒✕✖]/g, '[x]'],
+
+  // Bullets and list markers
+  [/[•‣⁃◦∙◘●○]/g, '*'],
+  [/[■□▪▫]/g, '*'],
+  [/[▲▼►◄▶◀]/g, '>'],
+  [/[★☆]/g, '*'],
+  [/♥/g, '<3>'],
+  [/♦/g, '[D]'],
+  [/♣/g, '[C]'],
+  [/♠/g, '[S]'],
+
+  // Math symbols
+  [/≠/g, '!='],
+  [/[≈≅]/g, '~='],
+  [/≤/g, '<='],
+  [/≥/g, '>='],
+  [/√/g, 'sqrt'],
+  [/∞/g, 'inf'],
+  [/∑/g, 'Sum'],
+  [/∏/g, 'Prod'],
+  [/∫/g, 'int'],
+  [/[∆Δ]/g, 'Delta'],
+  [/[πΠ]/g, 'pi'],
+  [/Ω/g, 'Ohm'],
+  [/[µμ]/g, 'u'],
+  [/±/g, '+/-'],
+  [/×/g, 'x'],
+  [/÷/g, '/'],
+
+  // Quotes, dashes and typography
+  [/[“”„‟″]/g, '"'],
+  [/[‘’‚‛′‵]/g, "'"],
+  [/[«»]/g, '"'],
+  [/[–—―−]/g, '-'],
+  [/…/g, '...'],
+  [/™/g, '(TM)'],
+  [/©/g, '(C)'],
+  [/®/g, '(R)'],
+  [/°/g, ' deg'],
+  [/№/g, 'No.'],
+
+  // Fractions
+  [/½/g, '1/2'],
+  [/¼/g, '1/4'],
+  [/¾/g, '3/4'],
+  [/⅓/g, '1/3'],
+  [/⅔/g, '2/3'],
+  [/⅛/g, '1/8'],
+  [/⅜/g, '3/8'],
+  [/⅝/g, '5/8'],
+  [/⅞/g, '7/8'],
+
+  // Currency
+  [/€/g, 'EUR '],
+  [/£/g, 'GBP '],
+  [/¥/g, 'JPY '],
+  [/₹/g, 'INR '],
+  [/₽/g, 'RUB '],
+  [/₺/g, 'TRY '],
+  [/₩/g, 'KRW '],
+  [/₿/g, 'BTC '],
+  [/₫/g, 'VND '],
+  [/₪/g, 'ILS '],
+  [/¢/g, 'cent'],
+]
+
+/**
+ * Sanitizes any text string to be strictly compatible with PDF-Lib's StandardFonts (WinAnsi encoding).
+ * Replaces unencodable Unicode symbols, arrows, fractions, emojis, and unmapped characters.
+ */
+export function sanitizeForPdfWinAnsi(input: string): string {
+  if (!input) return ''
+
+  let text = input
+
+  // Replace known Unicode symbols with clean ASCII equivalents
+  for (const [pattern, replacement] of UNICODE_TO_ASCII_MAP) {
+    text = text.replace(pattern, replacement)
+  }
+
+  // Remove zero-width & non-printable formatting characters
+  text = text.replace(/[\u200B-\u200D\uFEFF\u00AD\u2060\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+  // Normalize whitespace (NBSP, em space, en space, etc.)
+  text = text.replace(/[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g, ' ')
+
+  // Convert tabs to spaces
+  text = text.replace(/\t/g, '    ')
+
+  // Check every character against safe WinAnsi / ASCII
+  let sanitized = ''
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i]
+    const code = char.charCodeAt(0)
+
+    // Standard ASCII printable & basic newline/carriage return
+    if ((code >= 0x20 && code <= 0x7E) || code === 0x0A || code === 0x0D) {
+      sanitized += char
+      continue
+    }
+
+    // Windows-1252 / Latin-1 safe characters (accented Latin letters, etc.)
+    if (code >= 0xA0 && code <= 0xFF) {
+      sanitized += char
+      continue
+    }
+
+    // Try decomposing diacritics to basic Latin letters
+    const decomposed = char.normalize('NFD').replace(/[\u0300-\u036F]/g, '')
+    if (decomposed && decomposed.charCodeAt(0) >= 0x20 && decomposed.charCodeAt(0) <= 0x7E) {
+      sanitized += decomposed
+    } else {
+      // Safe fallback for unmappable glyphs
+      sanitized += ' '
+    }
+  }
+
+  return sanitized
+}
+
+function safeWidthOfText(font: any, text: string, size: number): number {
+  try {
+    return font.widthOfTextAtSize(text, size)
+  } catch {
+    const fallback = text.replace(/[^\x20-\x7E]/g, ' ')
+    try {
+      return font.widthOfTextAtSize(fallback, size)
+    } catch {
+      return fallback.length * size * 0.55
+    }
+  }
+}
+
+function safeDrawText(
+  page: any,
+  font: any,
+  text: string,
+  options: { x: number; y: number; size: number; color: any }
+) {
+  try {
+    page.drawText(text, {
+      x: options.x,
+      y: options.y,
+      size: options.size,
+      font,
+      color: options.color,
+    })
+  } catch (err) {
+    console.warn('PDF drawText encoding warning, using ASCII fallback:', err)
+    const fallback = text.replace(/[^\x20-\x7E]/g, ' ')
+    try {
+      page.drawText(fallback, {
+        x: options.x,
+        y: options.y,
+        size: options.size,
+        font,
+        color: options.color,
+      })
+    } catch {
+      // ignore
+    }
+  }
+}
+
 export async function generatePdfDocument(options: {
   title?: string
   text?: string
@@ -717,17 +898,19 @@ export async function generatePdfDocument(options: {
   let page = pdfDoc.addPage([pageWidth, pageHeight])
   let y = pageHeight - margin
 
-  const title = options.title || 'Document'
-  page.drawText(title, {
+  const rawTitle = options.title || 'Document'
+  const title = sanitizeForPdfWinAnsi(rawTitle)
+
+  safeDrawText(page, boldFont, title, {
     x: margin,
     y: y - 18,
     size: 20,
-    font: boldFont,
     color: rgb(0.06, 0.09, 0.16),
   })
   y -= 45
 
-  const paragraphs = options.paragraphs || (options.text ? options.text.split('\n') : ['No text provided'])
+  const rawParagraphs = options.paragraphs || (options.text ? options.text.split('\n') : ['No text provided'])
+  const paragraphs = rawParagraphs.map((p) => sanitizeForPdfWinAnsi(p))
 
   for (const para of paragraphs) {
     const trimmed = para.trim()
@@ -742,18 +925,17 @@ export async function generatePdfDocument(options: {
 
     for (const word of words) {
       const testLine = currentLine ? `${currentLine} ${word}` : word
-      const textWidth = font.widthOfTextAtSize(testLine, 10.5)
+      const textWidth = safeWidthOfText(font, testLine, 10.5)
 
       if (textWidth > contentWidth) {
         if (y < margin + 25) {
           page = pdfDoc.addPage([pageWidth, pageHeight])
           y = pageHeight - margin
         }
-        page.drawText(currentLine, {
+        safeDrawText(page, font, currentLine, {
           x: margin,
           y,
           size: 10.5,
-          font,
           color: rgb(0.2, 0.25, 0.35),
         })
         y -= 16
@@ -768,11 +950,10 @@ export async function generatePdfDocument(options: {
         page = pdfDoc.addPage([pageWidth, pageHeight])
         y = pageHeight - margin
       }
-      page.drawText(currentLine, {
+      safeDrawText(page, font, currentLine, {
         x: margin,
         y,
         size: 10.5,
-        font,
         color: rgb(0.2, 0.25, 0.35),
       })
       y -= 18

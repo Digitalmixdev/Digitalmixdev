@@ -26,6 +26,7 @@ import {
   X,
   LayoutDashboard,
   Star,
+  ScanLine,
   LogOut,
   Loader2,
   Settings,
@@ -65,6 +66,7 @@ const toolIconMap: Record<string, LucideIcon> = {
   Flame,
   RefreshCw,
   Image: ImageIcon,
+  ScanLine,
 }
 
 interface MobileMenuProps {

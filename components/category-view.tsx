@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Image as ImageIcon,
   File,
+  ScanLine,
   ArrowRight,
   ChevronRight,
   type LucideIcon,
@@ -57,6 +58,7 @@ const toolIcons: Record<string, LucideIcon> = {
   Flame,
   RefreshCw,
   Image: ImageIcon,
+  ScanLine,
 }
 
 interface CategoryViewProps {

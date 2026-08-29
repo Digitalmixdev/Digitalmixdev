@@ -234,6 +234,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     'tool.pdf_merge_desc': 'Combine multiple PDFs and images into a single document with visual page ordering.',
     'tool.qr_code_generator': 'QR Code Generator',
     'tool.qr_code_generator_desc': 'Create custom QR codes for URLs, WiFi credentials, vCards, and text.',
+    'tool.qr_barcode_scanner': 'QR & Barcode Scanner',
+    'tool.qr_barcode_scanner_desc': 'Scan QR codes, UPC, EAN, and 1D/2D barcodes in real time using webcam, files, or clipboard.',
     'tool.image_resizer': 'Image Resizer',
     'tool.image_resizer_desc': 'Resize, crop, and convert your images with custom dimensions and aspect ratios.',
 
@@ -494,6 +496,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     'tool.pdf_merge_desc': 'دمج ملفات PDF وإعادة ترتيب وحذف وتدوير الصفحات بالسحب والإفلات.',
     'tool.qr_code_generator': 'مولد رموز الاستجابة السريعة QR Code',
     'tool.qr_code_generator_desc': 'تصميم وإنشاء أكواد QR مخصصة للروابط والواي فاي وبطاقات الاتصال والنصوص.',
+    'tool.qr_barcode_scanner': 'قارئ وماسح رموز QR والباركود',
+    'tool.qr_barcode_scanner_desc': 'قراءة وفحص أكواد QR والباركود مباشرة عبر الكاميرا أو رفع الصور أو اللصق.',
     'tool.image_resizer': 'أداة تغيير أبعاد ومقاسات الصور',
     'tool.image_resizer_desc': 'تعديل أبعاد وقص وتغيير مقاسات الصور مع الحفاظ على تناسق الأبعاد ونقاء الصورة.',
 

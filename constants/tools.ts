@@ -14,6 +14,7 @@ export type ToolId =
   | 'pdf-merge'
   | 'image-resizer'
   | 'qr-code-generator'
+  | 'qr-barcode-scanner'
   | 'image-and-file-compressor'
   | 'document-converter'
   | 'image-converter'
@@ -259,6 +260,17 @@ export const ALL_TOOLS: ToolDefinition[] = [
     icon: 'QrCode',
     active: true,
     keywords: ['qr', 'qr code', 'generator', 'wifi', 'vcard', 'barcode', 'scan'],
+  },
+  {
+    id: 'qr-barcode-scanner',
+    name: 'QR & Barcode Scanner',
+    slug: 'qr-barcode-scanner',
+    href: '/tools/qr-barcode-scanner',
+    description: 'Scan QR codes, UPC, EAN, and 1D/2D barcodes in real time using webcam, files, or clipboard.',
+    categoryId: 'files',
+    icon: 'ScanLine',
+    active: true,
+    keywords: ['qr scanner', 'barcode scanner', 'scan', 'webcam qr', 'ean', 'upc', 'code 128', 'reader'],
   },
   {
     id: 'image-resizer',

@@ -13,6 +13,11 @@ import {
   Calculator,
   Maximize2,
   QrCode,
+  ScanLine,
+  RefreshCw,
+  Flame,
+  FileArchive,
+  Image as ImageIcon,
   ArrowLeft,
   Sparkles,
 } from "lucide-react"
@@ -33,6 +38,11 @@ const iconMap: Record<string, any> = {
   Calculator,
   Maximize2,
   QrCode,
+  ScanLine,
+  RefreshCw,
+  Flame,
+  FileArchive,
+  Image: ImageIcon,
 }
 
 export default async function FavoritesPage() {
