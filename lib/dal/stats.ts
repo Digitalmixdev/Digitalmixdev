@@ -19,19 +19,23 @@ export async function recordToolUsage(
 
   const canonicalId = normalizeToolId(toolId)
 
-  await prisma.toolUsage.upsert({
-    where: {
-      userId_toolSlug: {
+  try {
+    await prisma.toolUsage.upsert({
+      where: {
+        userId_toolSlug: {
+          userId,
+          toolSlug: canonicalId,
+        },
+      },
+      update: {},
+      create: {
         userId,
         toolSlug: canonicalId,
       },
-    },
-    update: {},
-    create: {
-      userId,
-      toolSlug: canonicalId,
-    },
-  })
+    })
+  } catch (error) {
+    console.error('Error recording tool usage:', error)
+  }
 }
 
 /**

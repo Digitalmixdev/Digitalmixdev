@@ -3,6 +3,18 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  redirects: async () => [
+    {
+      source: '/tools/roi-calculator',
+      destination: '/tools/kpi-calculator?tab=roi',
+      permanent: false,
+    },
+    {
+      source: '/tools/profit-calculator',
+      destination: '/tools/kpi-calculator?tab=profit',
+      permanent: false,
+    },
+  ],
   headers: async () => [
     {
       source: '/:path*',
@@ -27,10 +39,10 @@ const nextConfig = {
           key: 'Cross-Origin-Opener-Policy',
           value: 'same-origin-allow-popups',
         },
-        // Permissions-Policy
+        // Permissions-Policy (allow camera for QR & Barcode scanner tool)
         {
           key: 'Permissions-Policy',
-          value: 'camera=(), microphone=(), geolocation=()',
+          value: 'camera=(self), microphone=(), geolocation=()',
         },
         // Encourage HTTPS
         {

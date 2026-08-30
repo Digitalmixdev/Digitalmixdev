@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useMemo } from 'react'
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react'
 import {
   FileCode,
   Copy,
@@ -16,11 +16,18 @@ import {
   ShieldCheck,
   Lock,
   Layers,
+  History,
+  ArrowRight,
+  Search,
+  RotateCcw,
+  X,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
+import { useLanguage } from '@/lib/i18n/context'
 
 interface JsonStats {
   lines: number
@@ -28,6 +35,17 @@ interface JsonStats {
   keyCount: number
   maxDepth: number
   fileSizeKB: string
+}
+
+export interface JsonHistoryItem {
+  id: string
+  title: string
+  input: string
+  output: string
+  indentSpaces: number
+  type: 'format' | 'minify'
+  timestamp: number
+  stats: JsonStats
 }
 
 const toolMeta: ToolMetadata = {
@@ -81,6 +99,9 @@ const toolMeta: ToolMetadata = {
 }
 
 export default function JsonFormatterTool() {
+  const { language } = useLanguage()
+  const isArabic = language === 'ar'
+
   const [inputJson, setInputJson] = useState('')
   const [outputJson, setOutputJson] = useState('')
   const [indentSpaces, setIndentSpaces] = useState<number>(2)
@@ -88,16 +109,23 @@ export default function JsonFormatterTool() {
   const [syntaxWarning, setSyntaxWarning] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const recordUsage = async () => {
+  // History State
+  const [history, setHistory] = useState<JsonHistoryItem[]>([])
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [historySearch, setHistorySearch] = useState('')
+  const [copiedHistoryId, setCopiedHistoryId] = useState<string | null>(null)
+
+  // Load history on mount
+  useEffect(() => {
     try {
-      await Promise.all([
-        incrementToolUsage(),
-        markToolUsed('json-formatter'),
-      ])
+      const saved = localStorage.getItem('digitalmix_json_history')
+      if (saved) {
+        setHistory(JSON.parse(saved))
+      }
     } catch {
-      // Non-blocking telemetry
+      // ignore
     }
-  }
+  }, [])
 
   const calculateJsonStats = (jsonStr: string): JsonStats => {
     const lines = jsonStr ? jsonStr.split('\n').length : 0
@@ -130,6 +158,142 @@ export default function JsonFormatterTool() {
     return { lines, characters, keyCount, maxDepth, fileSizeKB }
   }
 
+  // Save item to history
+  const saveToHistory = useCallback(
+    (input: string, output: string, spaces: number, type: 'format' | 'minify') => {
+      if (!input.trim() || !output.trim()) return
+
+      const cleanPreview = input
+        .trim()
+        .replace(/\n+/g, ' ')
+        .slice(0, 50)
+      const title = cleanPreview || (type === 'format' ? 'Formatted JSON Data' : 'Minified JSON Data')
+
+      const calculatedStats = calculateJsonStats(output)
+
+      setHistory((prev) => {
+        // Avoid immediate duplicate
+        if (prev.length > 0 && prev[0].input === input && prev[0].type === type && Date.now() - prev[0].timestamp < 3000) {
+          return prev
+        }
+
+        const newItem: JsonHistoryItem = {
+          id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          title,
+          input,
+          output,
+          indentSpaces: spaces,
+          type,
+          timestamp: Date.now(),
+          stats: calculatedStats,
+        }
+
+        const updated = [newItem, ...prev.slice(0, 49)]
+        try {
+          localStorage.setItem('digitalmix_json_history', JSON.stringify(updated))
+        } catch {
+          // storage quota exceeded
+        }
+        return updated
+      })
+    },
+    []
+  )
+
+  const clearHistory = () => {
+    setHistory([])
+    try {
+      localStorage.removeItem('digitalmix_json_history')
+    } catch {
+      // ignore
+    }
+    toast.success(isArabic ? 'تم مسح سجل JSON بالكامل' : 'JSON history cleared successfully')
+  }
+
+  const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setHistory((prev) => {
+      const updated = prev.filter((item) => item.id !== id)
+      try {
+        localStorage.setItem('digitalmix_json_history', JSON.stringify(updated))
+      } catch {
+        // ignore
+      }
+      return updated
+    })
+    toast.success(isArabic ? 'تم حذف العنصر من السجل' : 'Item removed from history')
+  }
+
+  const restoreHistoryItem = (item: JsonHistoryItem) => {
+    setInputJson(item.input)
+    setOutputJson(item.output)
+    setIndentSpaces(item.indentSpaces || 2)
+    setSyntaxWarning('')
+    setShowHistoryModal(false)
+    toast.success(
+      isArabic
+        ? `تم استعادة بيانات JSON (${item.type === 'format' ? 'منسقة' : 'مضغوطة'})`
+        : `Restored JSON into editor (${item.type === 'format' ? 'Formatted' : 'Minified'})`
+    )
+  }
+
+  const copyHistoryJson = async (jsonStr: string, id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    await navigator.clipboard.writeText(jsonStr)
+    setCopiedHistoryId(id)
+    setTimeout(() => setCopiedHistoryId(null), 2000)
+    toast.success(isArabic ? 'تم نسخ JSON' : 'JSON copied to clipboard')
+  }
+
+  const exportHistoryCSV = () => {
+    if (history.length === 0) return
+    const headers = ['Timestamp', 'Date', 'Type', 'IndentSpaces', 'Keys', 'MaxDepth', 'SizeKB', 'Title', 'Input JSON', 'Output JSON']
+    const rows = history.map((item) => [
+      item.timestamp,
+      `"${new Date(item.timestamp).toISOString()}"`,
+      `"${item.type}"`,
+      item.indentSpaces,
+      item.stats.keyCount,
+      item.stats.maxDepth,
+      `"${item.stats.fileSizeKB}"`,
+      `"${item.title.replace(/"/g, '""')}"`,
+      `"${item.input.replace(/"/g, '""')}"`,
+      `"${item.output.replace(/"/g, '""')}"`,
+    ])
+
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n')
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', `json_history_${Date.now()}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast.success(isArabic ? 'تم تصدير سجل JSON كملف CSV' : 'JSON history exported as CSV')
+  }
+
+  const filteredHistory = useMemo(() => {
+    if (!historySearch.trim()) return history
+    const q = historySearch.toLowerCase()
+    return history.filter(
+      (item) =>
+        item.title.toLowerCase().includes(q) ||
+        item.input.toLowerCase().includes(q) ||
+        item.output.toLowerCase().includes(q)
+    )
+  }, [history, historySearch])
+
+  const recordUsage = async () => {
+    try {
+      await Promise.all([
+        incrementToolUsage(),
+        markToolUsed('json-formatter'),
+      ])
+    } catch {
+      // Non-blocking telemetry
+    }
+  }
+
   const handleFormat = () => {
     if (!inputJson.trim()) return
     try {
@@ -137,7 +301,9 @@ export default function JsonFormatterTool() {
       const formatted = JSON.stringify(parsed, null, indentSpaces)
       setOutputJson(formatted)
       setSyntaxWarning('')
+      saveToHistory(inputJson, formatted, indentSpaces, 'format')
       recordUsage()
+      toast.success(isArabic ? 'تم تنسيق وتجميل JSON بنجاح' : 'JSON formatted successfully')
     } catch (err: unknown) {
       setOutputJson('')
       setSyntaxWarning(`Invalid JSON Syntax: ${err instanceof Error ? err.message : 'Invalid JSON'}`)
@@ -151,7 +317,9 @@ export default function JsonFormatterTool() {
       const minified = JSON.stringify(parsed)
       setOutputJson(minified)
       setSyntaxWarning('')
+      saveToHistory(inputJson, minified, indentSpaces, 'minify')
       recordUsage()
+      toast.success(isArabic ? 'تم ضغط وتصغير JSON' : 'JSON minified successfully')
     } catch (err: unknown) {
       setOutputJson('')
       setSyntaxWarning(`Invalid JSON Syntax: ${err instanceof Error ? err.message : 'Invalid JSON'}`)
@@ -169,6 +337,7 @@ export default function JsonFormatterTool() {
     await navigator.clipboard.writeText(outputJson)
     setIsCopied(true)
     setTimeout(() => setIsCopied(false), 2000)
+    toast.success(isArabic ? 'تم النسخ إلى الحافظة' : 'Copied to clipboard')
   }
 
   const handleDownload = () => {
@@ -180,6 +349,7 @@ export default function JsonFormatterTool() {
     a.download = `data-${Date.now()}.json`
     a.click()
     URL.revokeObjectURL(url)
+    toast.success(isArabic ? 'تم تحميل ملف JSON' : 'JSON file downloaded')
   }
 
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -202,14 +372,14 @@ export default function JsonFormatterTool() {
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 bg-card border border-border px-3 py-1.5 rounded-xl shadow-xs">
-            <span className="text-xs font-semibold text-muted-foreground">Indent:</span>
+            <span className="text-xs font-semibold text-muted-foreground">{isArabic ? 'المسافة:' : 'Indent:'}</span>
             <select
               value={indentSpaces}
               onChange={(e) => setIndentSpaces(Number(e.target.value))}
               className="bg-transparent font-mono text-xs font-bold text-foreground focus:outline-none cursor-pointer"
             >
-              <option value={2} className="bg-background text-foreground">2 Spaces</option>
-              <option value={4} className="bg-background text-foreground">4 Spaces</option>
+              <option value={2} className="bg-background text-foreground">{isArabic ? 'مسافتان (2)' : '2 Spaces'}</option>
+              <option value={4} className="bg-background text-foreground">{isArabic ? '4 مسافات (4)' : '4 Spaces'}</option>
             </select>
           </div>
 
@@ -227,7 +397,23 @@ export default function JsonFormatterTool() {
             className="h-10 px-3.5 gap-2 text-xs font-semibold"
           >
             <Upload className="h-4 w-4" />
-            Upload .json
+            {isArabic ? 'رفع .json' : 'Upload .json'}
+          </Button>
+
+          {/* History Modal Trigger Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowHistoryModal(true)}
+            className="h-10 px-3.5 gap-2 text-xs font-semibold border-border/80 hover:border-primary/50 text-foreground"
+          >
+            <History className="h-4 w-4 text-primary" />
+            <span>{isArabic ? 'السجل' : 'History'}</span>
+            {history.length > 0 && (
+              <span className="ms-1 px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded-full">
+                {history.length}
+              </span>
+            )}
           </Button>
         </div>
 
@@ -239,7 +425,7 @@ export default function JsonFormatterTool() {
           className="h-10 px-3.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1.5"
         >
           <Trash2 className="h-4 w-4" />
-          Clear
+          {isArabic ? 'مسح الكل' : 'Clear'}
         </Button>
       </div>
 
@@ -258,7 +444,7 @@ export default function JsonFormatterTool() {
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
               <FileText className="h-3.5 w-3.5 text-primary" />
-              Input JSON Payload
+              {isArabic ? 'بيانات JSON المدخلة' : 'Input JSON Payload'}
             </label>
             <button
               type="button"
@@ -279,13 +465,17 @@ export default function JsonFormatterTool() {
               }
               className="text-xs text-primary hover:underline font-medium cursor-pointer"
             >
-              Load Example
+              {isArabic ? 'تحميل مثال جاهز' : 'Load Example'}
             </button>
           </div>
           <textarea
             value={inputJson}
             onChange={(e) => setInputJson(e.target.value)}
-            placeholder={`Paste your JSON payload string here...\n\nExample:\n{"name": "DigitalMix", "tools": ["sql", "json", "jwt"]}`}
+            placeholder={
+              isArabic
+                ? `الصق نص JSON هنا...\n\nمثال:\n{"name": "DigitalMix", "tools": ["sql", "json", "jwt"]}`
+                : `Paste your JSON payload string here...\n\nExample:\n{"name": "DigitalMix", "tools": ["sql", "json", "jwt"]}`
+            }
             className="w-full h-80 p-4 rounded-2xl border border-border/80 bg-card font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary resize-none transition-all placeholder:text-muted-foreground/40 leading-relaxed text-foreground shadow-xs"
           />
         </div>
@@ -295,7 +485,7 @@ export default function JsonFormatterTool() {
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
               <FileCode className="h-3.5 w-3.5 text-primary" />
-              Formatted JSON Output
+              {isArabic ? 'نتيجة JSON المنسقة' : 'Formatted JSON Output'}
             </label>
             <div className="flex items-center gap-2">
               <Button
@@ -306,7 +496,7 @@ export default function JsonFormatterTool() {
                 className="h-8 px-2.5 text-xs gap-1.5 rounded-lg"
               >
                 <Download className="h-3.5 w-3.5" />
-                Download
+                {isArabic ? 'تحميل' : 'Download'}
               </Button>
               <Button
                 variant="secondary"
@@ -316,7 +506,7 @@ export default function JsonFormatterTool() {
                 className="h-8 px-3 text-xs gap-1.5 rounded-lg font-semibold"
               >
                 {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                {isCopied ? 'Copied' : 'Copy'}
+                {isCopied ? (isArabic ? 'تم النسخ' : 'Copied') : isArabic ? 'نسخ' : 'Copy'}
               </Button>
             </div>
           </div>
@@ -326,7 +516,7 @@ export default function JsonFormatterTool() {
               <code>{outputJson}</code>
             ) : (
               <span className="text-muted-foreground/40 italic select-none text-xs">
-                Formatted JSON structure will appear here...
+                {isArabic ? 'ستظهر بيانات JSON المنسقة هنا...' : 'Formatted JSON structure will appear here...'}
               </span>
             )}
           </div>
@@ -342,7 +532,7 @@ export default function JsonFormatterTool() {
           className="h-12 px-8 rounded-xl font-bold shadow-md shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-all"
         >
           <Sparkles className="h-4.5 w-4.5" />
-          Beautify / Format JSON
+          {isArabic ? 'تنسيق وتجميل JSON' : 'Beautify / Format JSON'}
         </Button>
         <Button
           variant="outline"
@@ -352,7 +542,7 @@ export default function JsonFormatterTool() {
           className="h-12 px-8 rounded-xl font-bold hover:bg-secondary transition-all"
         >
           <Minimize2 className="h-4.5 w-4.5" />
-          Minify JSON
+          {isArabic ? 'ضغط وتصغير JSON' : 'Minify JSON'}
         </Button>
       </div>
 
@@ -360,25 +550,199 @@ export default function JsonFormatterTool() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
         <div className="p-4 rounded-2xl border border-border/70 bg-card/70 text-center shadow-xs">
           <div className="text-2xl font-extrabold text-primary">{stats.lines}</div>
-          <div className="text-xs font-medium text-muted-foreground mt-1">Total Lines</div>
+          <div className="text-xs font-medium text-muted-foreground mt-1">
+            {isArabic ? 'إجمالي الأسطر' : 'Total Lines'}
+          </div>
         </div>
         <div className="p-4 rounded-2xl border border-border/70 bg-card/70 text-center shadow-xs">
           <div className="text-2xl font-extrabold text-primary">{stats.characters}</div>
-          <div className="text-xs font-medium text-muted-foreground mt-1">Characters</div>
+          <div className="text-xs font-medium text-muted-foreground mt-1">
+            {isArabic ? 'عدد الحروف' : 'Characters'}
+          </div>
         </div>
         <div className="p-4 rounded-2xl border border-border/70 bg-card/70 text-center shadow-xs">
           <div className="text-2xl font-extrabold text-emerald-500">{stats.keyCount}</div>
-          <div className="text-xs font-medium text-muted-foreground mt-1">Total Object Keys</div>
+          <div className="text-xs font-medium text-muted-foreground mt-1">
+            {isArabic ? 'مفاتيح الكائنات' : 'Total Object Keys'}
+          </div>
         </div>
         <div className="p-4 rounded-2xl border border-border/70 bg-card/70 text-center shadow-xs">
           <div className="text-2xl font-extrabold text-amber-500">{stats.maxDepth}</div>
-          <div className="text-xs font-medium text-muted-foreground mt-1">Max Tree Depth</div>
+          <div className="text-xs font-medium text-muted-foreground mt-1">
+            {isArabic ? 'أقصى عمق للشجرة' : 'Max Tree Depth'}
+          </div>
         </div>
         <div className="p-4 rounded-2xl border border-border/70 bg-card/70 text-center shadow-xs col-span-2 sm:col-span-1">
           <div className="text-2xl font-extrabold text-blue-500">{stats.fileSizeKB} KB</div>
-          <div className="text-xs font-medium text-muted-foreground mt-1">Estimated Size</div>
+          <div className="text-xs font-medium text-muted-foreground mt-1">
+            {isArabic ? 'الحجم المقدر' : 'Estimated Size'}
+          </div>
         </div>
       </div>
+
+      {/* JSON HISTORY MODAL */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-3xl max-w-3xl w-full p-6 space-y-4 shadow-2xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-primary/10 text-primary rounded-xl">
+                  <History size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                    {isArabic ? 'سجل بيانات JSON' : 'JSON History'}
+                    <span className="text-xs font-semibold px-2 py-0.5 bg-primary/10 text-primary rounded-full">
+                      {history.length}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground">
+                    {isArabic
+                      ? 'البيانات المنسقة والمضغوطة السابقة المحفوظة محلياً'
+                      : 'Previously formatted & validated payloads stored in your browser'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {history.length > 0 && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={exportHistoryCSV}
+                      className="rounded-xl text-xs h-8"
+                    >
+                      <Download size={13} className="me-1" />
+                      CSV
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearHistory}
+                      className="rounded-xl text-xs h-8 text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 size={13} className="me-1" />
+                      {isArabic ? 'مسح الكل' : 'Clear All'}
+                    </Button>
+                  </>
+                )}
+                <button
+                  onClick={() => setShowHistoryModal(false)}
+                  className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Search filter if items exist */}
+            {history.length > 3 && (
+              <div className="relative">
+                <Search size={14} className="absolute left-3.5 rtl:left-auto rtl:right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  placeholder={isArabic ? 'بحث في السجل بنص JSON...' : 'Search history by JSON text or properties...'}
+                  className="w-full h-9 pl-9 pr-4 rtl:pl-4 rtl:pr-9 rounded-xl border border-border bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            )}
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {history.length === 0 ? (
+                <div className="py-16 text-center text-muted-foreground space-y-2">
+                  <FileCode className="w-10 h-10 mx-auto opacity-40 text-primary" />
+                  <p className="text-sm font-semibold">
+                    {isArabic ? 'لا توجد بيانات JSON محفوظة بعد' : 'No JSON entries saved in history yet'}
+                  </p>
+                  <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                    {isArabic
+                      ? 'عند تنسيق أو ضغط أي كود JSON، سيتم حفظه هنا تلقائياً لسهولة الرجوع إليه وتصديره.'
+                      : 'When you format or minify any JSON payload, it will automatically appear here.'}
+                  </p>
+                </div>
+              ) : filteredHistory.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground text-xs">
+                  {isArabic ? 'لم يتم العثور على نتائج مطابقة للبحث' : 'No matching JSON records found.'}
+                </div>
+              ) : (
+                filteredHistory.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => restoreHistoryItem(item)}
+                    className="group p-4 bg-muted/40 hover:bg-muted/70 border border-border/70 hover:border-primary/40 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all cursor-pointer shadow-xs"
+                  >
+                    <div className="space-y-1.5 min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase ${
+                            item.type === 'minify'
+                              ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                              : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                          }`}
+                        >
+                          {item.type === 'minify' ? 'Minified' : `Formatted (${item.indentSpaces || 2}sp)`}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {new Date(item.timestamp).toLocaleTimeString()} • {new Date(item.timestamp).toLocaleDateString()}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          ({item.stats?.keyCount || 0} {isArabic ? 'مفاتيح' : 'keys'}, {item.stats?.fileSizeKB || '0'} KB)
+                        </span>
+                      </div>
+
+                      <div className="bg-background/80 p-2.5 rounded-xl border border-border/50 font-mono text-xs text-foreground line-clamp-2 select-all overflow-hidden text-ellipsis whitespace-pre">
+                        {item.output || item.input}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={(e) => copyHistoryJson(item.output || item.input, item.id, e)}
+                        className="h-8 px-2.5 rounded-lg text-xs gap-1"
+                        title={isArabic ? 'نسخ JSON' : 'Copy JSON'}
+                      >
+                        {copiedHistoryId === item.id ? (
+                          <Check size={13} className="text-emerald-500" />
+                        ) : (
+                          <Copy size={13} />
+                        )}
+                        <span className="hidden sm:inline">{isArabic ? 'نسخ' : 'Copy'}</span>
+                      </Button>
+
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => restoreHistoryItem(item)}
+                        className="h-8 px-3 rounded-lg text-xs font-semibold gap-1"
+                      >
+                        <RotateCcw size={13} />
+                        <span>{isArabic ? 'استعادة' : 'Restore'}</span>
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => deleteHistoryItem(item.id, e)}
+                        className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        title={isArabic ? 'حذف' : 'Delete'}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </ToolLayout>
   )
 }

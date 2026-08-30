@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect, Suspense } from 'react'
+import React, { useState, useRef, useEffect, useCallback, useMemo, Suspense } from 'react'
 import Link from 'next/link'
 import {
   QrCode,
@@ -18,6 +18,12 @@ import {
   Link as LinkIcon,
   FileText,
   ShieldCheck,
+  History,
+  Trash2,
+  Search,
+  RotateCcw,
+  X,
+  Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { QRCodeSVG } from 'qrcode.react'
@@ -25,6 +31,31 @@ import { Button } from '@/components/ui/button'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
+import { useLanguage } from '@/lib/i18n/context'
+
+export interface QrHistoryItem {
+  id: string
+  title: string
+  type: string
+  payload: string
+  fgColor: string
+  bgColor: string
+  errorLevel: 'L' | 'M' | 'Q' | 'H'
+  timestamp: number
+  formData?: {
+    urlData?: string
+    wifiSSID?: string
+    wifiPassword?: string
+    wifiSecurity?: string
+    vcardName?: string
+    vcardEmail?: string
+    vcardPhone?: string
+    vcardOrg?: string
+    smsPhone?: string
+    smsMessage?: string
+    plainText?: string
+  }
+}
 
 const toolMeta: ToolMetadata = {
   id: 'qr-code-generator',
@@ -77,6 +108,9 @@ const toolMeta: ToolMetadata = {
 }
 
 function QRCodeToolContent() {
+  const { language } = useLanguage()
+  const isArabic = language === 'ar'
+
   const [qrType, setQrType] = useState('url')
   const [urlData, setUrlData] = useState('https://digitalmix.dev')
   const [qrSize, setQrSize] = useState('256')
@@ -103,6 +137,24 @@ function QRCodeToolContent() {
 
   // Plain Text
   const [plainText, setPlainText] = useState('')
+
+  // History state
+  const [history, setHistory] = useState<QrHistoryItem[]>([])
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [historySearch, setHistorySearch] = useState('')
+  const [copiedHistoryId, setCopiedHistoryId] = useState<string | null>(null)
+
+  // Load history from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('digitalmix_qr_history')
+      if (saved) {
+        setHistory(JSON.parse(saved))
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
 
   const recordUsage = async () => {
     try {
@@ -133,6 +185,168 @@ function QRCodeToolContent() {
 
   const payload = getEncodedPayload()
 
+  // Save to history helper
+  const saveToHistory = useCallback(() => {
+    const currentPayload = getEncodedPayload()
+    if (!currentPayload.trim()) return
+
+    let itemTitle = 'QR Code'
+    if (qrType === 'url') itemTitle = urlData || 'Website URL'
+    else if (qrType === 'wifi') itemTitle = wifiSSID ? `WiFi: ${wifiSSID}` : 'WiFi Network'
+    else if (qrType === 'vcard') itemTitle = vcardName ? `Contact: ${vcardName}` : 'vCard Contact'
+    else if (qrType === 'sms') itemTitle = smsPhone ? `SMS to ${smsPhone}` : 'SMS Message'
+    else if (qrType === 'text') itemTitle = plainText.slice(0, 30) || 'Plain Text'
+
+    const newItem: QrHistoryItem = {
+      id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      title: itemTitle,
+      type: qrType,
+      payload: currentPayload,
+      fgColor,
+      bgColor,
+      errorLevel,
+      timestamp: Date.now(),
+      formData: {
+        urlData,
+        wifiSSID,
+        wifiPassword,
+        wifiSecurity,
+        vcardName,
+        vcardEmail,
+        vcardPhone,
+        vcardOrg,
+        smsPhone,
+        smsMessage,
+        plainText,
+      },
+    }
+
+    setHistory((prev) => {
+      // Avoid immediate duplicate
+      if (prev.length > 0 && prev[0].payload === currentPayload && Date.now() - prev[0].timestamp < 3000) {
+        return prev
+      }
+      const updated = [newItem, ...prev.slice(0, 49)]
+      try {
+        localStorage.setItem('digitalmix_qr_history', JSON.stringify(updated))
+      } catch {
+        // storage full
+      }
+      return updated
+    })
+  }, [
+    qrType,
+    urlData,
+    wifiSSID,
+    wifiPassword,
+    wifiSecurity,
+    vcardName,
+    vcardEmail,
+    vcardPhone,
+    vcardOrg,
+    smsPhone,
+    smsMessage,
+    plainText,
+    fgColor,
+    bgColor,
+    errorLevel,
+  ])
+
+  const clearHistory = () => {
+    setHistory([])
+    try {
+      localStorage.removeItem('digitalmix_qr_history')
+    } catch {
+      // ignore
+    }
+    toast.success(isArabic ? 'تم مسح سجل QR بالكامل' : 'QR code history cleared')
+  }
+
+  const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setHistory((prev) => {
+      const updated = prev.filter((item) => item.id !== id)
+      try {
+        localStorage.setItem('digitalmix_qr_history', JSON.stringify(updated))
+      } catch {
+        // ignore
+      }
+      return updated
+    })
+    toast.success(isArabic ? 'تم حذف العنصر من السجل' : 'Item removed from history')
+  }
+
+  const restoreHistoryItem = (item: QrHistoryItem) => {
+    setQrType(item.type)
+    setFgColor(item.fgColor || '#000000')
+    setBgColor(item.bgColor || '#FFFFFF')
+    setErrorLevel(item.errorLevel || 'M')
+
+    if (item.formData) {
+      if (item.formData.urlData !== undefined) setUrlData(item.formData.urlData)
+      if (item.formData.wifiSSID !== undefined) setWifiSSID(item.formData.wifiSSID)
+      if (item.formData.wifiPassword !== undefined) setWifiPassword(item.formData.wifiPassword)
+      if (item.formData.wifiSecurity !== undefined) setWifiSecurity(item.formData.wifiSecurity)
+      if (item.formData.vcardName !== undefined) setVcardName(item.formData.vcardName)
+      if (item.formData.vcardEmail !== undefined) setVcardEmail(item.formData.vcardEmail)
+      if (item.formData.vcardPhone !== undefined) setVcardPhone(item.formData.vcardPhone)
+      if (item.formData.vcardOrg !== undefined) setVcardOrg(item.formData.vcardOrg)
+      if (item.formData.smsPhone !== undefined) setSmsPhone(item.formData.smsPhone)
+      if (item.formData.smsMessage !== undefined) setSmsMessage(item.formData.smsMessage)
+      if (item.formData.plainText !== undefined) setPlainText(item.formData.plainText)
+    } else {
+      if (item.type === 'url') setUrlData(item.payload)
+      if (item.type === 'text') setPlainText(item.payload)
+    }
+
+    setShowHistoryModal(false)
+    toast.success(isArabic ? `تم استعادة باركود (${item.title})` : `Restored QR Code: ${item.title}`)
+  }
+
+  const copyHistoryPayload = async (text: string, id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    await navigator.clipboard.writeText(text)
+    setCopiedHistoryId(id)
+    setTimeout(() => setCopiedHistoryId(null), 2000)
+    toast.success(isArabic ? 'تم نسخ النص المرمز' : 'Payload copied to clipboard')
+  }
+
+  const exportHistoryCSV = () => {
+    if (history.length === 0) return
+    const headers = ['Timestamp', 'Date', 'Type', 'Title', 'Payload', 'FGColor', 'BGColor', 'ErrorLevel']
+    const rows = history.map((item) => [
+      item.timestamp,
+      `"${new Date(item.timestamp).toISOString()}"`,
+      `"${item.type}"`,
+      `"${item.title.replace(/"/g, '""')}"`,
+      `"${item.payload.replace(/"/g, '""')}"`,
+      `"${item.fgColor}"`,
+      `"${item.bgColor}"`,
+      `"${item.errorLevel}"`,
+    ])
+
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n')
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', `qr_history_${Date.now()}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast.success(isArabic ? 'تم تصدير سجل QR كملف CSV' : 'QR code history exported as CSV')
+  }
+
+  const filteredHistory = useMemo(() => {
+    if (!historySearch.trim()) return history
+    const q = historySearch.toLowerCase()
+    return history.filter(
+      (item) =>
+        item.title.toLowerCase().includes(q) ||
+        item.payload.toLowerCase().includes(q) ||
+        item.type.toLowerCase().includes(q)
+    )
+  }, [history, historySearch])
+
   const downloadPNG = () => {
     const svgElement = qrRef.current?.querySelector('svg')
     if (!svgElement) return
@@ -151,8 +365,9 @@ function QRCodeToolContent() {
       downloadLink.download = `qrcode-${Date.now()}.png`
       downloadLink.href = pngFile
       downloadLink.click()
+      saveToHistory()
       recordUsage()
-      toast.success('PNG QR code downloaded successfully')
+      toast.success(isArabic ? 'تم تحميل باركود PNG بنجاح' : 'PNG QR code downloaded successfully')
     }
 
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)))
@@ -170,38 +385,65 @@ function QRCodeToolContent() {
     downloadLink.href = url
     downloadLink.click()
     URL.revokeObjectURL(url)
+    saveToHistory()
     recordUsage()
-    toast.success('SVG vector QR code downloaded successfully')
+    toast.success(isArabic ? 'تم تحميل باركود SVG الفيكتور بنجاح' : 'SVG vector QR code downloaded successfully')
   }
 
   const handleCopyPayload = async () => {
     await navigator.clipboard.writeText(payload)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
-    toast.success('Payload copied to clipboard')
+    saveToHistory()
+    toast.success(isArabic ? 'تم نسخ النص المرمز في الحافظة' : 'Payload copied to clipboard')
   }
 
   const COLOR_PRESETS = [
-    { name: 'Classic Black', fg: '#000000', bg: '#FFFFFF' },
-    { name: 'Indigo Core', fg: '#3b82f6', bg: '#FFFFFF' },
-    { name: 'Emerald Forest', fg: '#059669', bg: '#FFFFFF' },
-    { name: 'Royal Purple', fg: '#7c3aed', bg: '#FFFFFF' },
-    { name: 'Dark Slate', fg: '#0f172a', bg: '#f8fafc' },
+    { name: isArabic ? 'أسود كلاسيكي' : 'Classic Black', fg: '#000000', bg: '#FFFFFF' },
+    { name: isArabic ? 'أزرق نيلي' : 'Indigo Core', fg: '#3b82f6', bg: '#FFFFFF' },
+    { name: isArabic ? 'أخضر زمردي' : 'Emerald Forest', fg: '#059669', bg: '#FFFFFF' },
+    { name: isArabic ? 'أرجواني ملكي' : 'Royal Purple', fg: '#7c3aed', bg: '#FFFFFF' },
+    { name: isArabic ? 'رمادي داكن' : 'Dark Slate', fg: '#0f172a', bg: '#f8fafc' },
   ]
 
   return (
     <ToolLayout metadata={toolMeta} maxWidth="6xl">
-      {/* Scanner Cross-Link */}
-      <div className="flex items-center justify-between mb-4 px-1">
-        <span className="text-xs text-muted-foreground hidden sm:inline">
-          Create customized QR codes for links, WiFi, contacts, and text
-        </span>
+      {/* Scanner Cross-Link & History Trigger */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 px-1">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowHistoryModal(true)}
+            className="h-9 px-3.5 gap-2 text-xs font-semibold border-border/80 hover:border-primary/50 text-foreground"
+          >
+            <History className="h-4 w-4 text-primary" />
+            <span>{isArabic ? 'سجل الـ QR' : 'QR History'}</span>
+            {history.length > 0 && (
+              <span className="ms-1 px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded-full">
+                {history.length}
+              </span>
+            )}
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={saveToHistory}
+            className="h-9 px-3 gap-1.5 text-xs text-muted-foreground hover:text-primary"
+            title={isArabic ? 'حفظ التصميم الحالي في السجل' : 'Save current design to history'}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>{isArabic ? 'حفظ في السجل' : 'Save to History'}</span>
+          </Button>
+        </div>
+
         <Link
           href="/tools/qr-barcode-scanner"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline bg-primary/10 hover:bg-primary/15 px-3 py-1.5 rounded-xl border border-primary/20 transition-colors ms-auto"
         >
           <ScanLine className="w-3.5 h-3.5" />
-          Need to scan a code? Open QR & Barcode Scanner &rarr;
+          {isArabic ? 'تحتاج لمسح رمز؟ افتح ماسح QR والباركود ←' : 'Need to scan a code? Open QR & Barcode Scanner →'}
         </Link>
       </div>
 
@@ -214,7 +456,7 @@ function QRCodeToolContent() {
             qrType === 'url' ? 'bg-primary text-primary-foreground shadow-sm scale-[1.02]' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
           }`}
         >
-          <LinkIcon className="h-3.5 w-3.5" /> URL Link
+          <LinkIcon className="h-3.5 w-3.5" /> {isArabic ? 'رابط ويب URL' : 'URL Link'}
         </button>
         <button
           type="button"
@@ -223,7 +465,7 @@ function QRCodeToolContent() {
             qrType === 'wifi' ? 'bg-primary text-primary-foreground shadow-sm scale-[1.02]' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
           }`}
         >
-          <Wifi className="h-3.5 w-3.5" /> WiFi Login
+          <Wifi className="h-3.5 w-3.5" /> {isArabic ? 'شبكة واي فاي WiFi' : 'WiFi Login'}
         </button>
         <button
           type="button"
@@ -232,7 +474,7 @@ function QRCodeToolContent() {
             qrType === 'vcard' ? 'bg-primary text-primary-foreground shadow-sm scale-[1.02]' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
           }`}
         >
-          <User className="h-3.5 w-3.5" /> vCard Contact
+          <User className="h-3.5 w-3.5" /> {isArabic ? 'بطاقة اتصال vCard' : 'vCard Contact'}
         </button>
         <button
           type="button"
@@ -241,7 +483,7 @@ function QRCodeToolContent() {
             qrType === 'sms' ? 'bg-primary text-primary-foreground shadow-sm scale-[1.02]' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
           }`}
         >
-          <MessageSquare className="h-3.5 w-3.5" /> SMS Text
+          <MessageSquare className="h-3.5 w-3.5" /> {isArabic ? 'رسالة SMS' : 'SMS Text'}
         </button>
         <button
           type="button"
@@ -250,7 +492,7 @@ function QRCodeToolContent() {
             qrType === 'text' ? 'bg-primary text-primary-foreground shadow-sm scale-[1.02]' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
           }`}
         >
-          <FileText className="h-3.5 w-3.5" /> Plain Text
+          <FileText className="h-3.5 w-3.5" /> {isArabic ? 'نص عادي' : 'Plain Text'}
         </button>
       </div>
 
@@ -259,11 +501,15 @@ function QRCodeToolContent() {
         {/* Left Form: 7 Columns */}
         <div className="lg:col-span-7 space-y-6">
           <div className="p-6 rounded-2xl border border-border/70 bg-card shadow-xs space-y-4">
-            <h3 className="text-sm font-bold text-foreground">Content Information</h3>
+            <h3 className="text-sm font-bold text-foreground">
+              {isArabic ? 'معلومات المحتوى' : 'Content Information'}
+            </h3>
 
             {qrType === 'url' && (
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Website URL Destination</label>
+                <label className="text-xs font-semibold text-muted-foreground">
+                  {isArabic ? 'رابط الموقع المستهدف' : 'Website URL Destination'}
+                </label>
                 <input
                   type="url"
                   value={urlData}
@@ -277,7 +523,9 @@ function QRCodeToolContent() {
             {qrType === 'wifi' && (
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground">Network Name (SSID)</label>
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    {isArabic ? 'اسم الشبكة (SSID)' : 'Network Name (SSID)'}
+                  </label>
                   <input
                     type="text"
                     value={wifiSSID}
@@ -288,7 +536,9 @@ function QRCodeToolContent() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground">Password</label>
+                    <label className="text-xs font-semibold text-muted-foreground">
+                      {isArabic ? 'كلمة المرور' : 'Password'}
+                    </label>
                     <input
                       type="text"
                       value={wifiPassword}
@@ -298,7 +548,9 @@ function QRCodeToolContent() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground">Encryption</label>
+                    <label className="text-xs font-semibold text-muted-foreground">
+                      {isArabic ? 'نوع التشفير' : 'Encryption'}
+                    </label>
                     <select
                       value={wifiSecurity}
                       onChange={(e) => setWifiSecurity(e.target.value)}
@@ -306,7 +558,7 @@ function QRCodeToolContent() {
                     >
                       <option value="WPA">WPA / WPA2 / WPA3</option>
                       <option value="WEP">WEP</option>
-                      <option value="nopass">Open (No Password)</option>
+                      <option value="nopass">{isArabic ? 'مفتوحة (بدون كلمة سر)' : 'Open (No Password)'}</option>
                     </select>
                   </div>
                 </div>
@@ -316,7 +568,9 @@ function QRCodeToolContent() {
             {qrType === 'vcard' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground">Full Name</label>
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    {isArabic ? 'الاسم الكامل' : 'Full Name'}
+                  </label>
                   <input
                     type="text"
                     value={vcardName}
@@ -326,7 +580,9 @@ function QRCodeToolContent() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground">Company / Org</label>
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    {isArabic ? 'الشركة / المنظمة' : 'Company / Org'}
+                  </label>
                   <input
                     type="text"
                     value={vcardOrg}
@@ -336,7 +592,9 @@ function QRCodeToolContent() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground">Phone</label>
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    {isArabic ? 'رقم الهاتف' : 'Phone'}
+                  </label>
                   <input
                     type="tel"
                     value={vcardPhone}
@@ -346,7 +604,9 @@ function QRCodeToolContent() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground">Email</label>
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    {isArabic ? 'البريد الإلكتروني' : 'Email'}
+                  </label>
                   <input
                     type="email"
                     value={vcardEmail}
@@ -361,7 +621,9 @@ function QRCodeToolContent() {
             {qrType === 'sms' && (
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground">Recipient Phone Number</label>
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    {isArabic ? 'رقم المستلم' : 'Recipient Phone Number'}
+                  </label>
                   <input
                     type="tel"
                     value={smsPhone}
@@ -371,11 +633,13 @@ function QRCodeToolContent() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground">Pre-filled Message</label>
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    {isArabic ? 'نص الرسالة المسبق' : 'Pre-filled Message'}
+                  </label>
                   <textarea
                     value={smsMessage}
                     onChange={(e) => setSmsMessage(e.target.value)}
-                    placeholder="Hello from DigitalMix!"
+                    placeholder={isArabic ? 'مرحباً من DigitalMix!' : 'Hello from DigitalMix!'}
                     className="w-full h-20 p-3 rounded-xl border border-border bg-background text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground resize-none"
                   />
                 </div>
@@ -384,11 +648,13 @@ function QRCodeToolContent() {
 
             {qrType === 'text' && (
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Raw Text Payload</label>
+                <label className="text-xs font-semibold text-muted-foreground">
+                  {isArabic ? 'النص الخام' : 'Raw Text Payload'}
+                </label>
                 <textarea
                   value={plainText}
                   onChange={(e) => setPlainText(e.target.value)}
-                  placeholder="Type any plain text or code here..."
+                  placeholder={isArabic ? 'اكتب أي نص عادي أو رمز هنا...' : 'Type any plain text or code here...'}
                   className="w-full h-24 p-3 rounded-xl border border-border bg-background font-mono text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground resize-none"
                 />
               </div>
@@ -398,12 +664,14 @@ function QRCodeToolContent() {
           {/* QR Code Styling Customization */}
           <div className="p-6 rounded-2xl border border-border/70 bg-card shadow-xs space-y-4">
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <Palette className="h-4 w-4 text-primary" /> Visual Design & Colors
+              <Palette className="h-4 w-4 text-primary" /> {isArabic ? 'التصميم والألوان' : 'Visual Design & Colors'}
             </h3>
 
             {/* Color Presets */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Color Presets</label>
+              <label className="text-xs font-semibold text-muted-foreground">
+                {isArabic ? 'نماذج ألوان جاهزة' : 'Color Presets'}
+              </label>
               <div className="flex flex-wrap gap-2">
                 {COLOR_PRESETS.map((preset) => (
                   <button
@@ -424,7 +692,9 @@ function QRCodeToolContent() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Foreground</label>
+                <label className="text-xs font-semibold text-muted-foreground">
+                  {isArabic ? 'لون الرمز' : 'Foreground'}
+                </label>
                 <div className="flex items-center gap-2 bg-background border border-border p-1.5 rounded-xl">
                   <input
                     type="color"
@@ -437,7 +707,9 @@ function QRCodeToolContent() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Background</label>
+                <label className="text-xs font-semibold text-muted-foreground">
+                  {isArabic ? 'لون الخلفية' : 'Background'}
+                </label>
                 <div className="flex items-center gap-2 bg-background border border-border p-1.5 rounded-xl">
                   <input
                     type="color"
@@ -450,7 +722,9 @@ function QRCodeToolContent() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Size (px)</label>
+                <label className="text-xs font-semibold text-muted-foreground">
+                  {isArabic ? 'الحجم (بكسل)' : 'Size (px)'}
+                </label>
                 <select
                   value={qrSize}
                   onChange={(e) => setQrSize(e.target.value)}
@@ -464,16 +738,18 @@ function QRCodeToolContent() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Error Level</label>
+                <label className="text-xs font-semibold text-muted-foreground">
+                  {isArabic ? 'مستوى تصحيح الخطأ' : 'Error Level'}
+                </label>
                 <select
                   value={errorLevel}
                   onChange={(e) => setErrorLevel(e.target.value as 'L' | 'M' | 'Q' | 'H')}
                   className="w-full h-10 px-2 rounded-xl border border-border bg-background text-xs font-bold focus:outline-none cursor-pointer text-foreground"
                 >
-                  <option value="L">Low (7%)</option>
-                  <option value="M">Medium (15%)</option>
-                  <option value="Q">Quartile (25%)</option>
-                  <option value="H">High (30%)</option>
+                  <option value="L">{isArabic ? 'منخفض L (7%)' : 'Low (7%)'}</option>
+                  <option value="M">{isArabic ? 'متوسط M (15%)' : 'Medium (15%)'}</option>
+                  <option value="Q">{isArabic ? 'ربعي Q (25%)' : 'Quartile (25%)'}</option>
+                  <option value="H">{isArabic ? 'عالي H (30%)' : 'High (30%)'}</option>
                 </select>
               </div>
             </div>
@@ -482,7 +758,9 @@ function QRCodeToolContent() {
 
         {/* Right Preview: 5 Columns */}
         <div className="lg:col-span-5 p-6 rounded-2xl border border-border/70 bg-card shadow-xs space-y-5 text-center flex flex-col items-center">
-          <h3 className="text-sm font-bold text-foreground">Live Generated Matrix</h3>
+          <h3 className="text-sm font-bold text-foreground">
+            {isArabic ? 'معاينة الباركود الفورية' : 'Live Generated Matrix'}
+          </h3>
 
           <div
             ref={qrRef}
@@ -501,10 +779,10 @@ function QRCodeToolContent() {
           <div className="w-full space-y-2.5 pt-2">
             <div className="grid grid-cols-2 gap-2">
               <Button onClick={downloadPNG} className="w-full text-xs font-bold gap-1.5 rounded-xl shadow-sm h-10">
-                <Download className="h-3.5 w-3.5" /> Download PNG
+                <Download className="h-3.5 w-3.5" /> {isArabic ? 'تحميل PNG' : 'Download PNG'}
               </Button>
               <Button variant="outline" onClick={downloadSVG} className="w-full text-xs font-bold gap-1.5 rounded-xl h-10 border-border">
-                <Download className="h-3.5 w-3.5" /> Download SVG
+                <Download className="h-3.5 w-3.5" /> {isArabic ? 'تحميل SVG' : 'Download SVG'}
               </Button>
             </div>
 
@@ -514,11 +792,182 @@ function QRCodeToolContent() {
               className="w-full text-xs font-semibold gap-1.5 rounded-xl h-10"
             >
               {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-              {copied ? 'Payload Copied' : 'Copy Raw Encoded Text'}
+              {copied ? (isArabic ? 'تم نسخ النص المرمز' : 'Payload Copied') : isArabic ? 'نسخ النص المرمز' : 'Copy Raw Encoded Text'}
             </Button>
           </div>
         </div>
       </div>
+
+      {/* QR HISTORY MODAL */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-3xl max-w-3xl w-full p-6 space-y-4 shadow-2xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-primary/10 text-primary rounded-xl">
+                  <History size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                    {isArabic ? 'سجل رموز QR المُولّدة' : 'QR Code History'}
+                    <span className="text-xs font-semibold px-2 py-0.5 bg-primary/10 text-primary rounded-full">
+                      {history.length}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground">
+                    {isArabic
+                      ? 'رموز الباركود السابقة المحفوظة محلياً في متصفحك'
+                      : 'Previously generated QR designs stored locally in your browser'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {history.length > 0 && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={exportHistoryCSV}
+                      className="rounded-xl text-xs h-8"
+                    >
+                      <Download size={13} className="me-1" />
+                      CSV
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearHistory}
+                      className="rounded-xl text-xs h-8 text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 size={13} className="me-1" />
+                      {isArabic ? 'مسح الكل' : 'Clear All'}
+                    </Button>
+                  </>
+                )}
+                <button
+                  onClick={() => setShowHistoryModal(false)}
+                  className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Search filter if items exist */}
+            {history.length > 3 && (
+              <div className="relative">
+                <Search size={14} className="absolute left-3.5 rtl:left-auto rtl:right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  placeholder={isArabic ? 'بحث في السجل بالعنوان أو المحتوى أو النوع...' : 'Search history by title, payload or type...'}
+                  className="w-full h-9 pl-9 pr-4 rtl:pl-4 rtl:pr-9 rounded-xl border border-border bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            )}
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {history.length === 0 ? (
+                <div className="py-16 text-center text-muted-foreground space-y-2">
+                  <QrCode className="w-10 h-10 mx-auto opacity-40 text-primary" />
+                  <p className="text-sm font-semibold">
+                    {isArabic ? 'لا توجد رموز QR محفوظة بعد' : 'No QR codes saved in history yet'}
+                  </p>
+                  <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                    {isArabic
+                      ? 'عند تحميل أو نسخ أو حفظ أي رمز QR، سيتم تسجيله هنا تلقائياً لسهولة استعادته وتعديله لاحقاً.'
+                      : 'When you generate, download, or copy any QR code, it will automatically appear here.'}
+                  </p>
+                </div>
+              ) : filteredHistory.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground text-xs">
+                  {isArabic ? 'لم يتم العثور على نتائج مطابقة للبحث' : 'No matching QR codes found.'}
+                </div>
+              ) : (
+                filteredHistory.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => restoreHistoryItem(item)}
+                    className="group p-4 bg-muted/40 hover:bg-muted/70 border border-border/70 hover:border-primary/40 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all cursor-pointer shadow-xs"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                      {/* Mini QR Preview */}
+                      <div className="p-1.5 rounded-xl bg-white border border-border/70 shrink-0 shadow-2xs">
+                        <QRCodeSVG
+                          value={item.payload}
+                          size={48}
+                          fgColor={item.fgColor || '#000000'}
+                          bgColor={item.bgColor || '#FFFFFF'}
+                          level={item.errorLevel || 'L'}
+                        />
+                      </div>
+
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md uppercase bg-primary/10 text-primary border border-primary/20">
+                            {item.type}
+                          </span>
+                          <span className="text-xs font-bold text-foreground truncate max-w-[220px]">
+                            {item.title}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {new Date(item.timestamp).toLocaleTimeString()} • {new Date(item.timestamp).toLocaleDateString()}
+                          </span>
+                        </div>
+
+                        <div className="font-mono text-xs text-muted-foreground line-clamp-1 select-all overflow-hidden text-ellipsis">
+                          {item.payload}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={(e) => copyHistoryPayload(item.payload, item.id, e)}
+                        className="h-8 px-2.5 rounded-lg text-xs gap-1"
+                        title={isArabic ? 'نسخ النص' : 'Copy payload'}
+                      >
+                        {copiedHistoryId === item.id ? (
+                          <Check size={13} className="text-emerald-500" />
+                        ) : (
+                          <Copy size={13} />
+                        )}
+                        <span className="hidden sm:inline">{isArabic ? 'نسخ' : 'Copy'}</span>
+                      </Button>
+
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => restoreHistoryItem(item)}
+                        className="h-8 px-3 rounded-lg text-xs font-semibold gap-1"
+                      >
+                        <RotateCcw size={13} />
+                        <span>{isArabic ? 'استعادة' : 'Restore'}</span>
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => deleteHistoryItem(item.id, e)}
+                        className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        title={isArabic ? 'حذف' : 'Delete'}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </ToolLayout>
   )
 }

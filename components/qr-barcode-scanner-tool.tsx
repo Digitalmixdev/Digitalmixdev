@@ -37,6 +37,12 @@ import {
   Eye,
   EyeOff,
   Share2,
+  AlertTriangle,
+  HelpCircle,
+  Unlock,
+  Settings,
+  Maximize2,
+  Play,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Html5Qrcode, Html5QrcodeSupportedFormats, Html5QrcodeScannerState } from 'html5-qrcode'
@@ -461,6 +467,9 @@ export function QRCodeScannerTool() {
   const [continuousScan, setContinuousScan] = useState(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [isLoadingCamera, setIsLoadingCamera] = useState(false)
+  const [permissionStatus, setPermissionStatus] = useState<'prompt' | 'granted' | 'denied' | 'unsupported'>('prompt')
+  const [showPermissionGuide, setShowPermissionGuide] = useState(false)
+  const [isInIframe, setIsInIframe] = useState(false)
 
   // Current Scan Result
   const [scanResult, setScanResult] = useState<ParsedPayload | null>(null)
@@ -480,6 +489,34 @@ export function QRCodeScannerTool() {
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const readerElementId = 'dm-html5-qr-reader'
+
+  // Detect iframe and query camera permission status on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        setIsInIframe(window.self !== window.top)
+      } catch {
+        setIsInIframe(true)
+      }
+
+      if (typeof navigator !== 'undefined' && navigator.permissions?.query) {
+        navigator.permissions
+          .query({ name: 'camera' as any })
+          .then((status) => {
+            setPermissionStatus(status.state as any)
+            status.onchange = () => {
+              setPermissionStatus(status.state as any)
+              if (status.state === 'granted') {
+                setCameraError(null)
+              }
+            }
+          })
+          .catch(() => {
+            // Not all browsers support querying camera permission directly
+          })
+      }
+    }
+  }, [])
 
   // Load history from localStorage
   useEffect(() => {
@@ -571,13 +608,70 @@ export function QRCodeScannerTool() {
     [soundEnabled, vibrateEnabled, continuousScan, saveToHistory, isArabic]
   )
 
-  // Initialize or start camera
+  // Categorize camera error for informative guidance
+  const handleCameraError = useCallback((err: any) => {
+    setIsCameraActive(false)
+    const errName = err?.name || ''
+    const errMsg = (err?.message || '').toLowerCase()
+
+    if (
+      errName === 'NotAllowedError' ||
+      errName === 'PermissionDeniedError' ||
+      errMsg.includes('permission') ||
+      errMsg.includes('denied') ||
+      errMsg.includes('dismissed')
+    ) {
+      setPermissionStatus('denied')
+      setCameraError(
+        isArabic
+          ? 'تم رفض أو حظر إذن الكاميرا. يرجى النقر على أيقونة القفل أو الكاميرا في شريط العنوان بالمتصفح، والسماح بالوصول للكاميرا ثم النقر على زر طلب الإذن أدناه.'
+          : 'Camera permission was denied or dismissed. Click the lock/camera icon in your browser address bar to allow access, then click "Grant Camera Permission" below.'
+      )
+    } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError' || errMsg.includes('not found')) {
+      setCameraError(
+        isArabic
+          ? 'لم يتم العثور على أي كاميرا متصلة بالجهاز. يمكنك مسح الرموز برفع صورة أو لصق لقطة الشاشة.'
+          : 'No camera device found on your system. You can still scan by uploading an image or pasting from clipboard.'
+      )
+    } else if (errName === 'NotReadableError' || errName === 'TrackStartError' || errMsg.includes('in use') || errMsg.includes('already')) {
+      setCameraError(
+        isArabic
+          ? 'الكاميرا قيد الاستخدام بواسطة برنامج آخر (مثل Zoom أو Teams). يرجى إغلاقه وإعادة المحاولة.'
+          : 'Camera is currently occupied by another app (e.g. Zoom, Teams). Close the other app and retry.'
+      )
+    } else if (errName === 'OverconstrainedError' || errMsg.includes('constraint')) {
+      setCameraError(
+        isArabic
+          ? 'الكاميرا لا تدعم الإعدادات الحالية. تم التحويل التلقائي للكاميرا المتاحة.'
+          : 'Selected camera constraint could not be satisfied. Retrying with default device.'
+      )
+    } else {
+      setCameraError(
+        err?.message ||
+          (isArabic
+            ? 'تعذر تشغيل الكاميرا. يرجى التأكد من توصيل الكاميرا ومنح الإذن للمتصفح.'
+            : 'Unable to start camera stream. Please check camera connection and permissions.')
+      )
+    }
+  }, [isArabic])
+
+  // Initialize or start camera with multi-tier fallback
   const startCamera = useCallback(async () => {
     setIsLoadingCamera(true)
     setCameraError(null)
 
+    // Check navigator.mediaDevices support
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setIsLoadingCamera(false)
+      const msg = isArabic
+        ? 'واجهة الكاميرا غير مدعومة في هذا المتصفح أو تتطلب اتصالاً آمناً (HTTPS).'
+        : 'Camera API is not supported in this browser or requires a secure HTTPS connection.'
+      setCameraError(msg)
+      return
+    }
+
     try {
-      // Clean up previous instance if any
+      // Clean up previous scanner instance
       if (html5QrCodeRef.current) {
         try {
           if (html5QrCodeRef.current.getState() === Html5QrcodeScannerState.SCANNING) {
@@ -589,28 +683,37 @@ export function QRCodeScannerTool() {
         }
       }
 
+      // Check DOM element
+      const readerElem = document.getElementById(readerElementId)
+      if (!readerElem) {
+        console.warn('Camera reader container not mounted')
+        setIsLoadingCamera(false)
+        return
+      }
+
       const html5QrCode = new Html5Qrcode(readerElementId, {
         formatsToSupport: SUPPORTED_FORMATS,
         verbose: false,
       })
       html5QrCodeRef.current = html5QrCode
 
-      // Fetch available camera devices
+      // Discover camera devices
+      let deviceList: { id: string; label: string }[] = []
       try {
         const devices = await Html5Qrcode.getCameras()
         if (devices && devices.length > 0) {
-          setCameras(devices.map((d) => ({ id: d.id, label: d.label || `Camera ${d.id}` })))
+          deviceList = devices.map((d, idx) => ({
+            id: d.id,
+            label: d.label || (isArabic ? `كاميرا ${idx + 1}` : `Camera ${idx + 1}`),
+          }))
+          setCameras(deviceList)
           if (!selectedCameraId) {
             setSelectedCameraId(devices[0].id)
           }
         }
       } catch (devErr) {
-        console.warn('Could not enumerate cameras:', devErr)
+        console.warn('Could not enumerate cameras yet:', devErr)
       }
-
-      const cameraConfig = selectedCameraId
-        ? { deviceId: { exact: selectedCameraId } }
-        : { facingMode }
 
       const scanConfig = {
         fps: 15,
@@ -624,42 +727,110 @@ export function QRCodeScannerTool() {
         aspectRatio: 1.0,
       }
 
-      await html5QrCode.start(
-        cameraConfig,
-        scanConfig,
-        (decodedText, result) => handleDecodedText(decodedText, result),
-        () => {
-          // Frame scan error (no barcode in frame) - intentionally silent
-        }
-      )
+      const onSuccess = (decodedText: string, result: any) => handleDecodedText(decodedText, result)
+      const onScanFailure = () => {
+        // silent frame ignore
+      }
 
-      setIsCameraActive(true)
+      let isStarted = false
 
-      // Check for torch capability
+      // Try 1: Exact Selected ID or facingMode
       try {
-        const capabilities = html5QrCode.getRunningTrackCapabilities()
-        if (capabilities && (capabilities as any).torch) {
-          setTorchSupported(true)
-        } else {
+        const cameraConfig = selectedCameraId
+          ? { deviceId: { exact: selectedCameraId } }
+          : { facingMode }
+        await html5QrCode.start(cameraConfig, scanConfig, onSuccess, onScanFailure)
+        isStarted = true
+      } catch (err1: any) {
+        console.warn('Initial camera start failed, testing fallback config:', err1)
+
+        // If explicitly permission denied, rethrow immediately
+        if (err1?.name === 'NotAllowedError' || err1?.name === 'PermissionDeniedError') {
+          throw err1
+        }
+
+        // Try 2: Alternative facingMode (environment <-> user)
+        try {
+          const altMode = facingMode === 'environment' ? 'user' : 'environment'
+          await html5QrCode.start({ facingMode: altMode }, scanConfig, onSuccess, onScanFailure)
+          setFacingMode(altMode)
+          isStarted = true
+        } catch (err2) {
+          console.warn('FacingMode fallback failed, attempting device list fallback:', err2)
+
+          // Try 3: First available device ID
+          if (deviceList.length > 0) {
+            try {
+              await html5QrCode.start({ deviceId: { exact: deviceList[0].id } }, scanConfig, onSuccess, onScanFailure)
+              setSelectedCameraId(deviceList[0].id)
+              isStarted = true
+            } catch (err3) {
+              console.warn('Device ID fallback failed:', err3)
+            }
+          }
+
+          // Try 4: General user camera
+          if (!isStarted) {
+            await html5QrCode.start({ facingMode: 'user' }, scanConfig, onSuccess, onScanFailure)
+            isStarted = true
+          }
+        }
+      }
+
+      if (isStarted) {
+        setIsCameraActive(true)
+        setPermissionStatus('granted')
+        setCameraError(null)
+
+        // Check for torch capability
+        try {
+          const capabilities = html5QrCode.getRunningTrackCapabilities()
+          if (capabilities && (capabilities as any).torch) {
+            setTorchSupported(true)
+          } else {
+            setTorchSupported(false)
+          }
+        } catch {
           setTorchSupported(false)
         }
-      } catch {
-        setTorchSupported(false)
       }
     } catch (err: any) {
       console.error('Camera start failure:', err)
-      setIsCameraActive(false)
-      const msg =
-        err?.message ||
-        (isArabic
-          ? 'تعذر الوصول إلى الكاميرا. يرجى التأكد من منح الإذن للمتصفح.'
-          : 'Unable to access camera. Please make sure camera permissions are granted.')
-      setCameraError(msg)
-      toast.error(msg)
+      handleCameraError(err)
     } finally {
       setIsLoadingCamera(false)
     }
-  }, [selectedCameraId, facingMode, handleDecodedText, isArabic])
+  }, [selectedCameraId, facingMode, handleDecodedText, isArabic, handleCameraError])
+
+  // Explicit user gesture trigger to prompt permission and start camera
+  const requestCameraPermission = async () => {
+    setIsLoadingCamera(true)
+    setCameraError(null)
+    try {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        throw new Error(isArabic ? 'المتصفح لا يدعم الوصول للكاميرا' : 'Camera access is not supported by your browser')
+      }
+
+      // Explicitly prompt user via getUserMedia
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: facingMode } },
+        audio: false,
+      })
+
+      // Clean up test stream
+      stream.getTracks().forEach((track) => track.stop())
+      setPermissionStatus('granted')
+      setCameraError(null)
+
+      // Start html5QrCode
+      await startCamera()
+    } catch (err: any) {
+      console.error('Explicit permission request error:', err)
+      handleCameraError(err)
+    } finally {
+      setIsLoadingCamera(false)
+    }
+  }
 
   // Stop camera
   const stopCamera = useCallback(async () => {
@@ -1089,29 +1260,132 @@ export function QRCodeScannerTool() {
                     </div>
                   )}
 
-                  {/* Loading or Stopped State Overlay */}
+                  {/* Idle / Not Active Overlay */}
+                  {!isCameraActive && !isLoadingCamera && !cameraError && (
+                    <div className="absolute inset-0 bg-background/90 backdrop-blur-xs flex flex-col items-center justify-center gap-4 p-6 text-center z-10">
+                      <div className="p-4 bg-primary/10 text-primary rounded-2xl">
+                        <Camera size={36} />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="font-bold text-sm text-foreground">
+                          {isArabic ? 'الكاميرا متوقفة حالياً' : 'Camera is currently stopped'}
+                        </h4>
+                        <p className="text-xs text-muted-foreground max-w-xs">
+                          {isArabic
+                            ? 'انقر لتشغيل الكاميرا والسماح بالإذن لمسح الأكواد مباشرة.'
+                            : 'Click to start camera and grant permission to scan barcodes directly.'}
+                        </p>
+                      </div>
+                      <Button onClick={requestCameraPermission} className="rounded-xl shadow-md">
+                        <Play size={16} className="me-2" />
+                        {isArabic ? 'تشغيل وسماح الكاميرا' : 'Allow & Start Camera'}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Loading or Initializing State Overlay */}
                   {isLoadingCamera && (
                     <div className="absolute inset-0 bg-background/90 backdrop-blur-xs flex flex-col items-center justify-center gap-3 p-6 text-center z-10">
                       <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" />
-                      <p className="text-sm font-medium text-muted-foreground">
-                        {isArabic ? 'جاري تشغيل الكاميرا...' : 'Starting camera stream...'}
+                      <p className="text-sm font-semibold text-foreground">
+                        {isArabic ? 'جاري تهيئة الكاميرا والتحقق من الإذن...' : 'Initializing camera & checking permissions...'}
+                      </p>
+                      <p className="text-xs text-muted-foreground max-w-xs">
+                        {isArabic
+                          ? 'إذا ظهرت نافذة المتصفح، يرجى النقر على "سماح" (Allow)'
+                          : 'If prompted by your browser, please click "Allow"'}
                       </p>
                     </div>
                   )}
 
+                  {/* Camera Error / Permission Denied Overlay */}
                   {cameraError && !isLoadingCamera && (
-                    <div className="absolute inset-0 bg-background/95 flex flex-col items-center justify-center gap-4 p-6 text-center z-10">
+                    <div className="absolute inset-0 bg-background/95 flex flex-col items-center justify-center gap-3 p-6 text-center z-10 overflow-y-auto">
                       <div className="p-3 bg-red-500/10 text-red-500 rounded-2xl">
-                        <Camera size={28} />
+                        <AlertTriangle size={30} />
                       </div>
-                      <p className="text-sm font-semibold text-foreground max-w-xs">{cameraError}</p>
-                      <Button size="sm" onClick={startCamera} className="rounded-xl">
-                        <RotateCcw size={14} className="me-1.5" />
-                        {isArabic ? 'إعادة المحاولة' : 'Try Again'}
-                      </Button>
+                      <h4 className="font-bold text-sm text-foreground">
+                        {isArabic ? 'إذن الكاميرا مطلوب' : 'Camera Permission Required'}
+                      </h4>
+                      <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">{cameraError}</p>
+
+                      <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                        <Button size="sm" onClick={requestCameraPermission} className="rounded-xl">
+                          <Unlock size={14} className="me-1.5" />
+                          {isArabic ? 'طلب الإذن وإعادة التشغيل' : 'Grant Permission & Start'}
+                        </Button>
+
+                        {isInIframe && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.open(window.location.href, '_blank')}
+                            className="rounded-xl border-border/80"
+                          >
+                            <Maximize2 size={14} className="me-1.5" />
+                            {isArabic ? 'فتح بنافذة مستقلة' : 'Open in New Tab'}
+                          </Button>
+                        )}
+
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setActiveTab('file')}
+                          className="rounded-xl text-xs text-primary"
+                        >
+                          <Upload size={14} className="me-1.5" />
+                          {isArabic ? 'استخدام رفع صورة بدلاً من ذلك' : 'Upload Image Instead'}
+                        </Button>
+                      </div>
+
+                      <button
+                        onClick={() => setShowPermissionGuide(!showPermissionGuide)}
+                        className="text-[11px] text-primary underline underline-offset-4 hover:opacity-80 transition-opacity mt-1 flex items-center gap-1"
+                      >
+                        <HelpCircle size={12} />
+                        {isArabic ? 'كيفية تفعيل إذن الكاميرا في المتصفح؟' : 'How to enable camera permissions?'}
+                      </button>
                     </div>
                   )}
                 </div>
+
+                {/* Permission Guide Collapse Panel */}
+                {showPermissionGuide && (
+                  <div className="p-4 bg-muted/70 border border-border/80 rounded-2xl text-xs space-y-3">
+                    <div className="flex items-center justify-between font-bold text-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <Settings size={14} className="text-primary" />
+                        {isArabic ? 'دليل تفعيل إذن الكاميرا' : 'Camera Permission Steps'}
+                      </span>
+                      <button
+                        onClick={() => setShowPermissionGuide(false)}
+                        className="text-muted-foreground hover:text-foreground text-xs"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <ul className="space-y-2 text-muted-foreground leading-relaxed list-disc list-inside">
+                      <li>
+                        <strong>Google Chrome / Edge:</strong>{' '}
+                        {isArabic
+                          ? 'انقر على أيقونة القفل 🔒 أو الكاميرا في شريط العنوان أعلى الصفحة -> اختر "أذونات الموقع" أو فعّل الكاميرا -> ثم أعد تحميل الصفحة.'
+                          : 'Click the lock 🔒 or camera icon in the address bar -> toggle Camera to "Allow" -> reload the page.'}
+                      </li>
+                      <li>
+                        <strong>Apple Safari (Mac / iPhone):</strong>{' '}
+                        {isArabic
+                          ? 'على Mac: اختر Safari -> إعدادات هذا الموقع -> الكاميرا: سماح. على iPhone: الإعدادات -> Safari -> الكاميرا -> سماح.'
+                          : 'On Mac: Safari -> Settings for This Website -> Camera: Allow. On iPhone: Settings -> Safari -> Camera -> Allow.'}
+                      </li>
+                      <li>
+                        <strong>Mozilla Firefox:</strong>{' '}
+                        {isArabic
+                          ? 'انقر على أيقونة الأذونات بجانب شريط العنوان -> احذف الحظر عن الكاميرا -> أعد المحاولة.'
+                          : 'Click the permissions icon next to the address bar -> clear blocked camera permission -> reload.'}
+                      </li>
+                    </ul>
+                  </div>
+                )}
 
                 {/* Camera Hardware Controls */}
                 <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
@@ -1169,7 +1443,7 @@ export function QRCodeScannerTool() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={isCameraActive ? stopCamera : startCamera}
+                    onClick={isCameraActive ? stopCamera : requestCameraPermission}
                     className="rounded-xl border-border/70 text-xs font-semibold"
                   >
                     {isCameraActive ? (
@@ -1184,6 +1458,20 @@ export function QRCodeScannerTool() {
                       </>
                     )}
                   </Button>
+
+                  {/* Open in full tab helper for iframe */}
+                  {isInIframe && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(window.location.href, '_blank')}
+                      className="rounded-xl text-xs text-muted-foreground hover:text-foreground"
+                      title={isArabic ? 'فتح في نافذة جديدة' : 'Open scanner in new window'}
+                    >
+                      <Maximize2 size={13} className="me-1" />
+                      {isArabic ? 'نافذة جديدة' : 'New Tab'}
+                    </Button>
+                  )}
                 </div>
               </div>
             )}

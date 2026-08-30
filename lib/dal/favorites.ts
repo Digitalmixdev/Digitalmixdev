@@ -45,18 +45,23 @@ export async function isToolFavorited(
 
   const canonicalId = normalizeToolId(toolId)
 
-  // Find either matching canonical id or raw input
-  const favorite = await prisma.favoriteTool.findFirst({
-    where: {
-      userId,
-      OR: [
-        { toolSlug: canonicalId },
-        { toolSlug: toolId },
-      ],
-    },
-  })
+  try {
+    // Find either matching canonical id or raw input
+    const favorite = await prisma.favoriteTool.findFirst({
+      where: {
+        userId,
+        OR: [
+          { toolSlug: canonicalId },
+          { toolSlug: toolId },
+        ],
+      },
+    })
 
-  return Boolean(favorite)
+    return Boolean(favorite)
+  } catch (error) {
+    console.error('Error checking favorite tool:', error)
+    return false
+  }
 }
 
 /**
@@ -71,33 +76,38 @@ export async function toggleToolFavorite(
 
   const canonicalId = normalizeToolId(toolId)
 
-  const existingFavorites = await prisma.favoriteTool.findMany({
-    where: {
-      userId,
-      OR: [
-        { toolSlug: canonicalId },
-        { toolSlug: toolId },
-      ],
-    },
-  })
-
-  if (existingFavorites.length > 0) {
-    await prisma.favoriteTool.deleteMany({
+  try {
+    const existingFavorites = await prisma.favoriteTool.findMany({
       where: {
-        id: { in: existingFavorites.map((f: { id: string }) => f.id) },
+        userId,
+        OR: [
+          { toolSlug: canonicalId },
+          { toolSlug: toolId },
+        ],
       },
     })
+
+    if (existingFavorites.length > 0) {
+      await prisma.favoriteTool.deleteMany({
+        where: {
+          id: { in: existingFavorites.map((f: { id: string }) => f.id) },
+        },
+      })
+      return false
+    }
+
+    await prisma.favoriteTool.create({
+      data: {
+        userId,
+        toolSlug: canonicalId,
+      },
+    })
+
+    return true
+  } catch (error) {
+    console.error('Error toggling favorite tool:', error)
     return false
   }
-
-  await prisma.favoriteTool.create({
-    data: {
-      userId,
-      toolSlug: canonicalId,
-    },
-  })
-
-  return true
 }
 
 /**
@@ -106,23 +116,28 @@ export async function toggleToolFavorite(
 export async function getUserFavorites(userId: string): Promise<ToolDefinition[]> {
   if (!userId) return []
 
-  const favorites = await prisma.favoriteTool.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-  })
+  try {
+    const favorites = await prisma.favoriteTool.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    })
 
-  const seenIds = new Set<string>()
-  const tools: ToolDefinition[] = []
+    const seenIds = new Set<string>()
+    const tools: ToolDefinition[] = []
 
-  for (const favorite of favorites) {
-    const normalized = normalizeToolId(favorite.toolSlug)
-    const tool = getToolById(normalized) || getToolBySlug(normalized)
+    for (const favorite of favorites) {
+      const normalized = normalizeToolId(favorite.toolSlug)
+      const tool = getToolById(normalized) || getToolBySlug(normalized)
 
-    if (tool && !seenIds.has(tool.id)) {
-      seenIds.add(tool.id)
-      tools.push(tool)
+      if (tool && !seenIds.has(tool.id)) {
+        seenIds.add(tool.id)
+        tools.push(tool)
+      }
     }
-  }
 
-  return tools
+    return tools
+  } catch (error) {
+    console.error('Error getting user favorites:', error)
+    return []
+  }
 }
