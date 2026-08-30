@@ -32,6 +32,7 @@ import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
 import { useLanguage } from '@/lib/i18n/context'
+import { logToolActivity } from '@/lib/history-service'
 
 export interface QrHistoryItem {
   id: string
@@ -222,16 +223,49 @@ function QRCodeToolContent() {
     }
 
     setHistory((prev) => {
-      // Avoid immediate duplicate
-      if (prev.length > 0 && prev[0].payload === currentPayload && Date.now() - prev[0].timestamp < 3000) {
+      // De-duplication: If the latest item already matches this exact payload and settings, skip adding duplicates
+      const isImmediateDuplicate =
+        prev.length > 0 &&
+        prev[0].payload === currentPayload &&
+        prev[0].type === qrType &&
+        prev[0].fgColor === fgColor &&
+        prev[0].bgColor === bgColor
+
+      if (isImmediateDuplicate) {
         return prev
       }
-      const updated = [newItem, ...prev.slice(0, 49)]
+
+      // If identical payload already exists elsewhere in history, remove older entry to keep only 1 clean copy at the top
+      const filtered = prev.filter(
+        (p) => !(p.payload === currentPayload && p.type === qrType)
+      )
+      const updated = [newItem, ...filtered.slice(0, 49)]
       try {
         localStorage.setItem('digitalmix_qr_history', JSON.stringify(updated))
       } catch {
         // storage full
       }
+
+      // Universal dashboard activity logging
+      logToolActivity({
+        toolId: 'qr-code-generator',
+        toolName: isArabic ? 'مولد ومصمم رموز QR' : 'QR Code Generator & Designer',
+        category: 'files',
+        actionTitle: `Generated ${qrType.toUpperCase()} QR Code`,
+        details: isArabic
+          ? `قام بتوليد رمز استجابة سريعة QR من نوع (${qrType.toUpperCase()}): "${itemTitle}"`
+          : `Generated ${qrType.toUpperCase()} QR code for: "${itemTitle}" (${errorLevel} error correction)`,
+        inputSnippet: currentPayload.slice(0, 500),
+        outputSnippet: `Type: ${qrType.toUpperCase()}\nColors: ${fgColor} on ${bgColor}\nCorrection: ${errorLevel}`,
+        metadata: {
+          qrType,
+          fgColor,
+          bgColor,
+          errorLevel,
+          title: itemTitle,
+        },
+      })
+
       return updated
     })
   }, [
@@ -250,6 +284,7 @@ function QRCodeToolContent() {
     fgColor,
     bgColor,
     errorLevel,
+    isArabic,
   ])
 
   const clearHistory = () => {

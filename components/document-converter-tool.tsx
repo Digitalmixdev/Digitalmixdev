@@ -49,6 +49,7 @@ import JSZip from 'jszip'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
+import { logToolActivity } from '@/lib/history-service'
 import {
   parseDocx,
   parsePptx,
@@ -528,6 +529,25 @@ export default function DocumentConverterTool() {
             ? `Successfully converted and merged ${imageItems.length} images into PDF!`
             : `Successfully converted image to PDF!`
         )
+
+        // Activity Logging
+        logToolActivity({
+          toolId: 'document-converter',
+          toolName: 'Office & Document Converter',
+          category: 'converter',
+          actionTitle: `Images to PDF (${imageItems.length} files)`,
+          details: `Converted and merged ${imageItems.length} image(s) into single PDF document "${mainFilename}" (${pageSize}, ${fitMode})`,
+          inputSnippet: imageItems.map((i) => i.file.name).join(', '),
+          outputSnippet: mainFilename,
+          metadata: {
+            source: 'images',
+            target: 'pdf',
+            fileCount: imageItems.length,
+            pageSize,
+            fitMode,
+            outputName: mainFilename,
+          },
+        })
       }
 
       // =========================================================================
@@ -649,6 +669,30 @@ export default function DocumentConverterTool() {
           setItems([...updatedItems])
           setResult(res)
           toast.success(`Successfully converted to ${tgt.toUpperCase()}!`)
+
+          // Detailed activity logging
+          const fileSizeFormatted =
+            file.size > 1024 * 1024
+              ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+              : `${(file.size / 1024).toFixed(1)} KB`
+
+          logToolActivity({
+            toolId: 'document-converter',
+            toolName: 'Office & Document Converter',
+            category: 'converter',
+            actionTitle: `${src.toUpperCase()} to ${tgt.toUpperCase()}`,
+            details: `Converted ${src.toUpperCase()} file "${file.name}" (${fileSizeFormatted}) to ${tgt.toUpperCase()} output "${res.filename}"`,
+            inputSnippet: `File: ${file.name}\nSize: ${fileSizeFormatted}\nType: ${file.type || src}`,
+            outputSnippet: `Output: ${res.filename}\nMIME: ${res.mimeType}${res.pageCount ? `\nPages: ${res.pageCount}` : ''}`,
+            metadata: {
+              sourceFormat: src,
+              targetFormat: tgt,
+              originalFilename: file.name,
+              outputFilename: res.filename,
+              fileSizeBytes: file.size,
+              pageCount: res.pageCount || 1,
+            },
+          })
         }
       }
 

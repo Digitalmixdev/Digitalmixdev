@@ -71,7 +71,7 @@ export async function getUserStats(userId: string): Promise<UserStats> {
   }
 
   try {
-    const [dbUser, toolCount, favoriteCount] = await Promise.all([
+    const [dbUser, toolCount, favoriteCount, activityCount] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
       }),
@@ -81,10 +81,13 @@ export async function getUserStats(userId: string): Promise<UserStats> {
       prisma.favoriteTool.count({
         where: { userId },
       }),
+      prisma.activityHistory.count({
+        where: { userId },
+      }),
     ])
 
     return {
-      historyCount: dbUser?.toolsUsedCount || 0,
+      historyCount: Math.max(activityCount || 0, dbUser?.toolsUsedCount || 0),
       toolsUsedCount: toolCount,
       favoritesCount: favoriteCount,
     }

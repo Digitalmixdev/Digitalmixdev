@@ -38,6 +38,7 @@ import JSZip from 'jszip'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
+import { logToolActivity } from '@/lib/history-service'
 import {
   convertSingleImage,
   decodeFileToCanvas,
@@ -262,6 +263,38 @@ export default function ImageConverterTool() {
 
     setIsProcessing(false)
     toast.success(`All conversions to ${targetFormat.toUpperCase()} completed!`)
+
+    // Activity Logging
+    const successfulItems = updatedItems.filter((it) => it.status === 'success')
+    if (successfulItems.length > 0) {
+      const firstItem = successfulItems[0]
+      const fileNames = successfulItems.map((it) => it.name).join(', ')
+
+      logToolActivity({
+        toolId: 'image-converter',
+        toolName: 'Universal Image Converter',
+        category: 'files',
+        actionTitle: `Converted to ${targetFormat.toUpperCase()}`,
+        details:
+          successfulItems.length === 1
+            ? `Converted image "${firstItem.name}" to ${targetFormat.toUpperCase()} (${firstItem.width || '?'}x${firstItem.height || '?'})`
+            : `Converted ${successfulItems.length} images (${fileNames}) to ${targetFormat.toUpperCase()}`,
+        inputSnippet: fileNames,
+        outputSnippet: `Format: ${targetFormat.toUpperCase()}\nQuality: ${quality}%\nMax Width: ${maxWidth || 'Original'}`,
+        metadata: {
+          targetFormat,
+          quality,
+          maxWidth,
+          backgroundColor,
+          count: successfulItems.length,
+          files: successfulItems.map((it) => ({
+            name: it.name,
+            originalSize: it.originalSize,
+            convertedSize: it.convertedSize,
+          })),
+        },
+      })
+    }
 
     try {
       await incrementToolUsage()

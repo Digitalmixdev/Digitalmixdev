@@ -30,6 +30,7 @@ import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
 import { useLanguage } from '@/lib/i18n/context'
+import { logToolActivity } from '@/lib/history-service'
 
 type SqlDialect = 'sql' | 'mysql' | 'postgresql' | 'sqlite' | 'plsql'
 
@@ -181,16 +182,52 @@ export default function SqlFormatterTool() {
           },
         }
 
-        const updated = [newItem, ...prev.slice(0, 49)]
+        // De-duplication: if top item already has this exact output & dialect & type, skip duplicate
+        if (
+          prev.length > 0 &&
+          prev[0].output === output &&
+          prev[0].dialect === usedDialect &&
+          prev[0].type === type
+        ) {
+          return prev
+        }
+
+        const filtered = prev.filter(
+          (p) => !(p.output === output && p.dialect === usedDialect && p.type === type)
+        )
+        const updated = [newItem, ...filtered.slice(0, 49)]
         try {
           localStorage.setItem('digitalmix_sql_history', JSON.stringify(updated))
         } catch {
           // storage quota exceeded
         }
+
+        // Universal dashboard activity logging
+        logToolActivity({
+          toolId: 'sql-formatter',
+          toolName: isArabic ? 'منسق ومجمل استعلامات SQL' : 'SQL Formatter & Beautifier',
+          category: 'database',
+          actionTitle: type === 'format' ? 'Formatted SQL Query' : 'Minified SQL Query',
+          details: isArabic
+            ? `قام بتنسيق استعلام SQL لقاعدة بيانات ${usedDialect.toUpperCase()} (${calculatedStats.lines} أسطر، ${calculatedStats.characters} حرف)`
+            : `Formatted ${usedDialect.toUpperCase()} SQL query (${calculatedStats.lines} lines, ${calculatedStats.characters} characters)`,
+          inputSnippet: input.slice(0, 500),
+          outputSnippet: output.slice(0, 500),
+          metadata: {
+            dialect: usedDialect,
+            type,
+            lines: calculatedStats.lines,
+            characters: calculatedStats.characters,
+            selectCount: calculatedStats.selectCount,
+            joinCount: calculatedStats.joinCount,
+            whereCount: calculatedStats.whereCount,
+          },
+        })
+
         return updated
       })
     },
-    []
+    [isArabic]
   )
 
   const clearHistory = () => {
@@ -715,8 +752,11 @@ export default function SqlFormatterTool() {
                         </span>
                       </div>
 
-                      <div className="bg-background/80 p-2.5 rounded-xl border border-border/50 font-mono text-xs text-foreground line-clamp-2 select-all overflow-hidden text-ellipsis whitespace-pre">
-                        {item.output || item.input}
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-background/90 p-3 rounded-xl border border-border/60 font-mono text-xs text-foreground max-h-36 sm:max-h-48 overflow-y-auto overflow-x-auto whitespace-pre leading-relaxed select-all scrollbar-thin shadow-inner"
+                      >
+                        <code>{item.output || item.input}</code>
                       </div>
                     </div>
 

@@ -24,6 +24,7 @@ import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
 import { useLanguage } from '@/lib/i18n/context'
+import { logToolActivity } from '@/lib/history-service'
 
 interface PDFPageItem {
   id: string
@@ -434,11 +435,31 @@ export default function PdfMergeTool() {
       const mergedBytes = await mergedPdf.save()
       const blob = new Blob([new Uint8Array(mergedBytes)], { type: 'application/pdf' })
       const url = URL.createObjectURL(blob)
+      const downloadName = `merged-document-${Date.now()}.pdf`
       const a = document.createElement('a')
       a.href = url
-      a.download = `merged-document-${Date.now()}.pdf`
+      a.download = downloadName
       a.click()
       URL.revokeObjectURL(url)
+
+      // Dashboard Activity Logging
+      const uniqueFiles = Array.from(new Set(pages.map((p) => p.sourceFileName)))
+      const isArabic = false // or check language if available
+      logToolActivity({
+        toolId: 'pdf-merge',
+        toolName: 'PDF Merger & Page Organizer',
+        category: 'files',
+        actionTitle: `Merged ${pages.length} Pages PDF`,
+        details: `Merged ${pages.length} pages from ${uniqueFiles.length} file(s) (${uniqueFiles.join(', ')}) into "${downloadName}"`,
+        inputSnippet: uniqueFiles.join('\n'),
+        outputSnippet: `File: ${downloadName}\nTotal Pages: ${pages.length}\nSize: ${(blob.size / 1024).toFixed(1)} KB`,
+        metadata: {
+          totalPages: pages.length,
+          sourceFiles: uniqueFiles,
+          outputFile: downloadName,
+          fileSizeBytes: blob.size,
+        },
+      })
 
       recordUsage()
     } catch (err) {

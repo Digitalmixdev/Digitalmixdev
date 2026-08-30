@@ -1113,6 +1113,21 @@ export function QRCodeScannerTool() {
     toast.success('Scan history exported to CSV')
   }
 
+  // Delete single history item
+  const deleteHistoryItem = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    setHistory((prev) => {
+      const updated = prev.filter((item) => item.id !== id)
+      try {
+        localStorage.setItem('digitalmix_scan_history', JSON.stringify(updated))
+      } catch {
+        // ignore
+      }
+      return updated
+    })
+    toast.success(isArabic ? 'تم حذف هذا العنصر من السجل' : 'Item removed from history')
+  }
+
   // Clear history
   const clearHistory = () => {
     setHistory([])
@@ -2057,6 +2072,7 @@ export function QRCodeScannerTool() {
                             setShowHistoryModal(false)
                           }}
                           className="h-8 px-2.5 rounded-lg text-xs text-primary"
+                          title={isArabic ? 'استعادة وعرض' : 'View / Restore'}
                         >
                           <ArrowRight size={14} />
                         </Button>
@@ -2065,8 +2081,18 @@ export function QRCodeScannerTool() {
                           size="sm"
                           onClick={() => copyToClipboard(item.raw)}
                           className="h-8 px-2 rounded-lg text-muted-foreground hover:text-foreground"
+                          title={isArabic ? 'نسخ النص' : 'Copy'}
                         >
                           <Copy size={13} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => deleteHistoryItem(item.id, e)}
+                          className="h-8 px-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          title={isArabic ? 'حذف هذا العنصر' : 'Delete item'}
+                        >
+                          <Trash2 size={13} />
                         </Button>
                       </div>
                     </div>

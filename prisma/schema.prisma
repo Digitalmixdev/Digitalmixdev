@@ -29,6 +29,7 @@ model User {
   updatedAt      DateTime       @updatedAt
   toolsUsed      ToolUsage[]
   favoriteTools  FavoriteTool[]
+  activities     ActivityHistory[]
 }
 
 model ToolUsage {
@@ -49,4 +50,20 @@ model FavoriteTool {
   createdAt DateTime @default(now())
 
   @@unique([userId, toolSlug])
+}
+
+model ActivityHistory {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  toolId      String
+  toolName    String
+  actionTitle String
+  details     String   @db.Text
+  inputSnippet String? @db.Text
+  outputSnippet String? @db.Text
+  metadata    String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
 }

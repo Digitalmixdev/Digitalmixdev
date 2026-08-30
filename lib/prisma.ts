@@ -29,11 +29,25 @@ interface MemoryToolUsage {
   createdAt: Date
 }
 
+interface MemoryActivity {
+  id: string
+  userId: string
+  toolId: string
+  toolName: string
+  actionTitle: string
+  details: string
+  inputSnippet: string | null
+  outputSnippet: string | null
+  metadata: string | null
+  createdAt: Date
+}
+
 declare global {
   var __memoryDb: {
     users: Map<string, MemoryUser>
     favorites: MemoryFavorite[]
     toolUsage: MemoryToolUsage[]
+    activities: MemoryActivity[]
   } | undefined
 }
 
@@ -42,6 +56,7 @@ if (!globalThis.__memoryDb) {
     users: new Map<string, MemoryUser>(),
     favorites: [],
     toolUsage: [],
+    activities: [],
   }
 }
 
@@ -123,9 +138,10 @@ function createMemoryPrisma() {
         if (user) {
           memoryDb.users.delete(args.where.id)
         }
-        // Cascade delete favorites and tool usage
+        // Cascade delete favorites and tool usage and activities
         memoryDb.favorites = memoryDb.favorites.filter((f) => f.userId !== args.where.id)
         memoryDb.toolUsage = memoryDb.toolUsage.filter((t) => t.userId !== args.where.id)
+        memoryDb.activities = memoryDb.activities.filter((a) => a.userId !== args.where.id)
         return user ? { ...user } : { id: args.where.id }
       },
     },
@@ -191,6 +207,85 @@ function createMemoryPrisma() {
       },
       count: async (args: { where: { userId: string } }) => {
         return memoryDb.toolUsage.filter((t) => t.userId === args.where.userId).length
+      },
+    },
+    activityHistory: {
+      findMany: async (args: {
+        where?: { userId?: string; toolId?: string }
+        orderBy?: { createdAt?: 'asc' | 'desc' }
+        take?: number
+      }) => {
+        let list = [...memoryDb.activities]
+        if (args.where?.userId) {
+          list = list.filter((a) => a.userId === args.where?.userId)
+        }
+        if (args.where?.toolId) {
+          list = list.filter((a) => a.toolId === args.where?.toolId)
+        }
+        list.sort((a, b) => {
+          const order = args.orderBy?.createdAt === 'asc' ? 1 : -1
+          return (a.createdAt.getTime() - b.createdAt.getTime()) * order
+        })
+        if (args.take) {
+          list = list.slice(0, args.take)
+        }
+        return list.map((a) => ({ ...a }))
+      },
+      create: async (args: {
+        data: {
+          userId: string
+          toolId: string
+          toolName: string
+          actionTitle: string
+          details: string
+          inputSnippet?: string | null
+          outputSnippet?: string | null
+          metadata?: string | null
+        }
+      }) => {
+        const act: MemoryActivity = {
+          id: `act_${Date.now()}_${idCounter++}`,
+          userId: args.data.userId,
+          toolId: args.data.toolId,
+          toolName: args.data.toolName,
+          actionTitle: args.data.actionTitle,
+          details: args.data.details,
+          inputSnippet: args.data.inputSnippet ?? null,
+          outputSnippet: args.data.outputSnippet ?? null,
+          metadata: args.data.metadata ?? null,
+          createdAt: new Date(),
+        }
+        memoryDb.activities.unshift(act)
+        // Keep max 200 items in memory per system
+        if (memoryDb.activities.length > 200) {
+          memoryDb.activities = memoryDb.activities.slice(0, 200)
+        }
+        return { ...act }
+      },
+      delete: async (args: { where: { id: string } }) => {
+        const idx = memoryDb.activities.findIndex((a) => a.id === args.where.id)
+        if (idx !== -1) {
+          const removed = memoryDb.activities.splice(idx, 1)[0]
+          return { ...removed }
+        }
+        return { id: args.where.id }
+      },
+      deleteMany: async (args: { where: { userId?: string; id?: { in: string[] } } }) => {
+        const initLen = memoryDb.activities.length
+        if (args.where?.id?.in) {
+          const set = new Set(args.where.id.in)
+          memoryDb.activities = memoryDb.activities.filter((a) => !set.has(a.id))
+        } else if (args.where?.userId) {
+          memoryDb.activities = memoryDb.activities.filter((a) => a.userId !== args.where.userId)
+        }
+        return { count: initLen - memoryDb.activities.length }
+      },
+      count: async (args?: { where?: { userId?: string } }) => {
+        const uid = args?.where?.userId
+        if (uid) {
+          return memoryDb.activities.filter((a) => a.userId === uid).length
+        }
+        return memoryDb.activities.length
       },
     },
   }

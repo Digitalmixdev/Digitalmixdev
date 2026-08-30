@@ -34,6 +34,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
+import { logToolActivity } from '@/lib/history-service'
 import { toast } from 'sonner'
 
 interface CompressedItem {
@@ -370,7 +371,34 @@ export default function ImageAndFileCompressorTool() {
     setIsProcessing(false)
     recordUsage()
     toast.success('Compression completed!')
-  }, [items, compressImage, compressGenericFile, recordUsage])
+
+    // Activity Logging
+    const doneItems = updated.filter((it) => it.status === 'done')
+    if (doneItems.length > 0) {
+      const totalOrig = doneItems.reduce((acc, it) => acc + it.originalSize, 0)
+      const totalComp = doneItems.reduce((acc, it) => acc + it.compressedSize, 0)
+      const savedPct = totalOrig > 0 ? Math.round(((totalOrig - totalComp) / totalOrig) * 100) : 0
+      const fileNames = doneItems.map((it) => it.name).join(', ')
+
+      logToolActivity({
+        toolId: 'file-compressor',
+        toolName: 'Smart Image & File Compressor',
+        category: 'files',
+        actionTitle: `Compressed ${doneItems.length} File(s) (-${savedPct}%)`,
+        details: `Compressed ${doneItems.length} file(s) (${fileNames}) from ${formatBytes(totalOrig)} down to ${formatBytes(totalComp)} (Saved ${savedPct}%)`,
+        inputSnippet: fileNames,
+        outputSnippet: `Saved: ${savedPct}%\nOriginal: ${formatBytes(totalOrig)}\nCompressed: ${formatBytes(totalComp)}`,
+        metadata: {
+          fileCount: doneItems.length,
+          totalOriginalBytes: totalOrig,
+          totalCompressedBytes: totalComp,
+          savedPercentage: savedPct,
+          qualitySetting: imageQuality,
+          targetFormat: imageFormat,
+        },
+      })
+    }
+  }, [items, compressImage, compressGenericFile, recordUsage, imageQuality, imageFormat])
 
   // Download single item
   const downloadSingle = (item: CompressedItem) => {

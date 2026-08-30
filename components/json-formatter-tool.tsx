@@ -28,6 +28,7 @@ import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
 import { useLanguage } from '@/lib/i18n/context'
+import { logToolActivity } from '@/lib/history-service'
 
 interface JsonStats {
   lines: number
@@ -188,16 +189,52 @@ export default function JsonFormatterTool() {
           stats: calculatedStats,
         }
 
-        const updated = [newItem, ...prev.slice(0, 49)]
+        // De-duplication: if top item already has this exact output & type, skip duplicate
+        if (
+          prev.length > 0 &&
+          prev[0].output === output &&
+          prev[0].type === type &&
+          prev[0].indentSpaces === spaces
+        ) {
+          return prev
+        }
+
+        const filtered = prev.filter(
+          (p) => !(p.output === output && p.type === type && p.indentSpaces === spaces)
+        )
+        const updated = [newItem, ...filtered.slice(0, 49)]
         try {
           localStorage.setItem('digitalmix_json_history', JSON.stringify(updated))
         } catch {
           // storage quota exceeded
         }
+
+        // Universal dashboard activity logging
+        logToolActivity({
+          toolId: 'json-formatter',
+          toolName: isArabic ? 'منسق ومدقق بيانات JSON' : 'JSON Formatter & Validator',
+          category: 'database',
+          actionTitle: type === 'format' ? 'Formatted JSON Data' : 'Minified JSON Data',
+          details: isArabic
+            ? `قام بتنسيق وفحص بيانات JSON (${calculatedStats.keyCount} مفتاح، عمق ${calculatedStats.maxDepth} مستويات، بحجم ${calculatedStats.fileSizeKB} KB)`
+            : `Formatted and validated JSON payload (${calculatedStats.keyCount} keys, depth ${calculatedStats.maxDepth}, size ${calculatedStats.fileSizeKB} KB)`,
+          inputSnippet: input.slice(0, 500),
+          outputSnippet: output.slice(0, 500),
+          metadata: {
+            indentSpaces: spaces,
+            type,
+            lines: calculatedStats.lines,
+            characters: calculatedStats.characters,
+            keyCount: calculatedStats.keyCount,
+            maxDepth: calculatedStats.maxDepth,
+            fileSizeKB: calculatedStats.fileSizeKB,
+          },
+        })
+
         return updated
       })
     },
-    []
+    [isArabic]
   )
 
   const clearHistory = () => {
@@ -695,8 +732,11 @@ export default function JsonFormatterTool() {
                         </span>
                       </div>
 
-                      <div className="bg-background/80 p-2.5 rounded-xl border border-border/50 font-mono text-xs text-foreground line-clamp-2 select-all overflow-hidden text-ellipsis whitespace-pre">
-                        {item.output || item.input}
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-background/90 p-3 rounded-xl border border-border/60 font-mono text-xs text-foreground max-h-36 sm:max-h-48 overflow-y-auto overflow-x-auto whitespace-pre leading-relaxed select-all scrollbar-thin shadow-inner"
+                      >
+                        <code>{item.output || item.input}</code>
                       </div>
                     </div>
 
