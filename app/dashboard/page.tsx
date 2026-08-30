@@ -15,10 +15,19 @@ export default async function DashboardPage() {
     redirect("/login?callbackUrl=/dashboard")
   }
 
-  const [stats, activities] = await Promise.all([
-    getUserStats(user.id),
-    getUserActivities(user.id, 100),
-  ])
+  let stats = { toolsUsedCount: 0, favoritesCount: 0, historyCount: 0 }
+  let activities: any[] = []
+
+  try {
+    const [statsResult, activitiesResult] = await Promise.all([
+      getUserStats(user.id).catch(() => ({ toolsUsedCount: 0, favoritesCount: 0, historyCount: 0 })),
+      getUserActivities(user.id, 100).catch(() => []),
+    ])
+    stats = statsResult
+    activities = activitiesResult
+  } catch (error) {
+    console.error("Dashboard data load error:", error)
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

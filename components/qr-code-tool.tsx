@@ -24,6 +24,14 @@ import {
   RotateCcw,
   X,
   Sparkles,
+  Briefcase,
+  Building2,
+  Phone,
+  Mail,
+  Globe,
+  MapPin,
+  Printer,
+  LayoutTemplate,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { QRCodeSVG } from 'qrcode.react'
@@ -139,6 +147,16 @@ function QRCodeToolContent() {
   // Plain Text
   const [plainText, setPlainText] = useState('')
 
+  // Business Card States (DigitalMix Style)
+  const [cardStyle, setCardStyle] = useState<'digitalmix' | 'cyber' | 'minimal' | 'executive'>('digitalmix')
+  const [cardFullName, setCardFullName] = useState('Alex Mercer')
+  const [cardTitle, setCardTitle] = useState('Senior Solutions Architect')
+  const [cardCompany, setCardCompany] = useState('DigitalMix Labs')
+  const [cardPhone, setCardPhone] = useState('+1 (555) 382-9011')
+  const [cardEmail, setCardEmail] = useState('alex@digitalmix.dev')
+  const [cardWebsite, setCardWebsite] = useState('https://digitalmix.dev')
+  const [cardAddress, setCardAddress] = useState('104 Silicon Valley Way, CA')
+
   // History state
   const [history, setHistory] = useState<QrHistoryItem[]>([])
   const [showHistoryModal, setShowHistoryModal] = useState(false)
@@ -176,6 +194,8 @@ function QRCodeToolContent() {
         return `WIFI:T:${wifiSecurity};S:${wifiSSID};P:${wifiPassword};;`
       case 'vcard':
         return `BEGIN:VCARD\nVERSION:3.0\nN:${vcardName}\nFN:${vcardName}\nORG:${vcardOrg}\nTEL:${vcardPhone}\nEMAIL:${vcardEmail}\nEND:VCARD`
+      case 'businesscard':
+        return `BEGIN:VCARD\nVERSION:3.0\nN:${cardFullName}\nFN:${cardFullName}\nTITLE:${cardTitle}\nORG:${cardCompany}\nTEL:${cardPhone}\nEMAIL:${cardEmail}\nURL:${cardWebsite}\nADR:;;${cardAddress}\nEND:VCARD`
       case 'sms':
         return `SMSTO:${smsPhone}:${smsMessage}`
       case 'text':
@@ -195,6 +215,7 @@ function QRCodeToolContent() {
     if (qrType === 'url') itemTitle = urlData || 'Website URL'
     else if (qrType === 'wifi') itemTitle = wifiSSID ? `WiFi: ${wifiSSID}` : 'WiFi Network'
     else if (qrType === 'vcard') itemTitle = vcardName ? `Contact: ${vcardName}` : 'vCard Contact'
+    else if (qrType === 'businesscard') itemTitle = cardFullName ? `Business Card: ${cardFullName}` : 'DigitalMix Business Card'
     else if (qrType === 'sms') itemTitle = smsPhone ? `SMS to ${smsPhone}` : 'SMS Message'
     else if (qrType === 'text') itemTitle = plainText.slice(0, 30) || 'Plain Text'
 
@@ -486,6 +507,15 @@ function QRCodeToolContent() {
       <div className="flex flex-nowrap sm:flex-wrap items-center justify-start sm:justify-center gap-1.5 sm:gap-2 mb-8 bg-muted/60 p-1.5 rounded-2xl border border-border/70 w-full mx-auto overflow-x-auto">
         <button
           type="button"
+          onClick={() => setQrType('businesscard')}
+          className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
+            qrType === 'businesscard' ? 'bg-primary text-primary-foreground shadow-sm scale-[1.02]' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
+          }`}
+        >
+          <Briefcase className="h-3.5 w-3.5 text-primary-foreground" /> {isArabic ? 'بطاقة أعمال DigitalMix' : 'Business Card'}
+        </button>
+        <button
+          type="button"
           onClick={() => setQrType('url')}
           className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0 ${
             qrType === 'url' ? 'bg-primary text-primary-foreground shadow-sm scale-[1.02]' : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
@@ -539,6 +569,125 @@ function QRCodeToolContent() {
             <h3 className="text-sm font-bold text-foreground">
               {isArabic ? 'معلومات المحتوى' : 'Content Information'}
             </h3>
+
+            {qrType === 'businesscard' && (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                    <LayoutTemplate className="w-3.5 h-3.5 text-primary" /> {isArabic ? 'اختر نمط البطاقة (DigitalMix Styles)' : 'Select Card Style & Theme'}
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { id: 'digitalmix', name: 'DigitalMix Pro', desc: 'Modern gradient' },
+                      { id: 'cyber', name: 'Cyber Neon', desc: 'Tech & futuristic' },
+                      { id: 'minimal', name: 'Clean Minimal', desc: 'Classic monochrome' },
+                      { id: 'executive', name: 'Executive Dark', desc: 'Gold & charcoal' },
+                    ].map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setCardStyle(s.id as any)}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          cardStyle === s.id
+                            ? 'border-primary bg-primary/10 text-foreground font-bold shadow-xs'
+                            : 'border-border bg-background hover:bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        <div className="text-xs">{s.name}</div>
+                        <div className="text-[10px] opacity-70 font-normal">{s.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                      <User className="w-3.5 h-3.5 text-primary" /> {isArabic ? 'الاسم الكامل' : 'Full Name'}
+                    </label>
+                    <input
+                      type="text"
+                      value={cardFullName}
+                      onChange={(e) => setCardFullName(e.target.value)}
+                      placeholder="Alex Mercer"
+                      className="w-full h-11 px-3.5 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                      <Briefcase className="w-3.5 h-3.5 text-primary" /> {isArabic ? 'المسمى الوظيفي' : 'Job Title'}
+                    </label>
+                    <input
+                      type="text"
+                      value={cardTitle}
+                      onChange={(e) => setCardTitle(e.target.value)}
+                      placeholder="Senior Solutions Architect"
+                      className="w-full h-11 px-3.5 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                      <Building2 className="w-3.5 h-3.5 text-primary" /> {isArabic ? 'اسم الشركة' : 'Company Name'}
+                    </label>
+                    <input
+                      type="text"
+                      value={cardCompany}
+                      onChange={(e) => setCardCompany(e.target.value)}
+                      placeholder="DigitalMix Labs"
+                      className="w-full h-11 px-3.5 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                      <Phone className="w-3.5 h-3.5 text-primary" /> {isArabic ? 'رقم الهاتف' : 'Phone Number'}
+                    </label>
+                    <input
+                      type="tel"
+                      value={cardPhone}
+                      onChange={(e) => setCardPhone(e.target.value)}
+                      placeholder="+1 (555) 382-9011"
+                      className="w-full h-11 px-3.5 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                      <Mail className="w-3.5 h-3.5 text-primary" /> {isArabic ? 'البريد الإلكتروني' : 'Email Address'}
+                    </label>
+                    <input
+                      type="email"
+                      value={cardEmail}
+                      onChange={(e) => setCardEmail(e.target.value)}
+                      placeholder="alex@digitalmix.dev"
+                      className="w-full h-11 px-3.5 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                      <Globe className="w-3.5 h-3.5 text-primary" /> {isArabic ? 'الموقع الإلكتروني' : 'Website'}
+                    </label>
+                    <input
+                      type="url"
+                      value={cardWebsite}
+                      onChange={(e) => setCardWebsite(e.target.value)}
+                      placeholder="https://digitalmix.dev"
+                      className="w-full h-11 px-3.5 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-primary" /> {isArabic ? 'العنوان' : 'Office Address'}
+                  </label>
+                  <input
+                    type="text"
+                    value={cardAddress}
+                    onChange={(e) => setCardAddress(e.target.value)}
+                    placeholder="104 Silicon Valley Way, CA"
+                    className="w-full h-11 px-3.5 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                  />
+                </div>
+              </div>
+            )}
 
             {qrType === 'url' && (
               <div className="space-y-1.5">
@@ -794,22 +943,84 @@ function QRCodeToolContent() {
         {/* Right Preview: 5 Columns */}
         <div className="lg:col-span-5 p-6 rounded-2xl border border-border/70 bg-card shadow-xs space-y-5 text-center flex flex-col items-center">
           <h3 className="text-sm font-bold text-foreground">
-            {isArabic ? 'معاينة الباركود الفورية' : 'Live Generated Matrix'}
+            {isArabic ? (qrType === 'businesscard' ? 'معاينة بطاقة الأعمال الرقمية' : 'معاينة الباركود الفورية') : (qrType === 'businesscard' ? 'Digital Business Card Preview' : 'Live Generated Matrix')}
           </h3>
 
-          <div
-            ref={qrRef}
-            className="p-5 rounded-2xl bg-white shadow-md border border-border/60 flex items-center justify-center max-w-full sm:max-w-70 overflow-x-auto"
-          >
-            <QRCodeSVG
-              value={payload}
-              size={220}
-              fgColor={fgColor}
-              bgColor={bgColor}
-              level={errorLevel}
-              includeMargin={true}
-            />
-          </div>
+          {/* DigitalMix Business Card Preview Card */}
+          {qrType === 'businesscard' ? (
+            <div
+              className={`w-full rounded-2xl p-5 text-left rtl:text-right shadow-lg border relative overflow-hidden transition-all ${
+                cardStyle === 'cyber'
+                  ? 'bg-slate-950 text-cyan-400 border-cyan-500/40 shadow-cyan-500/10'
+                  : cardStyle === 'minimal'
+                  ? 'bg-white text-slate-900 border-slate-200'
+                  : cardStyle === 'executive'
+                  ? 'bg-zinc-900 text-amber-100 border-amber-500/40 shadow-amber-500/10'
+                  : 'bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white border-indigo-500/30 shadow-indigo-500/20'
+              }`}
+            >
+              {/* Header banner decoration */}
+              <div
+                className={`h-12 -mx-5 -mt-5 mb-4 px-4 flex items-center justify-between text-xs font-bold tracking-wider uppercase opacity-90 ${
+                  cardStyle === 'cyber'
+                    ? 'bg-gradient-to-r from-cyan-900 to-blue-900 text-cyan-200 border-b border-cyan-500/30'
+                    : cardStyle === 'minimal'
+                    ? 'bg-slate-100 text-slate-700 border-b border-slate-200'
+                    : cardStyle === 'executive'
+                    ? 'bg-gradient-to-r from-amber-950 to-zinc-900 text-amber-300 border-b border-amber-500/30'
+                    : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white'
+                }`}
+              >
+                <span>{cardCompany || 'DigitalMix Labs'}</span>
+                <span className="text-[10px] lowercase opacity-75">{cardWebsite || 'digitalmix.dev'}</span>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="flex-1 min-w-0 space-y-1">
+                  <h4 className="text-base font-extrabold tracking-tight truncate">{cardFullName || 'Alex Mercer'}</h4>
+                  <p className={`text-xs font-semibold ${cardStyle === 'minimal' ? 'text-primary' : 'text-primary/90'}`}>
+                    {cardTitle || 'Solutions Architect'}
+                  </p>
+                  <div className="space-y-0.5 pt-2 text-[11px] opacity-80 font-mono">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <Phone className="w-3 h-3 shrink-0" /> <span>{cardPhone || '+1 555 382'}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 truncate">
+                      <Mail className="w-3 h-3 shrink-0" /> <span>{cardEmail || 'alex@digitalmix.dev'}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 truncate">
+                      <MapPin className="w-3 h-3 shrink-0" /> <span>{cardAddress || 'Silicon Valley, CA'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Embedded Mini QR */}
+                <div className="p-2 rounded-xl bg-white shadow-md shrink-0 border border-border/60">
+                  <QRCodeSVG
+                    value={payload}
+                    size={76}
+                    fgColor="#000000"
+                    bgColor="#FFFFFF"
+                    level="M"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div
+              ref={qrRef}
+              className="p-5 rounded-2xl bg-white shadow-md border border-border/60 flex items-center justify-center max-w-full sm:max-w-70 overflow-x-auto"
+            >
+              <QRCodeSVG
+                value={payload}
+                size={220}
+                fgColor={fgColor}
+                bgColor={bgColor}
+                level={errorLevel}
+                includeMargin={true}
+              />
+            </div>
+          )}
 
           <div className="w-full space-y-2.5 pt-2">
             <div className="grid grid-cols-2 gap-2">
@@ -827,7 +1038,7 @@ function QRCodeToolContent() {
               className="w-full text-xs font-semibold gap-1.5 rounded-xl h-10"
             >
               {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-              {copied ? (isArabic ? 'تم نسخ النص المرمز' : 'Payload Copied') : isArabic ? 'نسخ النص المرمز' : 'Copy Raw Encoded Text'}
+              {copied ? (isArabic ? 'تم نسخ النص المرمز' : 'Payload Copied') : isArabic ? 'نسخ vCard المرمز' : 'Copy vCard Payload'}
             </Button>
           </div>
         </div>
