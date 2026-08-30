@@ -42,9 +42,6 @@ export function DashboardContent({ user, stats, initialActivities = [] }: Dashbo
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
               {t('dashboard.welcome_back', 'Welcome back,')} {displayName}!
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
-              PRO
-            </span>
           </div>
           <p className="text-muted-foreground text-sm font-mono">
             {user.email}
