@@ -18,8 +18,10 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
+import { useLanguage } from '@/lib/i18n/context'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
+import { toast } from 'sonner'
 
 const toolMeta: ToolMetadata = {
   id: 'csv-json',
@@ -72,6 +74,9 @@ const toolMeta: ToolMetadata = {
 }
 
 export default function CsvToJsonTool() {
+  const { language } = useLanguage()
+  const isArabic = language === 'ar'
+
   const [inputCsv, setInputCsv] = useState('')
   const [outputJson, setOutputJson] = useState('')
   const [isCopied, setIsCopied] = useState(false)
@@ -99,7 +104,7 @@ export default function CsvToJsonTool() {
       complete: (results) => {
         if (results.errors.length > 0 && results.data.length === 0) {
           setOutputJson('')
-          setSyntaxWarning(`CSV Parsing Error: ${results.errors[0].message}`)
+          setSyntaxWarning(`${isArabic ? 'خطأ في تحليل CSV:' : 'CSV Parsing Error:'} ${results.errors[0].message}`)
           return
         }
         setOutputJson(JSON.stringify(results.data, null, 2))
@@ -108,7 +113,7 @@ export default function CsvToJsonTool() {
       },
       error: (err: Error) => {
         setOutputJson('')
-        setSyntaxWarning(`CSV Parsing Error: ${err.message}`)
+        setSyntaxWarning(`${isArabic ? 'خطأ في تحليل CSV:' : 'CSV Parsing Error:'} ${err.message}`)
       },
     })
   }
@@ -124,6 +129,7 @@ export default function CsvToJsonTool() {
     await navigator.clipboard.writeText(outputJson)
     setIsCopied(true)
     setTimeout(() => setIsCopied(false), 2000)
+    toast.success(isArabic ? 'تم نسخ JSON إلى الحافظة' : 'JSON copied to clipboard')
   }
 
   const handleDownload = () => {
@@ -135,6 +141,7 @@ export default function CsvToJsonTool() {
     a.download = `data-${Date.now()}.json`
     a.click()
     URL.revokeObjectURL(url)
+    toast.success(isArabic ? 'تم تنزيل ملف JSON بنجاح' : 'JSON file downloaded successfully')
   }
 
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -145,6 +152,7 @@ export default function CsvToJsonTool() {
       const text = event.target?.result as string
       setInputCsv(text)
       convertCsvToJson(text)
+      toast.success(isArabic ? 'تم استيراد ملف CSV بنجاح' : 'CSV file imported successfully')
     }
     reader.readAsText(file)
     e.target.value = ''
@@ -168,7 +176,7 @@ export default function CsvToJsonTool() {
             onClick={() => fileInputRef.current?.click()}
             className="h-10 px-3.5 gap-2 text-xs font-semibold"
           >
-            <Upload className="h-4 w-4" /> Upload .csv
+            <Upload className="h-4 w-4" /> {isArabic ? 'رفع ملف CSV' : 'Upload .csv'}
           </Button>
         </div>
 
@@ -179,7 +187,7 @@ export default function CsvToJsonTool() {
           disabled={!inputCsv && !outputJson}
           className="h-10 px-3.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1.5"
         >
-          <Trash2 className="h-4 w-4" /> Clear
+          <Trash2 className="h-4 w-4" /> {isArabic ? 'مسح' : 'Clear'}
         </Button>
       </div>
 
@@ -197,7 +205,7 @@ export default function CsvToJsonTool() {
         <div className="space-y-2.5">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <FileSpreadsheet className="h-3.5 w-3.5 text-primary" /> Input CSV
+              <FileSpreadsheet className="h-3.5 w-3.5 text-primary" /> {isArabic ? 'جدول CSV المدخل' : 'Input CSV'}
             </label>
             <button
               type="button"
@@ -208,7 +216,7 @@ export default function CsvToJsonTool() {
               }}
               className="text-xs text-primary hover:underline font-medium cursor-pointer"
             >
-              Load Sample
+              {isArabic ? 'تحميل مثال جاهز' : 'Load Sample'}
             </button>
           </div>
           <textarea
@@ -217,7 +225,11 @@ export default function CsvToJsonTool() {
               setInputCsv(e.target.value)
               convertCsvToJson(e.target.value)
             }}
-            placeholder={`Paste your CSV table here...\n\nid,name,email,active\n1,Alex Mercer,alex@example.com,true\n2,John Doe,john@example.com,false`}
+            placeholder={
+              isArabic
+                ? `الصق جدول CSV هنا...\n\nid,name,email,active\n1,Alex Mercer,alex@example.com,true\n2,John Doe,john@example.com,false`
+                : `Paste your CSV table here...\n\nid,name,email,active\n1,Alex Mercer,alex@example.com,true\n2,John Doe,john@example.com,false`
+            }
             className="w-full h-80 p-4 rounded-2xl border border-border/80 bg-card font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary resize-none transition-all placeholder:text-muted-foreground/40 leading-relaxed text-foreground shadow-xs"
           />
         </div>
@@ -226,7 +238,7 @@ export default function CsvToJsonTool() {
         <div className="space-y-2.5">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <FileCode className="h-3.5 w-3.5 text-primary" /> Converted JSON Output
+              <FileCode className="h-3.5 w-3.5 text-primary" /> {isArabic ? 'مخرجات JSON المحولة' : 'Converted JSON Output'}
             </label>
             <div className="flex items-center gap-2">
               <Button
@@ -236,7 +248,7 @@ export default function CsvToJsonTool() {
                 disabled={!outputJson}
                 className="h-8 px-2.5 text-xs gap-1.5 rounded-lg"
               >
-                <Download className="h-3.5 w-3.5" /> Download
+                <Download className="h-3.5 w-3.5" /> {isArabic ? 'تحميل' : 'Download'}
               </Button>
               <Button
                 variant="secondary"
@@ -246,7 +258,7 @@ export default function CsvToJsonTool() {
                 className="h-8 px-3 text-xs gap-1.5 rounded-lg font-semibold"
               >
                 {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                {isCopied ? 'Copied' : 'Copy'}
+                {isCopied ? (isArabic ? 'تم النسخ' : 'Copied') : isArabic ? 'نسخ' : 'Copy'}
               </Button>
             </div>
           </div>
@@ -256,7 +268,7 @@ export default function CsvToJsonTool() {
               <code>{outputJson}</code>
             ) : (
               <span className="text-muted-foreground/40 italic select-none text-xs">
-                JSON arrays will generate automatically...
+                {isArabic ? 'ستظهر بيانات JSON المحولة هنا تلقائياً...' : 'JSON arrays will generate automatically...'}
               </span>
             )}
           </div>
@@ -270,7 +282,7 @@ export default function CsvToJsonTool() {
           disabled={!inputCsv.trim()}
           className="h-12 px-8 rounded-xl font-bold shadow-md shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-all"
         >
-          <Sparkles className="h-4.5 w-4.5" /> Convert to JSON
+          <Sparkles className="h-4.5 w-4.5" /> {isArabic ? 'تحويل إلى JSON' : 'Convert to JSON'}
         </Button>
       </div>
     </ToolLayout>

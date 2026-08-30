@@ -894,11 +894,9 @@ export function QRCodeScannerTool() {
     setScanResult(null)
   }
 
-  // Cleanup on unmount or tab change
+  // Cleanup on unmount or tab change away from camera
   useEffect(() => {
-    if (activeTab === 'camera') {
-      startCamera()
-    } else {
+    if (activeTab !== 'camera') {
       stopCamera()
     }
 
