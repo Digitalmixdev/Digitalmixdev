@@ -74,13 +74,13 @@ export function CategoriesGrid() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-12 sm:mb-16">
-          <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 px-3.5 py-1 rounded-full border border-primary/20">
+          <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 px-3.5 py-1 rounded-full border border-primary/20" suppressHydrationWarning>
             {t('cat.toolkit_badge', 'Categorized Toolkits')}
           </span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground text-balance mt-3">
+          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground text-balance mt-3" suppressHydrationWarning>
             {t('cat.toolkit_title', 'Explore Powerful Developer Suites')}
           </h2>
-          <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto text-pretty">
+          <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto text-pretty" suppressHydrationWarning>
             {t('cat.toolkit_subtitle', 'Discover lightweight, zero-latency utilities organized by workflow domain. All tools are free, private, and execute locally.')}
           </p>
         </div>
@@ -110,7 +110,7 @@ export function CategoriesGrid() {
                       <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/80 border border-border/60 ${category.iconColor || 'text-primary'} shadow-xs group-hover:scale-105 transition-transform duration-200`}>
                         <IconComponent className="h-6 w-6" />
                       </div>
-                      <span className="inline-flex items-center rounded-full bg-secondary/80 border border-border/60 px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                      <span className="inline-flex items-center rounded-full bg-secondary/80 border border-border/60 px-2.5 py-0.5 text-xs font-semibold text-muted-foreground" suppressHydrationWarning>
                         {category.tools.length} {t('cat.tools_count', 'tools')}
                       </span>
                     </div>
@@ -146,10 +146,10 @@ export function CategoriesGrid() {
                               }`}
                               title={localizedToolDesc}
                             >
-                              <span className="flex items-center gap-1">
+                              <span className="flex items-center gap-1" suppressHydrationWarning>
                                 {localizedToolName}
                                 {!tool.active && (
-                                  <span className="text-[9px] opacity-70">{t('nav.coming_soon', 'Soon')}</span>
+                                  <span className="text-[9px] opacity-70" suppressHydrationWarning>{t('nav.coming_soon', 'Soon')}</span>
                                 )}
                               </span>
                             </button>
@@ -161,7 +161,7 @@ export function CategoriesGrid() {
 
                   {/* Arrow CTA */}
                   <div className={`pt-3 border-t border-border/40 flex items-center justify-between text-xs font-semibold ${catStyle?.sublabelColor || 'text-primary'}`}>
-                    <span>{t('cat.explore', 'Explore All')} {categoryName}</span>
+                    <span suppressHydrationWarning>{t('cat.explore', 'Explore All')} {categoryName}</span>
                     <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1 rtl:group-hover:-translate-x-1 rtl:rotate-180" />
                   </div>
                 </div>

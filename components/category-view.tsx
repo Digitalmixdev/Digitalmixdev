@@ -77,7 +77,7 @@ export function CategoryView({ category }: CategoryViewProps) {
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center text-xs font-medium text-muted-foreground gap-1.5" aria-label="Breadcrumb">
         <Link href="/" className="hover:text-foreground transition-colors">
-          {t('action.back_to_dashboard', 'Home')}
+          {t('action.back_to_home', 'Back to Home')}
         </Link>
         <ChevronRight className="h-3 w-3 opacity-50 rtl:rotate-180" />
         <Link href="/tools" className="hover:text-foreground transition-colors">

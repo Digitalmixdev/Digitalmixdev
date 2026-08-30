@@ -1,5 +1,5 @@
 import { Metadata } from 'next'
-import { QRBarcodeScannerTool } from '@/components/qr-barcode-scanner-tool'
+import { QRCodeScannerTool } from '@/components/qr-barcode-scanner-tool'
 
 export const metadata: Metadata = {
   title: 'Free QR & Barcode Scanner Online (Camera, Upload & Clipboard) | DigitalMix',
@@ -57,7 +57,7 @@ export default function QRBarcodeScannerPage() {
           }),
         }}
       />
-      <QRBarcodeScannerTool />
+      <QRCodeScannerTool />
     </>
   )
 }

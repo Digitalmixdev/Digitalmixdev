@@ -56,6 +56,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     'action.previous': 'Previous',
     'action.next': 'Next',
     'action.search': 'Search',
+    'action.back_to_home': 'Back to Home',
     'action.back_to_dashboard': 'Back to Dashboard',
     'action.back_to_tools': 'Back to Tools',
 
@@ -318,6 +319,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     'action.previous': 'السابق',
     'action.next': 'التالي',
     'action.search': 'بحث',
+    'action.back_to_home': 'العودة للرئيسية',
     'action.back_to_dashboard': 'العودة إلى لوحة التحكم',
     'action.back_to_tools': 'العودة إلى الأدوات',
 
