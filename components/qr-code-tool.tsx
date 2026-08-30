@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo, Suspense } from 'react'
 import Link from 'next/link'
+import html2canvas from 'html2canvas'
 import {
   QrCode,
   ScanLine,
@@ -81,37 +82,37 @@ const toolMeta: ToolMetadata = {
   features: [
     {
       icon: Zap,
+      title: 'DigitalMix Business Cards',
+      desc: 'Create and customize professional digital business cards with vCard embedding and instant scannable QR matrices.',
+    },
+    {
+      icon: Palette,
       title: 'Multi-Schema Templates',
       desc: 'One-click templates for WiFi credentials, vCard contacts, SMS, and website URLs.',
     },
     {
-      icon: Palette,
-      title: 'Custom Color Themes',
-      desc: 'Customize foreground and background color matrices with real-time SVG rendering.',
-    },
-    {
       icon: Lock,
-      title: 'Error Correction Levels',
-      desc: 'Configurable Reed-Solomon error correction levels (L, M, Q, H) for damage tolerance.',
+      title: 'Vector SVG & PNG Export',
+      desc: 'Download high-resolution raster PNGs or scalable vector SVGs for print, branding, and packaging.',
     },
     {
       icon: ShieldCheck,
-      title: 'Private & Never Stored',
-      desc: 'WiFi passwords, contact info, and confidential strings are rendered locally without logging.',
+      title: '100% Client-Side Private',
+      desc: 'All data payloads and vCard credentials are rendered locally in your browser memory without server logging.',
     },
   ],
   faqs: [
     {
-      q: 'Do generated QR codes expire?',
-      a: 'No. These are standard static QR codes that directly encode the raw data payload. They will work indefinitely without external redirects or tracking servers.',
+      q: 'How do DigitalMix Business Cards work?',
+      a: 'They encode standard vCard contact information into a scannable QR code embedded directly into a professionally styled digital card. Anyone can scan it with their camera to instantly save your contact details.',
     },
     {
-      q: 'Which error correction level should I choose?',
-      a: 'Medium (M - 15%) is standard for general use. High (H - 30%) is recommended for printed flyers or cards that may experience physical wear or scuffing.',
+      q: 'Do generated QR codes expire?',
+      a: 'No. These are static QR codes that directly encode raw data payloads and work indefinitely without tracking servers.',
     },
     {
       q: 'Can I download vector SVG format?',
-      a: 'Yes. You can download either high-resolution raster PNG or scalable vector SVG for print and design work.',
+      a: 'Yes! You can export scalable vector SVGs or high-res PNGs for professional print and design work.',
     },
   ],
 }
@@ -403,7 +404,32 @@ function QRCodeToolContent() {
     )
   }, [history, historySearch])
 
-  const downloadPNG = () => {
+  const downloadPNG = async () => {
+    if (!qrRef.current) return
+
+    if (qrType === 'businesscard') {
+      try {
+        const canvas = await html2canvas(qrRef.current, {
+          scale: 2,
+          backgroundColor: null,
+          logging: false,
+          useCORS: true,
+        })
+        const pngFile = canvas.toDataURL('image/png')
+        const downloadLink = document.createElement('a')
+        downloadLink.download = `digitalmix-business-card-${Date.now()}.png`
+        downloadLink.href = pngFile
+        downloadLink.click()
+        saveToHistory()
+        recordUsage()
+        toast.success(isArabic ? 'تم تحميل بطاقة الأعمال بنجاح' : 'Digital business card downloaded successfully')
+      } catch (err) {
+        console.error(err)
+        toast.error(isArabic ? 'فشل تحميل البطاقة' : 'Failed to download business card')
+      }
+      return
+    }
+
     const svgElement = qrRef.current?.querySelector('svg')
     if (!svgElement) return
 
@@ -429,7 +455,14 @@ function QRCodeToolContent() {
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)))
   }
 
-  const downloadSVG = () => {
+  const downloadSVG = async () => {
+    if (!qrRef.current) return
+
+    if (qrType === 'businesscard') {
+      downloadPNG()
+      return
+    }
+
     const svgElement = qrRef.current?.querySelector('svg')
     if (!svgElement) return
 
@@ -845,99 +878,128 @@ function QRCodeToolContent() {
             )}
           </div>
 
-          {/* QR Code Styling Customization */}
-          <div className="p-6 rounded-2xl border border-border/70 bg-card shadow-xs space-y-4">
-            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <Palette className="h-4 w-4 text-primary" /> {isArabic ? 'التصميم والألوان' : 'Visual Design & Colors'}
-            </h3>
+          {/* QR Code Styling Customization (Hidden in Business Card mode) */}
+          {qrType !== 'businesscard' && (
+            <div className="p-6 rounded-2xl border border-border/70 bg-card shadow-xs space-y-4">
+              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Palette className="h-4 w-4 text-primary" /> {isArabic ? 'التصميم والألوان' : 'Visual Design & Colors'}
+              </h3>
 
-            {/* Color Presets */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">
-                {isArabic ? 'نماذج ألوان جاهزة' : 'Color Presets'}
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {COLOR_PRESETS.map((preset) => (
-                  <button
-                    key={preset.name}
-                    type="button"
-                    onClick={() => {
-                      setFgColor(preset.fg)
-                      setBgColor(preset.bg)
-                    }}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border bg-background hover:bg-secondary text-[11px] font-medium transition-colors cursor-pointer"
+              {/* Color Presets */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">
+                  {isArabic ? 'نماذج ألوان جاهزة' : 'Color Presets'}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {COLOR_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => {
+                        setFgColor(preset.fg)
+                        setBgColor(preset.bg)
+                      }}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border bg-background hover:bg-secondary text-[11px] font-medium transition-colors cursor-pointer"
+                    >
+                      <span className="h-3 w-3 rounded-full border border-border/80" style={{ backgroundColor: preset.fg }} />
+                      <span>{preset.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    {isArabic ? 'لون الرمز' : 'Foreground'}
+                  </label>
+                  <div className="flex items-center gap-2 bg-background border border-border p-1.5 rounded-xl">
+                    <input
+                      type="color"
+                      value={fgColor}
+                      onChange={(e) => setFgColor(e.target.value)}
+                      className="h-7 w-7 rounded-lg border-0 cursor-pointer bg-transparent"
+                    />
+                    <span className="text-[11px] font-mono font-bold uppercase">{fgColor}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    {isArabic ? 'لون الخلفية' : 'Background'}
+                  </label>
+                  <div className="flex items-center gap-2 bg-background border border-border p-1.5 rounded-xl">
+                    <input
+                      type="color"
+                      value={bgColor}
+                      onChange={(e) => setBgColor(e.target.value)}
+                      className="h-7 w-7 rounded-lg border-0 cursor-pointer bg-transparent"
+                    />
+                    <span className="text-[11px] font-mono font-bold uppercase">{bgColor}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    {isArabic ? 'الحجم (بكسل)' : 'Size (px)'}
+                  </label>
+                  <select
+                    value={qrSize}
+                    onChange={(e) => setQrSize(e.target.value)}
+                    className="w-full h-10 px-2 rounded-xl border border-border bg-background text-xs font-bold focus:outline-none cursor-pointer text-foreground"
                   >
-                    <span className="h-3 w-3 rounded-full border border-border/80" style={{ backgroundColor: preset.fg }} />
-                    <span>{preset.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+                    <option value="128">128x128</option>
+                    <option value="256">256x256</option>
+                    <option value="512">512x512</option>
+                    <option value="1024">1024x1024</option>
+                  </select>
+                </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">
-                  {isArabic ? 'لون الرمز' : 'Foreground'}
-                </label>
-                <div className="flex items-center gap-2 bg-background border border-border p-1.5 rounded-xl">
-                  <input
-                    type="color"
-                    value={fgColor}
-                    onChange={(e) => setFgColor(e.target.value)}
-                    className="h-7 w-7 rounded-lg border-0 cursor-pointer bg-transparent"
-                  />
-                  <span className="text-[11px] font-mono font-bold uppercase">{fgColor}</span>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    {isArabic ? 'مستوى تصحيح الخطأ' : 'Error Level'}
+                  </label>
+                  <select
+                    value={errorLevel}
+                    onChange={(e) => setErrorLevel(e.target.value as 'L' | 'M' | 'Q' | 'H')}
+                    className="w-full h-10 px-2 rounded-xl border border-border bg-background text-xs font-bold focus:outline-none cursor-pointer text-foreground"
+                  >
+                    <option value="L">{isArabic ? 'منخفض L (7%)' : 'Low (7%)'}</option>
+                    <option value="M">{isArabic ? 'متوسط M (15%)' : 'Medium (15%)'}</option>
+                    <option value="Q">{isArabic ? 'ربعي Q (25%)' : 'Quartile (25%)'}</option>
+                    <option value="H">{isArabic ? 'عالي H (30%)' : 'High (30%)'}</option>
+                  </select>
                 </div>
               </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">
-                  {isArabic ? 'لون الخلفية' : 'Background'}
-                </label>
-                <div className="flex items-center gap-2 bg-background border border-border p-1.5 rounded-xl">
-                  <input
-                    type="color"
-                    value={bgColor}
-                    onChange={(e) => setBgColor(e.target.value)}
-                    className="h-7 w-7 rounded-lg border-0 cursor-pointer bg-transparent"
-                  />
-                  <span className="text-[11px] font-mono font-bold uppercase">{bgColor}</span>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">
-                  {isArabic ? 'الحجم (بكسل)' : 'Size (px)'}
-                </label>
-                <select
-                  value={qrSize}
-                  onChange={(e) => setQrSize(e.target.value)}
-                  className="w-full h-10 px-2 rounded-xl border border-border bg-background text-xs font-bold focus:outline-none cursor-pointer text-foreground"
-                >
-                  <option value="128">128x128</option>
-                  <option value="256">256x256</option>
-                  <option value="512">512x512</option>
-                  <option value="1024">1024x1024</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">
-                  {isArabic ? 'مستوى تصحيح الخطأ' : 'Error Level'}
-                </label>
-                <select
-                  value={errorLevel}
-                  onChange={(e) => setErrorLevel(e.target.value as 'L' | 'M' | 'Q' | 'H')}
-                  className="w-full h-10 px-2 rounded-xl border border-border bg-background text-xs font-bold focus:outline-none cursor-pointer text-foreground"
-                >
-                  <option value="L">{isArabic ? 'منخفض L (7%)' : 'Low (7%)'}</option>
-                  <option value="M">{isArabic ? 'متوسط M (15%)' : 'Medium (15%)'}</option>
-                  <option value="Q">{isArabic ? 'ربعي Q (25%)' : 'Quartile (25%)'}</option>
-                  <option value="H">{isArabic ? 'عالي H (30%)' : 'High (30%)'}</option>
-                </select>
-              </div>
             </div>
-          </div>
+          )}
+
+          {/* Business Card Customizer Action Banner */}
+          {qrType === 'businesscard' && (
+            <div className="p-5 rounded-2xl border border-primary/30 bg-primary/5 flex items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  {isArabic ? 'تخصيص تصميم بطاقة الأعمال الرقمية' : 'Digital Business Card Customizer'}
+                </h4>
+                <p className="text-[11px] text-muted-foreground">
+                  {isArabic
+                    ? 'اختر الأنماط المتقدمة، الألوان، وشعار شركتك من الأعلى.'
+                    : 'Choose from professional styles (DigitalMix Pro, Cyber Neon, Clean Minimal, Executive Dark) above.'}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => {
+                  toast.success(isArabic ? 'جاهز للتخصيص الكامل' : 'Card customizer active')
+                }}
+                className="rounded-xl text-xs font-bold shrink-0"
+              >
+                {isArabic ? 'تخصيص البطاقة' : 'Customize Card'}
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Right Preview: 5 Columns */}
@@ -946,81 +1008,80 @@ function QRCodeToolContent() {
             {isArabic ? (qrType === 'businesscard' ? 'معاينة بطاقة الأعمال الرقمية' : 'معاينة الباركود الفورية') : (qrType === 'businesscard' ? 'Digital Business Card Preview' : 'Live Generated Matrix')}
           </h3>
 
-          {/* DigitalMix Business Card Preview Card */}
-          {qrType === 'businesscard' ? (
-            <div
-              className={`w-full rounded-2xl p-5 text-left rtl:text-right shadow-lg border relative overflow-hidden transition-all ${
-                cardStyle === 'cyber'
-                  ? 'bg-slate-950 text-cyan-400 border-cyan-500/40 shadow-cyan-500/10'
-                  : cardStyle === 'minimal'
-                  ? 'bg-white text-slate-900 border-slate-200'
-                  : cardStyle === 'executive'
-                  ? 'bg-zinc-900 text-amber-100 border-amber-500/40 shadow-amber-500/10'
-                  : 'bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white border-indigo-500/30 shadow-indigo-500/20'
-              }`}
-            >
-              {/* Header banner decoration */}
+          {/* Preview Container wrapped with qrRef for reliable SVG capture */}
+          <div ref={qrRef} className="w-full flex flex-col items-center justify-center">
+            {qrType === 'businesscard' ? (
               <div
-                className={`h-12 -mx-5 -mt-5 mb-4 px-4 flex items-center justify-between text-xs font-bold tracking-wider uppercase opacity-90 ${
+                className={`w-full rounded-2xl p-5 text-left rtl:text-right shadow-lg border relative overflow-hidden transition-all ${
                   cardStyle === 'cyber'
-                    ? 'bg-gradient-to-r from-cyan-900 to-blue-900 text-cyan-200 border-b border-cyan-500/30'
+                    ? 'bg-slate-950 text-cyan-400 border-cyan-500/40 shadow-cyan-500/10'
                     : cardStyle === 'minimal'
-                    ? 'bg-slate-100 text-slate-700 border-b border-slate-200'
+                    ? 'bg-white text-slate-900 border-slate-200'
                     : cardStyle === 'executive'
-                    ? 'bg-gradient-to-r from-amber-950 to-zinc-900 text-amber-300 border-b border-amber-500/30'
-                    : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white'
+                    ? 'bg-zinc-900 text-amber-100 border-amber-500/40 shadow-amber-500/10'
+                    : 'bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white border-indigo-500/30 shadow-indigo-500/20'
                 }`}
               >
-                <span>{cardCompany || 'DigitalMix Labs'}</span>
-                <span className="text-[10px] lowercase opacity-75">{cardWebsite || 'digitalmix.dev'}</span>
-              </div>
+                {/* Header banner decoration */}
+                <div
+                  className={`h-12 -mx-5 -mt-5 mb-4 px-4 flex items-center justify-between text-xs font-bold tracking-wider uppercase opacity-90 ${
+                    cardStyle === 'cyber'
+                      ? 'bg-gradient-to-r from-cyan-900 to-blue-900 text-cyan-200 border-b border-cyan-500/30'
+                      : cardStyle === 'minimal'
+                      ? 'bg-slate-100 text-slate-700 border-b border-slate-200'
+                      : cardStyle === 'executive'
+                      ? 'bg-gradient-to-r from-amber-950 to-zinc-900 text-amber-300 border-b border-amber-500/30'
+                      : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white'
+                  }`}
+                >
+                  <span>{cardCompany || 'DigitalMix Labs'}</span>
+                  <span className="text-[10px] lowercase opacity-75">{cardWebsite || 'digitalmix.dev'}</span>
+                </div>
 
-              <div className="flex items-center gap-4">
-                <div className="flex-1 min-w-0 space-y-1">
-                  <h4 className="text-base font-extrabold tracking-tight truncate">{cardFullName || 'Alex Mercer'}</h4>
-                  <p className={`text-xs font-semibold ${cardStyle === 'minimal' ? 'text-primary' : 'text-primary/90'}`}>
-                    {cardTitle || 'Solutions Architect'}
-                  </p>
-                  <div className="space-y-0.5 pt-2 text-[11px] opacity-80 font-mono">
-                    <div className="flex items-center gap-1.5 truncate">
-                      <Phone className="w-3 h-3 shrink-0" /> <span>{cardPhone || '+1 555 382'}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 truncate">
-                      <Mail className="w-3 h-3 shrink-0" /> <span>{cardEmail || 'alex@digitalmix.dev'}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 truncate">
-                      <MapPin className="w-3 h-3 shrink-0" /> <span>{cardAddress || 'Silicon Valley, CA'}</span>
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <h4 className="text-base font-extrabold tracking-tight truncate">{cardFullName || 'Alex Mercer'}</h4>
+                    <p className={`text-xs font-semibold ${cardStyle === 'minimal' ? 'text-primary' : 'text-primary/90'}`}>
+                      {cardTitle || 'Solutions Architect'}
+                    </p>
+                    <div className="space-y-0.5 pt-2 text-[11px] opacity-80 font-mono">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Phone className="w-3 h-3 shrink-0" /> <span>{cardPhone || '+1 555 382'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Mail className="w-3 h-3 shrink-0" /> <span>{cardEmail || 'alex@digitalmix.dev'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 truncate">
+                        <MapPin className="w-3 h-3 shrink-0" /> <span>{cardAddress || 'Silicon Valley, CA'}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Embedded Mini QR */}
-                <div className="p-2 rounded-xl bg-white shadow-md shrink-0 border border-border/60">
-                  <QRCodeSVG
-                    value={payload}
-                    size={76}
-                    fgColor="#000000"
-                    bgColor="#FFFFFF"
-                    level="M"
-                  />
+                  {/* Embedded Mini QR */}
+                  <div className="p-2 rounded-xl bg-white shadow-md shrink-0 border border-border/60">
+                    <QRCodeSVG
+                      value={payload}
+                      size={76}
+                      fgColor="#000000"
+                      bgColor="#FFFFFF"
+                      level="M"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div
-              ref={qrRef}
-              className="p-5 rounded-2xl bg-white shadow-md border border-border/60 flex items-center justify-center max-w-full sm:max-w-70 overflow-x-auto"
-            >
-              <QRCodeSVG
-                value={payload}
-                size={220}
-                fgColor={fgColor}
-                bgColor={bgColor}
-                level={errorLevel}
-                includeMargin={true}
-              />
-            </div>
-          )}
+            ) : (
+              <div className="p-5 rounded-2xl bg-white shadow-md border border-border/60 flex items-center justify-center max-w-full sm:max-w-70 overflow-x-auto">
+                <QRCodeSVG
+                  value={payload}
+                  size={220}
+                  fgColor={fgColor}
+                  bgColor={bgColor}
+                  level={errorLevel}
+                  includeMargin={true}
+                />
+              </div>
+            )}
+          </div>
 
           <div className="w-full space-y-2.5 pt-2">
             <div className="grid grid-cols-2 gap-2">

@@ -104,6 +104,14 @@ const toolMeta: ToolMetadata = {
       a: 'Yes! WiFi QR codes are automatically parsed into the Network SSID, Security Type (WPA/WPA2/WEP), and Password, with a one-click password copy button.',
     },
   ],
+  relatedTools: [
+    {
+      name: 'QR Code Generator & Designer',
+      href: '/tools/qr-code-generator',
+      description: 'Create customized QR codes, WiFi access points, and DigitalMix business cards.',
+      icon: QrCode,
+    },
+  ],
 }
 
 export type ScanResultType =
