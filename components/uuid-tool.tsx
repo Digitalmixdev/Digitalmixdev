@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
+import { logToolActivity } from '@/lib/history-service'
 
 const toolMeta: ToolMetadata = {
   id: 'uuid-generator',
@@ -74,12 +75,20 @@ function UUIDToolContent() {
   const [uuidList, setUuidList] = useState<string[]>([])
   const [isCopied, setIsCopied] = useState(false)
 
-  const recordUsage = async () => {
+  const recordUsage = async (count = quantity) => {
     try {
       await Promise.all([
         incrementToolUsage(),
         markToolUsed('uuid-generator'),
       ])
+      logToolActivity({
+        toolId: 'uuid-generator',
+        toolName: 'UUID v4 Token Generator',
+        category: 'Developer',
+        actionTitle: `Generated ${count} UUIDs (v4)`,
+        details: `Generated cryptographically secure UUID v4 tokens.`,
+        outputSnippet: uuidList.slice(0, 3).join('\n'),
+      })
     } catch {
       // Non-blocking telemetry
     }

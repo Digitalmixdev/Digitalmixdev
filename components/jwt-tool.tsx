@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
+import { logToolActivity } from '@/lib/history-service'
 
 const toolMeta: ToolMetadata = {
   id: 'jwt',
@@ -92,6 +93,15 @@ export default function JwtTool() {
         incrementToolUsage(),
         markToolUsed('jwt'),
       ])
+      logToolActivity({
+        toolId: 'jwt',
+        toolName: 'JWT Decoder & Encoder',
+        category: 'Developer',
+        actionTitle: `${mode === 'decode' ? 'Decoded' : 'Encoded'} JWT (${algorithm})`,
+        details: `Processed JSON Web Token with ${algorithm} signature algorithm.`,
+        inputSnippet: mode === 'decode' ? jwtInput.substring(0, 80) : payloadJson.substring(0, 80),
+        outputSnippet: mode === 'decode' ? payloadJson.substring(0, 80) : jwtOutput.substring(0, 80),
+      })
     } catch {
       // Non-blocking telemetry
     }

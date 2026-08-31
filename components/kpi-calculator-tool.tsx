@@ -22,6 +22,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
+import { logToolActivity } from '@/lib/history-service'
 
 const toolMeta: ToolMetadata = {
   id: 'kpi-calculator',
@@ -453,6 +454,13 @@ function KpiCalculatorContent() {
         incrementToolUsage(),
         markToolUsed('kpi-calculator'),
       ])
+      logToolActivity({
+        toolId: 'kpi-calculator',
+        toolName: 'KPI & Business Metrics Calculator Suite',
+        category: 'Calculators',
+        actionTitle: `Calculated Business Metrics (${activeTab.toUpperCase()})`,
+        details: `Ran ${activeTab.toUpperCase()} analysis calculations on business metrics suite.`,
+      })
     } catch {
       // Non-blocking telemetry
     }

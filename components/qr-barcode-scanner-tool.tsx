@@ -50,6 +50,7 @@ import { Button } from '@/components/ui/button'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
+import { logToolActivity } from '@/lib/history-service'
 import { useLanguage } from '@/lib/i18n/context'
 
 const toolMeta: ToolMetadata = {
@@ -102,6 +103,26 @@ const toolMeta: ToolMetadata = {
     {
       q: 'Can I scan WiFi QR codes and connect easily?',
       a: 'Yes! WiFi QR codes are automatically parsed into the Network SSID, Security Type (WPA/WPA2/WEP), and Password, with a one-click password copy button.',
+    },
+  ],
+  relatedTools: [
+    {
+      name: 'QR Code Generator & Designer',
+      href: '/tools/qr-code-generator',
+      description: 'Create customized QR codes, WiFi access points, and DigitalMix business cards.',
+      icon: QrCode,
+    },
+    {
+      name: 'Image & File Compressor',
+      href: '/tools/image-and-file-compressor',
+      description: 'Compress images, PDFs, and files locally with zero quality loss.',
+      icon: FileText,
+    },
+    {
+      name: 'Image Converter',
+      href: '/tools/image-converter',
+      description: 'Convert between PNG, JPG, WebP, SVG, and modern image formats.',
+      icon: RefreshCw,
     },
   ],
 }
@@ -590,6 +611,15 @@ export function QRCodeScannerTool() {
       try {
         incrementToolUsage()
         markToolUsed('qr-barcode-scanner')
+        logToolActivity({
+          toolId: 'qr-barcode-scanner',
+          toolName: 'QR & Barcode Scanner',
+          category: 'Files & Media',
+          actionTitle: `Scanned ${parsed.type.toUpperCase() || 'Code'}`,
+          details: `Decoded content: ${(parsed.raw || '').substring(0, 100)}...`,
+          inputSnippet: parsed.format || parsed.type,
+          outputSnippet: parsed.raw || '',
+        })
       } catch {
         // non-blocking
       }
@@ -961,6 +991,15 @@ export function QRCodeScannerTool() {
       try {
         incrementToolUsage()
         markToolUsed('qr-barcode-scanner')
+        logToolActivity({
+          toolId: 'qr-barcode-scanner',
+          toolName: 'QR & Barcode Scanner',
+          category: 'Files & Media',
+          actionTitle: `Scanned ${parsed.type.toUpperCase() || 'Code'} from Image`,
+          details: `Decoded content: ${(parsed.raw || '').substring(0, 100)}...`,
+          inputSnippet: parsed.format || parsed.type,
+          outputSnippet: parsed.raw || '',
+        })
       } catch {
         // non-blocking
       }

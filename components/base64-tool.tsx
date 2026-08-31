@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
+import { logToolActivity } from '@/lib/history-service'
 
 const toolMeta: ToolMetadata = {
   id: 'base64',
@@ -84,6 +85,15 @@ export default function Base64Tool() {
         incrementToolUsage(),
         markToolUsed('base64'),
       ])
+      logToolActivity({
+        toolId: 'base64',
+        toolName: 'Base64 Encoder / Decoder',
+        category: 'Developer',
+        actionTitle: `${mode === 'encode' ? 'Encoded' : 'Decoded'} Base64 String`,
+        details: `Converted string using ${encoding.toUpperCase()} charset.`,
+        inputSnippet: inputText.substring(0, 100),
+        outputSnippet: outputText.substring(0, 100),
+      })
     } catch {
       // Non-blocking telemetry
     }

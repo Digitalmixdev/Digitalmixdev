@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
+import { logToolActivity } from '@/lib/history-service'
 
 const toolMeta: ToolMetadata = {
   id: 'regex-tester',
@@ -141,6 +142,15 @@ function RegexToolContent() {
         incrementToolUsage(),
         markToolUsed('regex-tester'),
       ])
+      logToolActivity({
+        toolId: 'regex-tester',
+        toolName: 'RegEx Tester & Debugger',
+        category: 'Developer',
+        actionTitle: `Tested RegEx /${regexInput}/ (${matches.length} matches)`,
+        details: `Evaluated regular expression matches against test payload.`,
+        inputSnippet: `/${regexInput}/ against "${testString.substring(0, 50)}..."`,
+        outputSnippet: `Found ${matches.length} matches`,
+      })
     } catch {
       // Non-blocking telemetry
     }

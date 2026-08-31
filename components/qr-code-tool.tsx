@@ -63,35 +63,35 @@ export interface CardThemeConfig {
 
 export const CARD_THEMES: CardThemeConfig[] = [
   {
-    id: 'midnight',
-    name: 'Midnight Slate',
-    nameAr: 'رمادي ليلي حديث',
+    id: 'digitalmix',
+    name: 'DigitalMix Pro',
+    nameAr: 'ديجيتال ميكس برو',
     bgStart: '#0f172a',
-    bgEnd: '#1e293b',
-    textColor: '#f8fafc',
+    bgEnd: '#1e1b4b',
+    textColor: '#ffffff',
     mutedColor: '#94a3b8',
     accentColor: '#38bdf8',
-    borderColor: '#334155',
+    borderColor: '#3b82f6',
     qrBg: '#ffffff',
     qrFg: '#0f172a',
   },
   {
-    id: 'executive',
-    name: 'Executive Navy',
-    nameAr: 'أزرق تنفيذي كلاسيكي',
-    bgStart: '#0a192f',
-    bgEnd: '#112240',
-    textColor: '#f1f5f9',
-    mutedColor: '#a0aec0',
-    accentColor: '#f59e0b',
-    borderColor: '#1e3a8a',
+    id: 'cyber',
+    name: 'Cyber Neon',
+    nameAr: 'سايبر نيون',
+    bgStart: '#020617',
+    bgEnd: '#082f49',
+    textColor: '#22d3ee',
+    mutedColor: '#38bdf8',
+    accentColor: '#06b6d4',
+    borderColor: '#0284c7',
     qrBg: '#ffffff',
-    qrFg: '#0a192f',
+    qrFg: '#020617',
   },
   {
     id: 'minimal',
-    name: 'Minimal Light',
-    nameAr: 'أبيض ناصع بسيط',
+    name: 'Clean Minimal',
+    nameAr: 'مينيمل كلاسيكي',
     bgStart: '#ffffff',
     bgEnd: '#f8fafc',
     textColor: '#0f172a',
@@ -102,43 +102,17 @@ export const CARD_THEMES: CardThemeConfig[] = [
     qrFg: '#0f172a',
   },
   {
-    id: 'obsidian',
-    name: 'Obsidian Gold',
-    nameAr: 'أسود ذهبي فاخر',
+    id: 'executive',
+    name: 'Executive Dark',
+    nameAr: 'تنفيذي فاخر',
     bgStart: '#18181b',
     bgEnd: '#09090b',
-    textColor: '#fef08a',
+    textColor: '#fef3c7',
     mutedColor: '#a1a1aa',
-    accentColor: '#fbbf24',
+    accentColor: '#f59e0b',
     borderColor: '#78350f',
     qrBg: '#ffffff',
     qrFg: '#18181b',
-  },
-  {
-    id: 'sunset',
-    name: 'Sunset Rose',
-    nameAr: 'تدرج بنفسجي ووردي',
-    bgStart: '#3b0764',
-    bgEnd: '#831843',
-    textColor: '#ffffff',
-    mutedColor: '#fbcfe8',
-    accentColor: '#fb7185',
-    borderColor: '#701a75',
-    qrBg: '#ffffff',
-    qrFg: '#3b0764',
-  },
-  {
-    id: 'emerald',
-    name: 'Emerald Forest',
-    nameAr: 'أخضر زمردي راقي',
-    bgStart: '#022c22',
-    bgEnd: '#064e3b',
-    textColor: '#ecfdf5',
-    mutedColor: '#6ee7b7',
-    accentColor: '#10b981',
-    borderColor: '#047857',
-    qrBg: '#ffffff',
-    qrFg: '#022c22',
   },
   {
     id: 'custom',
@@ -284,12 +258,12 @@ function QRCodeToolContent() {
   const [vcardAddress, setVcardAddress] = useState('')
 
   // Business Card Customizer States
-  const [cardTheme, setCardTheme] = useState<string>('midnight')
+  const [cardTheme, setCardTheme] = useState<string>('digitalmix')
   const [cardBgStart, setCardBgStart] = useState('#0f172a')
-  const [cardBgEnd, setCardBgEnd] = useState('#1e293b')
-  const [cardTextColor, setCardTextColor] = useState('#f8fafc')
+  const [cardBgEnd, setCardBgEnd] = useState('#1e1b4b')
+  const [cardTextColor, setCardTextColor] = useState('#ffffff')
   const [cardAccentColor, setCardAccentColor] = useState('#38bdf8')
-  const [cardBorderColor, setCardBorderColor] = useState('#334155')
+  const [cardBorderColor, setCardBorderColor] = useState('#3b82f6')
   const [cardLayout, setCardLayout] = useState<'split-right' | 'split-left' | 'badge-top'>('split-right')
   const [cardBorderRadius, setCardBorderRadius] = useState<'rounded' | 'pill' | 'sharp'>('rounded')
   const [showLogo, setShowLogo] = useState(true)
@@ -849,8 +823,8 @@ function QRCodeToolContent() {
         ctx.fillText(vcardName || 'Your Full Name', textX, curY)
 
         // Job Title
-        curY += 34
         if (vcardTitle) {
+          curY += 34
           ctx.fillStyle = currentThemeConfig.accentColor
           ctx.font = '600 22px system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
           ctx.fillText(vcardTitle, textX, curY)
@@ -864,17 +838,7 @@ function QRCodeToolContent() {
           ctx.fillText(vcardOrg, textX, curY)
         }
 
-        // Divider Line
-        curY += 26
-        ctx.strokeStyle = currentThemeConfig.borderColor
-        ctx.lineWidth = 2
-        ctx.beginPath()
-        ctx.moveTo(textX, curY)
-        ctx.lineTo(textX + 420, curY)
-        ctx.stroke()
-
         // Contact info list
-        curY += 38
         const contactItems = [
           vcardPhone ? { label: 'Phone', value: vcardPhone } : null,
           vcardEmail ? { label: 'Email', value: vcardEmail } : null,
@@ -882,17 +846,29 @@ function QRCodeToolContent() {
           vcardAddress ? { label: 'Location', value: vcardAddress } : null,
         ].filter(Boolean)
 
-        contactItems.forEach((item) => {
-          if (!item) return
-          ctx.fillStyle = currentThemeConfig.accentColor
-          ctx.font = 'bold 15px system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
-          ctx.fillText(`• ${item.label}:`, textX, curY)
+        if (contactItems.length > 0) {
+          // Divider Line
+          curY += 24
+          ctx.strokeStyle = currentThemeConfig.borderColor
+          ctx.lineWidth = 2
+          ctx.beginPath()
+          ctx.moveTo(textX, curY)
+          ctx.lineTo(textX + 420, curY)
+          ctx.stroke()
 
-          ctx.fillStyle = currentThemeConfig.textColor
-          ctx.font = '500 16px system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
-          ctx.fillText(item.value, textX + 105, curY)
-          curY += 28
-        })
+          curY += 36
+          contactItems.forEach((item) => {
+            if (!item) return
+            ctx.fillStyle = currentThemeConfig.accentColor
+            ctx.font = 'bold 15px system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
+            ctx.fillText(`• ${item.label}:`, textX, curY)
+
+            ctx.fillStyle = currentThemeConfig.textColor
+            ctx.font = '500 16px system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
+            ctx.fillText(item.value, textX + 105, curY)
+            curY += 28
+          })
+        }
       }
 
       // Convert Canvas to Blob / PNG and Download
@@ -1016,35 +992,6 @@ function QRCodeToolContent() {
             )}
           </Button>
 
-          {qrType === 'vcard' && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowSavedCardsModal(true)}
-                className="h-9 px-3.5 gap-2 text-xs font-semibold border-border/80 hover:border-primary/50 text-foreground"
-              >
-                <FolderOpen className="h-4 w-4 text-amber-500" />
-                <span>{isArabic ? 'قوالب البطاقات' : 'Saved Cards'}</span>
-                {savedCards.length > 0 && (
-                  <span className="ms-1 px-1.5 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded-full">
-                    {savedCards.length}
-                  </span>
-                )}
-              </Button>
-
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowSaveCardModal(true)}
-                className="h-9 px-3.5 gap-1.5 text-xs font-semibold text-foreground shadow-2xs"
-              >
-                <Save className="h-3.5 w-3.5 text-primary" />
-                <span>{isArabic ? 'حفظ كقالب بطاقة' : 'Save as Custom Card'}</span>
-              </Button>
-            </>
-          )}
-
           <Button
             variant="ghost"
             size="sm"
@@ -1146,17 +1093,6 @@ function QRCodeToolContent() {
                     ? 'معلومات المحتوى'
                     : 'Content Information'}
               </h3>
-
-              {qrType === 'vcard' && (
-                <button
-                  type="button"
-                  onClick={() => setShowSavedCardsModal(true)}
-                  className="text-xs text-primary font-semibold hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  <FolderOpen size={13} />
-                  {isArabic ? 'تحميل قالب محفوظ' : 'Load Saved Template'}
-                </button>
-              )}
             </div>
 
             {qrType === 'url' && (
@@ -1220,99 +1156,352 @@ function QRCodeToolContent() {
             )}
 
             {qrType === 'vcard' && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                      <User size={13} className="text-primary" /> {isArabic ? 'الاسم الكامل' : 'Full Name'}
-                    </label>
-                    <input
-                      type="text"
-                      value={vcardName}
-                      onChange={(e) => setVcardName(e.target.value)}
-                      placeholder="John Doe"
-                      className="w-full h-11 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
-                    />
+              <div className="space-y-4">
+                {/* Quick Examples / Presets */}
+                <div className="p-3 bg-muted/40 rounded-xl border border-border/70 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <Sparkles size={13} className="text-primary" />
+                      {isArabic ? 'أمثلة ونماذج سريعة:' : 'Quick Card Examples:'}
+                    </span>
+                    {(vcardName || vcardPhone || vcardEmail || vcardOrg || vcardTitle || vcardWebsite || vcardAddress) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVcardName('')
+                          setVcardTitle('')
+                          setVcardOrg('')
+                          setVcardPhone('')
+                          setVcardEmail('')
+                          setVcardWebsite('')
+                          setVcardAddress('')
+                          toast.success(isArabic ? 'تم مسح كافة الحقول' : 'Cleared all fields')
+                        }}
+                        className="text-[11px] font-semibold text-destructive hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Trash2 size={12} />
+                        {isArabic ? 'مسح كافة الحقول' : 'Clear All Fields'}
+                      </button>
+                    )}
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                      <Briefcase size={13} className="text-primary" /> {isArabic ? 'المسمى الوظيفي' : 'Job Title / Role'}
-                    </label>
-                    <input
-                      type="text"
-                      value={vcardTitle}
-                      onChange={(e) => setVcardTitle(e.target.value)}
-                      placeholder="Senior Full-Stack Engineer"
-                      className="w-full h-11 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
-                    />
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVcardName('Alex Mercer')
+                        setVcardTitle('Senior Solutions Architect')
+                        setVcardOrg('DigitalMix Labs')
+                        setVcardPhone('+1 (555) 382-9011')
+                        setVcardEmail('alex@digitalmix.dev')
+                        setVcardWebsite('https://digitalmix.dev')
+                        setVcardAddress('104 Silicon Valley Way, CA')
+                        applyCardTheme('digitalmix')
+                        toast.success(isArabic ? 'تم تطبيق نموذج Alex Mercer' : 'Loaded Alex Mercer preset')
+                      }}
+                      className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-background border border-border/80 hover:border-primary/50 text-foreground hover:bg-primary/5 transition-all cursor-pointer"
+                    >
+                      Alex Mercer (Tech)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVcardName('Sarah Jenkins')
+                        setVcardTitle('VP of Growth & Strategy')
+                        setVcardOrg('Nova Ventures')
+                        setVcardPhone('+1 (555) 789-2044')
+                        setVcardEmail('sarah@novaventures.io')
+                        setVcardWebsite('https://novaventures.io')
+                        setVcardAddress('New York, NY • USA')
+                        applyCardTheme('minimal')
+                        toast.success(isArabic ? 'تم تطبيق نموذج Sarah Jenkins' : 'Loaded Sarah Jenkins preset')
+                      }}
+                      className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-background border border-border/80 hover:border-primary/50 text-foreground hover:bg-primary/5 transition-all cursor-pointer"
+                    >
+                      Sarah Jenkins (Growth)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVcardName('Dr. Marcus Chen')
+                        setVcardTitle('Medical Director & Founder')
+                        setVcardOrg('OmniHealth AI')
+                        setVcardPhone('+1 (555) 492-1188')
+                        setVcardEmail('marcus@omnihealth.org')
+                        setVcardWebsite('https://omnihealth.org')
+                        setVcardAddress('Boston, MA • USA')
+                        applyCardTheme('executive')
+                        toast.success(isArabic ? 'تم تطبيق نموذج Dr. Marcus Chen' : 'Loaded Dr. Marcus Chen preset')
+                      }}
+                      className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-background border border-border/80 hover:border-primary/50 text-foreground hover:bg-primary/5 transition-all cursor-pointer"
+                    >
+                      Dr. Marcus Chen (Executive)
+                    </button>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Full Name */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                      <Layers size={13} className="text-primary" /> {isArabic ? 'الشركة / المؤسسة' : 'Company / Organization'}
-                    </label>
-                    <input
-                      type="text"
-                      value={vcardOrg}
-                      onChange={(e) => setVcardOrg(e.target.value)}
-                      placeholder="Acme Technologies"
-                      className="w-full h-11 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
-                    />
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                        <User size={13} className="text-primary" /> {isArabic ? 'الاسم الكامل' : 'Full Name'}
+                      </label>
+                      {vcardName && (
+                        <button
+                          type="button"
+                          onClick={() => setVcardName('')}
+                          className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <X size={11} /> {isArabic ? 'حذف' : 'Clear'}
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={vcardName}
+                        onChange={(e) => setVcardName(e.target.value)}
+                        placeholder="John Doe"
+                        className="w-full h-11 px-3 pe-8 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                      />
+                      {vcardName && (
+                        <button
+                          type="button"
+                          onClick={() => setVcardName('')}
+                          className="absolute end-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-destructive cursor-pointer"
+                          title={isArabic ? 'مسح الحقل' : 'Clear'}
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Job Title */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                      <Phone size={13} className="text-primary" /> {isArabic ? 'رقم الهاتف' : 'Phone Number'}
-                    </label>
-                    <input
-                      type="tel"
-                      value={vcardPhone}
-                      onChange={(e) => setVcardPhone(e.target.value)}
-                      placeholder="+1 (555) 234-5678"
-                      className="w-full h-11 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
-                    />
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                        <Briefcase size={13} className="text-primary" /> {isArabic ? 'المسمى الوظيفي (اختياري)' : 'Job Title / Role (Optional)'}
+                      </label>
+                      {vcardTitle && (
+                        <button
+                          type="button"
+                          onClick={() => setVcardTitle('')}
+                          className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <X size={11} /> {isArabic ? 'حذف' : 'Clear'}
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={vcardTitle}
+                        onChange={(e) => setVcardTitle(e.target.value)}
+                        placeholder="Senior Full-Stack Engineer"
+                        className="w-full h-11 px-3 pe-8 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                      />
+                      {vcardTitle && (
+                        <button
+                          type="button"
+                          onClick={() => setVcardTitle('')}
+                          className="absolute end-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-destructive cursor-pointer"
+                          title={isArabic ? 'مسح الحقل' : 'Clear'}
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Company / Organization */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                      <Mail size={13} className="text-primary" /> {isArabic ? 'البريد الإلكتروني' : 'Email Address'}
-                    </label>
-                    <input
-                      type="email"
-                      value={vcardEmail}
-                      onChange={(e) => setVcardEmail(e.target.value)}
-                      placeholder="john@example.com"
-                      className="w-full h-11 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
-                    />
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                        <Layers size={13} className="text-primary" /> {isArabic ? 'الشركة / المؤسسة (اختياري)' : 'Company / Organization (Optional)'}
+                      </label>
+                      {vcardOrg && (
+                        <button
+                          type="button"
+                          onClick={() => setVcardOrg('')}
+                          className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <X size={11} /> {isArabic ? 'حذف' : 'Clear'}
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={vcardOrg}
+                        onChange={(e) => setVcardOrg(e.target.value)}
+                        placeholder="Acme Technologies"
+                        className="w-full h-11 px-3 pe-8 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                      />
+                      {vcardOrg && (
+                        <button
+                          type="button"
+                          onClick={() => setVcardOrg('')}
+                          className="absolute end-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-destructive cursor-pointer"
+                          title={isArabic ? 'مسح الحقل' : 'Clear'}
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Phone Number */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                      <Globe size={13} className="text-primary" /> {isArabic ? 'الموقع الإلكتروني' : 'Website URL'}
-                    </label>
-                    <input
-                      type="url"
-                      value={vcardWebsite}
-                      onChange={(e) => setVcardWebsite(e.target.value)}
-                      placeholder="https://johndoe.dev"
-                      className="w-full h-11 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
-                    />
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                        <Phone size={13} className="text-primary" /> {isArabic ? 'رقم الهاتف (اختياري)' : 'Phone Number (Optional)'}
+                      </label>
+                      {vcardPhone && (
+                        <button
+                          type="button"
+                          onClick={() => setVcardPhone('')}
+                          className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <X size={11} /> {isArabic ? 'حذف الرقم' : 'Clear'}
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="tel"
+                        value={vcardPhone}
+                        onChange={(e) => setVcardPhone(e.target.value)}
+                        placeholder="+1 (555) 234-5678"
+                        className="w-full h-11 px-3 pe-8 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                      />
+                      {vcardPhone && (
+                        <button
+                          type="button"
+                          onClick={() => setVcardPhone('')}
+                          className="absolute end-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-destructive cursor-pointer"
+                          title={isArabic ? 'حذف رقم الهاتف من البطاقة' : 'Remove phone number from card'}
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Email Address */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                        <Mail size={13} className="text-primary" /> {isArabic ? 'البريد الإلكتروني (اختياري)' : 'Email Address (Optional)'}
+                      </label>
+                      {vcardEmail && (
+                        <button
+                          type="button"
+                          onClick={() => setVcardEmail('')}
+                          className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <X size={11} /> {isArabic ? 'حذف' : 'Clear'}
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        value={vcardEmail}
+                        onChange={(e) => setVcardEmail(e.target.value)}
+                        placeholder="john@example.com"
+                        className="w-full h-11 px-3 pe-8 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                      />
+                      {vcardEmail && (
+                        <button
+                          type="button"
+                          onClick={() => setVcardEmail('')}
+                          className="absolute end-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-destructive cursor-pointer"
+                          title={isArabic ? 'مسح البريد' : 'Clear'}
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Website URL */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                        <Globe size={13} className="text-primary" /> {isArabic ? 'الموقع الإلكتروني (اختياري)' : 'Website URL (Optional)'}
+                      </label>
+                      {vcardWebsite && (
+                        <button
+                          type="button"
+                          onClick={() => setVcardWebsite('')}
+                          className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <X size={11} /> {isArabic ? 'حذف' : 'Clear'}
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="url"
+                        value={vcardWebsite}
+                        onChange={(e) => setVcardWebsite(e.target.value)}
+                        placeholder="https://johndoe.dev"
+                        className="w-full h-11 px-3 pe-8 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                      />
+                      {vcardWebsite && (
+                        <button
+                          type="button"
+                          onClick={() => setVcardWebsite('')}
+                          className="absolute end-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-destructive cursor-pointer"
+                          title={isArabic ? 'مسح الموقع' : 'Clear'}
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Address / Location */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                    <MapPin size={13} className="text-primary" /> {isArabic ? 'الموقع / العنوان' : 'Address / Location'}
-                  </label>
-                  <input
-                    type="text"
-                    value={vcardAddress}
-                    onChange={(e) => setVcardAddress(e.target.value)}
-                    placeholder="San Francisco, CA • USA"
-                    className="w-full h-11 px-3 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                      <MapPin size={13} className="text-primary" /> {isArabic ? 'الموقع / العنوان (اختياري)' : 'Address / Location (Optional)'}
+                    </label>
+                    {vcardAddress && (
+                      <button
+                        type="button"
+                        onClick={() => setVcardAddress('')}
+                        className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-0.5 cursor-pointer"
+                      >
+                        <X size={11} /> {isArabic ? 'حذف' : 'Clear'}
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={vcardAddress}
+                      onChange={(e) => setVcardAddress(e.target.value)}
+                      placeholder="San Francisco, CA • USA"
+                      className="w-full h-11 px-3 pe-8 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                    />
+                    {vcardAddress && (
+                      <button
+                        type="button"
+                        onClick={() => setVcardAddress('')}
+                        className="absolute end-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-destructive cursor-pointer"
+                        title={isArabic ? 'مسح العنوان' : 'Clear'}
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

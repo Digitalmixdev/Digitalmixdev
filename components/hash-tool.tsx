@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
+import { logToolActivity } from '@/lib/history-service'
 
 import md5 from 'crypto-js/md5'
 
@@ -79,12 +80,21 @@ function HashToolContent() {
     sha512: '',
   })
 
-  const recordUsage = async () => {
+  const recordUsage = async (algoName = 'Hashes') => {
     try {
       await Promise.all([
         incrementToolUsage(),
         markToolUsed('hash-generator'),
       ])
+      logToolActivity({
+        toolId: 'hash-generator',
+        toolName: 'Cryptographic Hash Generator',
+        category: 'Developer',
+        actionTitle: `Generated ${algoName.toUpperCase()}`,
+        details: `Calculated hash digests for string input.`,
+        inputSnippet: inputText.substring(0, 100),
+        outputSnippet: hashes.sha256 || hashes.md5 || '',
+      })
     } catch {
       // Non-blocking telemetry
     }
@@ -206,7 +216,7 @@ function HashToolContent() {
     const formatted = uppercase ? val.toUpperCase() : val.toLowerCase()
     await navigator.clipboard.writeText(formatted)
     setCopiedAlgo(algo)
-    recordUsage()
+    recordUsage(algo)
     setTimeout(() => setCopiedAlgo(null), 2000)
   }
 
@@ -215,7 +225,7 @@ function HashToolContent() {
     const text = `MD5: ${hashes.md5}\nSHA-1: ${hashes.sha1}\nSHA-256: ${hashes.sha256}\nSHA-512: ${hashes.sha512}`
     await navigator.clipboard.writeText(uppercase ? text.toUpperCase() : text)
     setCopiedAlgo('all')
-    recordUsage()
+    recordUsage('All Hashes')
     setTimeout(() => setCopiedAlgo(null), 2000)
   }
 

@@ -21,6 +21,7 @@ import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { useLanguage } from '@/lib/i18n/context'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
+import { logToolActivity } from '@/lib/history-service'
 import { toast } from 'sonner'
 
 const toolMeta: ToolMetadata = {
@@ -110,6 +111,15 @@ export default function CsvToJsonTool() {
         setOutputJson(JSON.stringify(results.data, null, 2))
         setSyntaxWarning('')
         recordUsage()
+        logToolActivity({
+          toolId: 'csv-json',
+          toolName: 'CSV to JSON Converter',
+          category: 'Database & Data',
+          actionTitle: `Converted CSV (${Array.isArray(results.data) ? results.data.length : 0} rows)`,
+          details: `Transformed CSV spreadsheet data into structured JSON array.`,
+          inputSnippet: csvText.substring(0, 120),
+          outputSnippet: JSON.stringify(results.data).substring(0, 120),
+        })
       },
       error: (err: Error) => {
         setOutputJson('')

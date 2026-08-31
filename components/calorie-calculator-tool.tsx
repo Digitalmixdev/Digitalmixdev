@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
+import { logToolActivity } from '@/lib/history-service'
 
 const toolMeta: ToolMetadata = {
   id: 'calorie-calculator',
@@ -141,6 +142,15 @@ export default function CalorieCalculatorTool() {
   const handleCopySummary = () => {
     incrementToolUsage()
     markToolUsed('calorie-calculator')
+    logToolActivity({
+      toolId: 'calorie-calculator',
+      toolName: 'Daily Calorie & BMR Calculator',
+      category: 'Calculators',
+      actionTitle: `Calorie Target: ${targetCalories} kcal/day (${GOALS[goal].label})`,
+      details: `BMR: ${Math.round(bmr)} kcal, TDEE: ${Math.round(tdee)} kcal, Protein: ${proteinGrams}g, Carbs: ${carbGrams}g, Fat: ${fatGrams}g`,
+      inputSnippet: `Age: ${age}, Weight: ${weight} ${units === 'metric' ? 'kg' : 'lbs'}, Height: ${height} ${units === 'metric' ? 'cm' : 'in'}, Activity: ${ACTIVITY_MULTIPLIERS[activity].label}`,
+      outputSnippet: `${targetCalories} kcal/day | P: ${proteinGrams}g, C: ${carbGrams}g, F: ${fatGrams}g`,
+    })
     const summary = `Daily Calorie & Nutrition Plan:
 • BMR (Basal Metabolic Rate): ${Math.round(bmr)} kcal/day
 • TDEE (Maintenance): ${Math.round(tdee)} kcal/day
