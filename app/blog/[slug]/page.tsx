@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm'
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Metadata } from "next";
+import { ArrowLeft, BookOpen, Calendar, Clock } from "lucide-react";
 
 type Params = Promise<{ slug: string }>;
 
@@ -89,14 +90,37 @@ export default async function BlogPostPage({ params }: { params: Params }) {
   };
 
   return (
-    <main className="py-16 px-4 max-w-3xl mx-auto">
+    <main className="py-12 px-4 max-w-3xl mx-auto">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
+      {/* Return Button Top */}
+      <div className="mb-8">
+        <Link
+          href="/blog"
+          className="inline-flex items-center text-sm font-semibold text-primary hover:text-primary/80 transition-colors group px-3 py-1.5 rounded-lg border bg-card hover:bg-accent"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" />
+          Return to Blog Page
+        </Link>
+      </div>
+
       <article>
-        <h1 className="text-4xl font-bold mb-8">{post.title}</h1>
+        <div className="flex flex-wrap items-center gap-3 text-xs font-mono mb-4 text-muted-foreground">
+          <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
+            {post.category}
+          </span>
+          <span className="flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5" />
+            {post.date}
+          </span>
+        </div>
+
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-8 leading-tight">
+          {post.title}
+        </h1>
 
         <div className="prose dark:prose-invert text-lg leading-relaxed max-w-none">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
@@ -107,27 +131,40 @@ export default async function BlogPostPage({ params }: { params: Params }) {
             <h3 className="font-bold text-lg">Ready to try it yourself?</h3>
             <Link
               href={post.toolUrl}
-              className="mt-4 inline-block bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+              className="mt-4 inline-block bg-primary text-primary-foreground font-semibold px-6 py-2.5 rounded-lg hover:bg-primary/90 transition-colors"
             >
               Use our {post.toolName || "Tool"} now
             </Link>
           </div>
         )}
 
+        {/* Return Button Bottom */}
+        <div className="mt-12 pt-6 border-t flex items-center justify-start">
+          <Link
+            href="/blog"
+            className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border bg-card hover:bg-accent transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Return to Blog Page
+          </Link>
+        </div>
       </article>
 
       {related.length > 0 && (
         <section className="mt-16 border-t pt-8">
-          <h2 className="text-xl font-bold mb-4">Related Articles</h2>
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-primary" />
+            Related Articles
+          </h2>
           <div className="grid md:grid-cols-2 gap-6">
             {related.map(r => (
               <Link
                 key={r.slug}
                 href={`/blog/${r.slug}`}
-                className="p-4 border rounded-xl hover:border-primary transition-all hover:shadow-md"
+                className="p-4 border rounded-xl hover:border-primary transition-all hover:shadow-md bg-card"
               >
-                <h3 className="font-semibold">{r.title}</h3>
-                <span className="text-xs text-muted-foreground">{r.category}</span>
+                <h3 className="font-semibold text-base mb-1">{r.title}</h3>
+                <span className="text-xs text-muted-foreground font-mono">{r.category} • {r.date}</span>
               </Link>
             ))}
           </div>
