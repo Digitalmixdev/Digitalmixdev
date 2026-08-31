@@ -336,6 +336,25 @@ export async function renderPdfToImages(
   return results
 }
 
+// Helper to safely convert Blob/ArrayBuffer/Uint8Array to Uint8Array for JSZip
+async function toUint8Array(data: Blob | ArrayBuffer | Uint8Array): Promise<Uint8Array> {
+  if (data instanceof Uint8Array) return data
+  if (data instanceof ArrayBuffer) return new Uint8Array(data)
+  if (typeof Blob !== 'undefined' && data instanceof Blob) {
+    const buf = await data.arrayBuffer()
+    return new Uint8Array(buf)
+  }
+  return new Uint8Array()
+}
+
+function cleanPdfText(str: string): string {
+  if (!str) return ''
+  return str
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uFDD0-\uFDEF\uFFFE\uFFFF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 // ----------------------------------------------------
 // 6. DOCX Generation (OpenXML via JSZip)
 // ----------------------------------------------------
@@ -348,69 +367,59 @@ export async function generateDocxFile(options: {
 }): Promise<Blob> {
   const zip = new JSZip()
 
+  // Convert image data to Uint8Array safely
+  const processedImages: { data: Uint8Array; type: string }[] = []
+  if (options.images && options.images.length > 0) {
+    for (const img of options.images) {
+      const u8 = await toUint8Array(img.data)
+      if (u8.length > 0) {
+        processedImages.push({ data: u8, type: img.type || 'jpg' })
+      }
+    }
+  }
+
   const paragraphsList: string[] = []
   if (options.paragraphs && options.paragraphs.length > 0) {
-    paragraphsList.push(...options.paragraphs)
+    paragraphsList.push(...options.paragraphs.map((p) => cleanPdfText(p)).filter(Boolean))
   } else if (options.text) {
-    const lines = options.text.split(/\r?\n\r?\n|\r?\n/).map((l) => l.trim()).filter(Boolean)
+    const lines = options.text.split(/\r?\n\r?\n|\r?\n/).map((l) => cleanPdfText(l)).filter(Boolean)
     paragraphsList.push(...lines)
   } else if (options.html) {
-    // Extract text paragraphs from HTML
     const tempDiv = document.createElement('div')
     tempDiv.innerHTML = options.html
     const pElements = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li, tr')
     if (pElements.length > 0) {
       pElements.forEach((el) => {
-        const text = el.textContent?.trim()
+        const text = cleanPdfText(el.textContent || '')
         if (text) paragraphsList.push(text)
       })
     } else {
-      paragraphsList.push(tempDiv.textContent?.trim() || 'Empty document')
+      const text = cleanPdfText(tempDiv.textContent || '')
+      if (text) paragraphsList.push(text)
     }
   }
 
-  const titleText = options.title || paragraphsList[0] || 'Converted Document'
+  const titleText = cleanPdfText(options.title || paragraphsList[0] || 'Converted Document')
 
-  // Construct WordprocessingML
   let bodyXml = ''
 
-  // Title paragraph
-  bodyXml += `
-    <w:p>
-      <w:pPr>
-        <w:pStyle w:val="Title"/>
-        <w:jc w:val="center"/>
-        <w:spacing w:before="240" w:after="240"/>
-      </w:pPr>
-      <w:r>
-        <w:rPr>
-          <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
-          <w:b/>
-          <w:sz w:val="48"/>
-          <w:szCs w:val="48"/>
-          <w:color w:val="1E293B"/>
-        </w:rPr>
-        <w:t xml:space="preserve">${escapeXml(titleText)}</w:t>
-      </w:r>
-    </w:p>
-  `
-
-  // Body paragraphs
-  for (const para of paragraphsList) {
-    if (para === titleText) continue
+  if (titleText) {
     bodyXml += `
       <w:p>
         <w:pPr>
-          <w:spacing w:before="120" w:after="120" w:line="276" w:lineRule="auto"/>
+          <w:pStyle w:val="Title"/>
+          <w:jc w:val="center"/>
+          <w:spacing w:before="240" w:after="240"/>
         </w:pPr>
         <w:r>
           <w:rPr>
-            <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
-            <w:sz w:val="24"/>
-            <w:szCs w:val="24"/>
-            <w:color w:val="334155"/>
+            <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>
+            <w:b/>
+            <w:sz w:val="48"/>
+            <w:szCs w:val="48"/>
+            <w:color w:val="1E293B"/>
           </w:rPr>
-          <w:t xml:space="preserve">${escapeXml(para)}</w:t>
+          <w:t xml:space="preserve">${escapeXml(titleText)}</w:t>
         </w:r>
       </w:p>
     `
@@ -421,11 +430,11 @@ export async function generateDocxFile(options: {
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 `
 
-  if (options.images && options.images.length > 0) {
+  if (processedImages.length > 0) {
     let imgBody = ''
     let relIndex = 2
-    for (let i = 0; i < options.images.length; i++) {
-      const img = options.images[i]
+    for (let i = 0; i < processedImages.length; i++) {
+      const img = processedImages[i]
       const imgExt = img.type || 'jpg'
       const imgFilename = `media/image${i + 1}.${imgExt}`
       const relId = `rId${relIndex++}`
@@ -474,9 +483,29 @@ export async function generateDocxFile(options: {
     }
     bodyXml = imgBody + bodyXml
   }
+
+  for (const para of paragraphsList) {
+    if (para === titleText) continue
+    bodyXml += `
+      <w:p>
+        <w:pPr>
+          <w:spacing w:before="120" w:after="120" w:line="276" w:lineRule="auto"/>
+        </w:pPr>
+        <w:r>
+          <w:rPr>
+            <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>
+            <w:sz w:val="24"/>
+            <w:szCs w:val="24"/>
+            <w:color w:val="334155"/>
+          </w:rPr>
+          <w:t xml:space="preserve">${escapeXml(para)}</w:t>
+        </w:r>
+      </w:p>
+    `
+  }
+
   wordRelsContent += `</Relationships>`
 
-  // Section properties (Letter/A4 standard layout)
   bodyXml += `
     <w:sectPr>
       <w:pgSz w:w="11906" w:h="16838"/>
@@ -533,12 +562,10 @@ export async function generateDocxFile(options: {
   zip.file('word/document.xml', documentXml)
   zip.file('word/styles.xml', stylesXml)
 
-  const docxBuffer = await zip.generateAsync({
+  return await zip.generateAsync({
     type: 'blob',
     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   })
-
-  return docxBuffer
 }
 
 // ----------------------------------------------------
@@ -550,25 +577,40 @@ export async function generatePptxFile(options: {
   images?: { data: Blob | ArrayBuffer | Uint8Array; type?: 'jpg' | 'png' }[]
 }): Promise<Blob> {
   const zip = new JSZip()
-  const presentationTitle = options.title || 'Presentation'
+  const presentationTitle = cleanPdfText(options.title || 'Presentation')
   const slides = options.slides.length > 0 ? options.slides : [{ title: presentationTitle, bullets: ['Slide 1 content'] }]
 
+  // Process image data to Uint8Array
+  const processedImages: { data: Uint8Array; type: string }[] = []
+  if (options.images && options.images.length > 0) {
+    for (const img of options.images) {
+      const u8 = await toUint8Array(img.data)
+      if (u8.length > 0) {
+        processedImages.push({ data: u8, type: img.type || 'jpg' })
+      }
+    }
+  }
+
   let contentTypesOverrides = ''
-  let presentationSlideRels = `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>\n`
+  let presentationSlideRels = `  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>\n`
+  presentationSlideRels += `  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>\n`
+
   let presentationSlidesList = ''
 
   for (let i = 0; i < slides.length; i++) {
     const slideNum = i + 1
-    const relId = `rId${slideNum + 1}`
+    const relId = `rId${slideNum + 2}`
 
     contentTypesOverrides += `<Override PartName="/ppt/slides/slide${slideNum}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>\n`
-    presentationSlideRels += `<Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${slideNum}.xml"/>\n`
-    presentationSlidesList += `<p:sldId id="${255 + slideNum}" r:id="${relId}"/>\n`
+    presentationSlideRels += `  <Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${slideNum}.xml"/>\n`
+    presentationSlidesList += `    <p:sldId id="${255 + slideNum}" r:id="${relId}"/>\n`
 
     const slide = slides[i]
     let bulletsXml = ''
 
     for (const bullet of slide.bullets) {
+      const cleanBullet = cleanPdfText(bullet)
+      if (!cleanBullet) continue
       bulletsXml += `
         <a:p>
           <a:pPr lvl="0"/>
@@ -576,23 +618,26 @@ export async function generatePptxFile(options: {
             <a:rPr lang="en-US" sz="2000">
               <a:solidFill><a:srgbClr val="334155"/></a:solidFill>
             </a:rPr>
-            <a:t>${escapeXml(bullet)}</a:t>
+            <a:t>${escapeXml(cleanBullet)}</a:t>
           </a:r>
         </a:p>
       `
     }
 
     if (slide.body && slide.bullets.length === 0) {
-      bulletsXml += `
-        <a:p>
-          <a:r>
-            <a:rPr lang="en-US" sz="2000">
-              <a:solidFill><a:srgbClr val="334155"/></a:solidFill>
-            </a:rPr>
-            <a:t>${escapeXml(slide.body)}</a:t>
-          </a:r>
-        </a:p>
-      `
+      const cleanBody = cleanPdfText(slide.body)
+      if (cleanBody) {
+        bulletsXml += `
+          <a:p>
+            <a:r>
+              <a:rPr lang="en-US" sz="2000">
+                <a:solidFill><a:srgbClr val="334155"/></a:solidFill>
+              </a:rPr>
+              <a:t>${escapeXml(cleanBody)}</a:t>
+            </a:r>
+          </a:p>
+        `
+      }
     }
 
     let slideRelsContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -600,8 +645,8 @@ export async function generatePptxFile(options: {
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
 `
     let picXml = ''
-    if (options.images && options.images[i]) {
-      const img = options.images[i]
+    if (processedImages[i]) {
+      const img = processedImages[i]
       const imgExt = img.type || 'jpg'
       const imgFilename = `media/image${slideNum}.${imgExt}`
       const imgRelId = `rId2`
@@ -609,7 +654,6 @@ export async function generatePptxFile(options: {
       zip.file(`ppt/${imgFilename}`, img.data)
 
       picXml = `
-      <!-- Page Background Image -->
       <p:pic>
         <p:nvPicPr>
           <p:cNvPr id="4" name="Page Image ${slideNum}"/>
@@ -633,6 +677,8 @@ export async function generatePptxFile(options: {
     slideRelsContent += `</Relationships>`
     zip.file(`ppt/slides/_rels/slide${slideNum}.xml.rels`, slideRelsContent)
 
+    const slideTitle = cleanPdfText(slide.title) || `Slide ${slideNum}`
+
     const slideXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
        xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -653,7 +699,6 @@ export async function generatePptxFile(options: {
         </a:xfrm>
       </p:grpSpPr>
       ${picXml}
-      <!-- Title Box -->
       <p:sp>
         <p:nvSpPr>
           <p:cNvPr id="2" name="Title"/>
@@ -671,15 +716,15 @@ export async function generatePptxFile(options: {
           <a:lstStyle/>
           <a:p>
             <a:r>
-              <a:rPr lang="en-US" b="1" sz="4000">
+              <a:rPr lang="en-US" b="1" sz="3200">
                 <a:solidFill><a:srgbClr val="0F172A"/></a:solidFill>
               </a:rPr>
-              <a:t>${escapeXml(slide.title)}</a:t>
+              <a:t>${escapeXml(slideTitle)}</a:t>
             </a:r>
           </a:p>
         </p:txBody>
       </p:sp>
-      <!-- Body Text Box -->
+      ${bulletsXml ? `
       <p:sp>
         <p:nvSpPr>
           <p:cNvPr id="3" name="Content"/>
@@ -697,7 +742,7 @@ export async function generatePptxFile(options: {
           <a:lstStyle/>
           ${bulletsXml}
         </p:txBody>
-      </p:sp>
+      </p:sp>` : ''}
     </p:spTree>
   </p:cSld>
 </p:sld>`
@@ -705,22 +750,29 @@ export async function generatePptxFile(options: {
     zip.file(`ppt/slides/slide${slideNum}.xml`, slideXml)
   }
 
-  // Slide master, slide layout, theme
   const slideMasterXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:sldMaster xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
   <p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld>
   <p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/>
   <p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst>
+  <p:txStyles><p:titleStyle/><p:bodyStyle/><p:otherStyle/></p:txStyles>
 </p:sldMaster>`
+
   const slideMasterRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/>
 </Relationships>`
 
   const slideLayoutXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:sldLayout xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" type="blank" preserve="1">
   <p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld>
 </p:sldLayout>`
+
+  const slideLayoutRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/>
+</Relationships>`
 
   const themeXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office Theme">
@@ -741,6 +793,7 @@ export async function generatePptxFile(options: {
   zip.file('ppt/slideMasters/slideMaster1.xml', slideMasterXml)
   zip.file('ppt/slideMasters/_rels/slideMaster1.xml.rels', slideMasterRelsXml)
   zip.file('ppt/slideLayouts/slideLayout1.xml', slideLayoutXml)
+  zip.file('ppt/slideLayouts/_rels/slideLayout1.xml.rels', slideLayoutRelsXml)
   zip.file('ppt/theme/theme1.xml', themeXml)
 
   const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -778,7 +831,7 @@ export async function generatePptxFile(options: {
 
   const presentationRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  ${presentationSlideRels}
+${presentationSlideRels}
 </Relationships>`
 
   zip.file('[Content_Types].xml', contentTypesXml)

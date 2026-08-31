@@ -133,21 +133,26 @@ export function RecentToolActivityList({
     return syncHistoryWithServer(initialActivities)
   })
 
-  // Listen for real-time history updates
+  // Listen for real-time history updates, cross-tab storage, and live polling
   useEffect(() => {
-    const merged = syncHistoryWithServer(initialActivities)
-    setActivities(merged)
+    const refreshHistory = async () => {
+      const localFresh = getLocalActivityHistory()
+      setActivities(localFresh)
 
-    // Attempt to fetch fresh from server and sync local items
-    fetchUserHistoryAction(100, getLocalActivityHistory())
-      .then((serverItems) => {
+      try {
+        const serverItems = await fetchUserHistoryAction(100, localFresh)
         if (serverItems && serverItems.length > 0) {
           const freshMerged = syncHistoryWithServer(serverItems)
           setActivities(freshMerged)
         }
-      })
-      .catch(() => {})
+      } catch {
+        // ignore
+      }
+    }
 
+    refreshHistory()
+
+    // 1. CustomEvent listener for same-tab updates
     const handleUpdate = (e: any) => {
       if (e?.detail?.all) {
         setActivities(e.detail.all)
@@ -157,9 +162,36 @@ export function RecentToolActivityList({
       }
     }
 
+    // 2. Cross-tab storage listener
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'digitalmix_user_activity_history' || !e.key) {
+        const fresh = getLocalActivityHistory()
+        setActivities(fresh)
+      }
+    }
+
+    // 3. Focus / Visibility change listener
+    const handleFocus = () => {
+      refreshHistory()
+    }
+
     window.addEventListener('digitalmix_history_updated', handleUpdate)
+    window.addEventListener('storage', handleStorage)
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleFocus)
+
+    // 4. Interval polling every 4 seconds for live background sync
+    const intervalId = setInterval(() => {
+      const currentLocal = getLocalActivityHistory()
+      setActivities(currentLocal)
+    }, 4000)
+
     return () => {
       window.removeEventListener('digitalmix_history_updated', handleUpdate)
+      window.removeEventListener('storage', handleStorage)
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleFocus)
+      clearInterval(intervalId)
     }
   }, [initialActivities])
 

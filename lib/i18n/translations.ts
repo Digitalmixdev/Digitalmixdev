@@ -365,7 +365,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     'cta.title': 'هل أنت مستعد لتسريع وتسهيل سير عملك؟',
     'cta.subtitle':
       'انضم لآلاف المطورين وصناع المحتوى الذين يستخدمون أدواتنا المجانية وفائقة السرعة يومياً دون اشتراكات أو تسجيل إجباري.',
-    'cta.explore_all': 'استكشف جميع الأدوات الـ 18',
+    'cta.explore_all': 'استكشف جميع الأدوات',
     'cta.create_account': 'إنشاء حساب مجاني',
 
     // Stats Section (Why Modern Developers Choose DigitalMix)

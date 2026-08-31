@@ -4,8 +4,6 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { useRouter } from 'next/navigation'
 import type { SessionUser } from '@/lib/auth/jwt'
 import { getSessionAction, logoutAction } from '@/actions/auth'
-import { fetchUserHistoryAction, syncLocalActivitiesToServerAction } from '@/actions/history'
-import { getLocalActivityHistory, syncHistoryWithServer } from '@/lib/history-service'
 
 const STORAGE_KEY = 'digitalmix_auth_user'
 
@@ -49,22 +47,6 @@ export function AuthProvider({
       const currentUser = await getSessionAction()
       if (currentUser) {
         setUser(currentUser)
-        // Background sync: synchronize local history with cloud database
-        try {
-          const localItems = getLocalActivityHistory()
-          if (localItems.length > 0) {
-            syncLocalActivitiesToServerAction(localItems).catch(() => {})
-          }
-          fetchUserHistoryAction(100)
-            .then((serverItems) => {
-              if (serverItems && serverItems.length > 0) {
-                syncHistoryWithServer(serverItems)
-              }
-            })
-            .catch(() => {})
-        } catch {
-          // ignore
-        }
       } else {
         // Explicitly clear local state if server has no session (account deleted or logged out)
         setUser(null)
@@ -78,6 +60,25 @@ export function AuthProvider({
 
   useEffect(() => {
     refreshSession()
+
+    // Real-time cross-tab auth state synchronization
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY || !e.key) {
+        refreshSession()
+      }
+    }
+
+    const handleFocus = () => {
+      refreshSession()
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('focus', handleFocus)
+    }
   }, [refreshSession])
 
   const logout = useCallback(async () => {

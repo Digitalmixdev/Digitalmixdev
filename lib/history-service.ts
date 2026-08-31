@@ -4,6 +4,42 @@ import { logActivityAction } from '@/actions/history'
 const LOCAL_STORAGE_KEY = 'digitalmix_user_activity_history'
 const MAX_LOCAL_ITEMS = 300
 
+// Cross-tab broadcast channel for instant real-time synchronization
+let syncChannel: BroadcastChannel | null = null
+if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+  try {
+    syncChannel = new BroadcastChannel('digitalmix_sync_channel')
+    syncChannel.onmessage = (event) => {
+      if (event?.data?.type === 'digitalmix_history_updated') {
+        window.dispatchEvent(
+          new CustomEvent('digitalmix_history_updated', {
+            detail: { all: event.data.all },
+          })
+        )
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export function notifyHistoryUpdated(items?: ToolActivityItem[]): void {
+  if (typeof window === 'undefined') return
+  const current = items || getLocalActivityHistory()
+  window.dispatchEvent(
+    new CustomEvent('digitalmix_history_updated', {
+      detail: { all: current },
+    })
+  )
+  if (syncChannel) {
+    try {
+      syncChannel.postMessage({ type: 'digitalmix_history_updated', all: current })
+    } catch {
+      // ignore
+    }
+  }
+}
+
 // In-flight log deduplication tracker (prevents double logging on rapid clicks or React StrictMode re-renders)
 let lastLoggedActivitySignature = ''
 let lastLoggedActivityTime = 0
@@ -69,12 +105,8 @@ export async function logToolActivity(activity: {
       const updated = [newItem, ...filtered].slice(0, MAX_LOCAL_ITEMS)
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated))
 
-      // Dispatch event for active UI components
-      window.dispatchEvent(
-        new CustomEvent('digitalmix_history_updated', {
-          detail: { newItem, all: updated },
-        })
-      )
+      // Dispatch event for active UI components & cross-tab sync
+      notifyHistoryUpdated(updated)
     } catch (e) {
       console.warn('LocalStorage error while saving activity:', e)
     }
@@ -133,11 +165,7 @@ export function saveLocalActivityHistory(items: ToolActivityItem[]): void {
   try {
     const safeItems = (Array.isArray(items) ? items : []).slice(0, MAX_LOCAL_ITEMS)
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(safeItems))
-    window.dispatchEvent(
-      new CustomEvent('digitalmix_history_updated', {
-        detail: { all: safeItems },
-      })
-    )
+    notifyHistoryUpdated(safeItems)
   } catch (e) {
     console.warn('Error updating local activity history:', e)
   }
@@ -212,11 +240,7 @@ export function clearLocalActivityHistory(): void {
   if (typeof window === 'undefined') return
   try {
     localStorage.removeItem(LOCAL_STORAGE_KEY)
-    window.dispatchEvent(
-      new CustomEvent('digitalmix_history_updated', {
-        detail: { all: [] },
-      })
-    )
+    notifyHistoryUpdated([])
   } catch (e) {
     console.warn('Error clearing local activity history:', e)
   }
