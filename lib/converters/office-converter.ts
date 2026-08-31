@@ -31,28 +31,49 @@ export interface ConversionResult {
 // ----------------------------------------------------
 // 1. DOCX Parsing (via mammoth & JSZip)
 // ----------------------------------------------------
-export async function parseDocx(file: File | Blob): Promise<{ html: string; text: string }> {
+export async function parseDocx(file: File | Blob): Promise<{ html: string; text: string; images?: { filename: string; blob: Blob }[] }> {
   try {
     const arrayBuffer = await file.arrayBuffer()
-    // Dynamic import to avoid SSR issues
+    const zip = await JSZip.loadAsync(arrayBuffer)
+    
+    // Extract images from word/media/
+    const images: { filename: string; blob: Blob }[] = []
+    const mediaFiles = Object.keys(zip.files).filter(name => /^word\/media\/.+/i.test(name))
+    for (const path of mediaFiles) {
+      const fileData = await zip.files[path].async('blob')
+      images.push({ filename: path.split('/').pop() || 'image.jpg', blob: fileData })
+    }
+
     const mammoth = (await import('mammoth')).default || (await import('mammoth'))
     const htmlResult = await mammoth.convertToHtml({ arrayBuffer })
     const textResult = await mammoth.extractRawText({ arrayBuffer })
+    
+    let html = htmlResult.value || '<p>No readable content found</p>'
+    if (images.length > 0) {
+      html += `<div class="mt-4 space-y-4">${images.map((img) => `<img src="${URL.createObjectURL(img.blob)}" class="max-w-full h-auto rounded shadow" />`).join('')}</div>`
+    }
+
     return {
-      html: htmlResult.value || '<p>No readable content found</p>',
+      html,
       text: textResult.value || '',
+      images,
     }
   } catch (err: any) {
     console.warn('Mammoth parsing error, attempting zip fallback:', err)
-    // Fallback: extract word/document.xml with JSZip
     try {
       const zip = await JSZip.loadAsync(file)
+      const images: { filename: string; blob: Blob }[] = []
+      const mediaFiles = Object.keys(zip.files).filter(name => /^word\/media\/.+/i.test(name))
+      for (const path of mediaFiles) {
+        const fileData = await zip.files[path].async('blob')
+        images.push({ filename: path.split('/').pop() || 'image.jpg', blob: fileData })
+      }
+
       const docXml = await zip.file('word/document.xml')?.async('string')
       if (docXml) {
-        // Strip XML tags for basic text
         const text = docXml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-        const html = `<div class="docx-extracted">${text.split('. ').map((p) => `<p>${escapeHtml(p)}.</p>`).join('')}</div>`
-        return { html, text }
+        const html = `<div class="docx-extracted">${text}</div>`
+        return { html, text, images }
       }
     } catch {
       // ignore fallback error
@@ -533,7 +554,7 @@ export async function generatePptxFile(options: {
   const slides = options.slides.length > 0 ? options.slides : [{ title: presentationTitle, bullets: ['Slide 1 content'] }]
 
   let contentTypesOverrides = ''
-  let presentationSlideRels = ''
+  let presentationSlideRels = `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>\n`
   let presentationSlidesList = ''
 
   for (let i = 0; i < slides.length; i++) {
@@ -576,13 +597,14 @@ export async function generatePptxFile(options: {
 
     let slideRelsContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
 `
     let picXml = ''
     if (options.images && options.images[i]) {
       const img = options.images[i]
       const imgExt = img.type || 'jpg'
       const imgFilename = `media/image${slideNum}.${imgExt}`
-      const imgRelId = `rId1`
+      const imgRelId = `rId2`
       slideRelsContent += `  <Relationship Id="${imgRelId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../${imgFilename}"/>\n`
       zip.file(`ppt/${imgFilename}`, img.data)
 
@@ -683,6 +705,44 @@ export async function generatePptxFile(options: {
     zip.file(`ppt/slides/slide${slideNum}.xml`, slideXml)
   }
 
+  // Slide master, slide layout, theme
+  const slideMasterXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sldMaster xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld>
+  <p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/>
+  <p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst>
+</p:sldMaster>`
+  const slideMasterRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+</Relationships>`
+
+  const slideLayoutXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sldLayout xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" type="blank" preserve="1">
+  <p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld>
+</p:sldLayout>`
+
+  const themeXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office Theme">
+  <a:themeElements>
+    <a:clrScheme name="Office">
+      <a:dk1><a:srgbClr val="000000"/></a:dk1><a:lt1><a:srgbClr val="FFFFFF"/></a:lt1>
+      <a:dk2><a:srgbClr val="1F497D"/></a:dk2><a:lt2><a:srgbClr val="EEECE1"/></a:lt2>
+      <a:accent1><a:srgbClr val="4F81BD"/></a:accent1><a:accent2><a:srgbClr val="C0504D"/></a:accent2>
+      <a:accent3><a:srgbClr val="9BBB59"/></a:accent3><a:accent4><a:srgbClr val="8064A2"/></a:accent4>
+      <a:accent5><a:srgbClr val="4BACC6"/></a:accent5><a:accent6><a:srgbClr val="F79646"/></a:accent6>
+      <a:hlink><a:srgbClr val="0000FF"/></a:hlink><a:folHlink><a:srgbClr val="800080"/></a:folHlink>
+    </a:clrScheme>
+    <a:fontScheme name="Office"><a:majorFont><a:latin typeface="Calibri"/></a:majorFont><a:minorFont><a:latin typeface="Calibri"/></a:minorFont></a:fontScheme>
+    <a:fmtScheme name="Office"><a:fillStyleLst><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:fillStyleLst><a:lnStyleLst><a:ln w="9525"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:bgFillStyleLst></a:fmtScheme>
+  </a:themeElements>
+</a:theme>`
+
+  zip.file('ppt/slideMasters/slideMaster1.xml', slideMasterXml)
+  zip.file('ppt/slideMasters/_rels/slideMaster1.xml.rels', slideMasterRelsXml)
+  zip.file('ppt/slideLayouts/slideLayout1.xml', slideLayoutXml)
+  zip.file('ppt/theme/theme1.xml', themeXml)
+
   const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
@@ -691,6 +751,9 @@ export async function generatePptxFile(options: {
   <Default Extension="jpg" ContentType="image/jpeg"/>
   <Default Extension="png" ContentType="image/png"/>
   <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
+  <Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>
+  <Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/>
+  <Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>
   ${contentTypesOverrides}
 </Types>`
 
@@ -703,7 +766,9 @@ export async function generatePptxFile(options: {
 <p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
                 xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
                 xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
-  <p:sldMasterIdLst/>
+  <p:sldMasterIdLst>
+    <p:sldMasterId id="2147483648" r:id="rId1"/>
+  </p:sldMasterIdLst>
   <p:sldIdLst>
     ${presentationSlidesList}
   </p:sldIdLst>
@@ -1178,6 +1243,7 @@ export function generateHtmlDocument(options: {
 // Helpers
 // ----------------------------------------------------
 function escapeHtml(str: string): string {
+  if (!str) return ''
   return str
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -1187,7 +1253,9 @@ function escapeHtml(str: string): string {
 }
 
 function escapeXml(str: string): string {
+  if (!str) return ''
   return str
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
