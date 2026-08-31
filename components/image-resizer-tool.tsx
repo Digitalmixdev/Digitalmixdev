@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
+import { logToolActivity } from '@/lib/history-service'
 
 interface ImageFileItem {
   id: string
@@ -199,6 +200,16 @@ export default function ImageResizerTool() {
         a.download = `resized-${item.name.replace(/\.[^/.]+$/, '')}.${ext}`
         a.click()
         URL.revokeObjectURL(url)
+
+        logToolActivity({
+          toolId: 'image-resizer',
+          toolName: 'Image Resizer & Converter',
+          category: 'files',
+          actionTitle: `Resized Image (${item.targetWidth}×${item.targetHeight})`,
+          details: `Resized "${item.name}" from ${item.originalWidth}×${item.originalHeight} to ${item.targetWidth}×${item.targetHeight}px (${ext.toUpperCase()})`,
+          inputSnippet: `Original: ${item.name} (${item.originalWidth}×${item.originalHeight}px)`,
+          outputSnippet: `Target: ${item.targetWidth}×${item.targetHeight}px, Format: ${ext.toUpperCase()}`,
+        })
       },
       outputFormat,
       quality

@@ -81,6 +81,49 @@ export async function deleteHistoryItemAction(
 }
 
 /**
+ * Sync offline/local activities to the logged-in user database in batch.
+ */
+export async function syncLocalActivitiesToServerAction(
+  activities: {
+    toolId: string
+    toolName: string
+    category?: string
+    actionTitle: string
+    details: string
+    inputSnippet?: string | null
+    outputSnippet?: string | null
+    metadata?: Record<string, any> | string | null
+  }[]
+): Promise<{ success: boolean; count: number }> {
+  try {
+    const session = await getSession()
+    if (!session?.user?.id || !activities || activities.length === 0) {
+      return { success: false, count: 0 }
+    }
+
+    const userId = session.user.id
+    let count = 0
+    const existing = await getUserActivities(userId, 200)
+    const existingKeys = new Set(
+      existing.map((e) => `${e.toolId}|${e.actionTitle}|${(e.details || '').slice(0, 50)}`)
+    )
+
+    for (const act of activities.slice(0, 50)) {
+      const key = `${act.toolId}|${act.actionTitle}|${(act.details || '').slice(0, 50)}`
+      if (!existingKeys.has(key)) {
+        await recordUserActivity(userId, act)
+        count++
+      }
+    }
+
+    return { success: true, count }
+  } catch (error) {
+    console.error('Error in syncLocalActivitiesToServerAction:', error)
+    return { success: false, count: 0 }
+  }
+}
+
+/**
  * Clear all history items for the user.
  */
 export async function clearAllHistoryAction(): Promise<{ success: boolean }> {

@@ -19,6 +19,41 @@ export async function recordUserActivity(
   if (!userId) return null
 
   try {
+    // Check for recent duplicate within 3 seconds to prevent double-logging from React StrictMode / multi-triggers
+    const recentThreshold = new Date(Date.now() - 3000)
+    const existing = await prisma.activityHistory.findFirst({
+      where: {
+        userId,
+        toolId: activity.toolId,
+        actionTitle: activity.actionTitle,
+        createdAt: { gte: recentThreshold },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    if (existing) {
+      let parsedMeta: any = null
+      if (existing.metadata) {
+        try {
+          parsedMeta = typeof existing.metadata === 'string' ? JSON.parse(existing.metadata) : existing.metadata
+        } catch {
+          parsedMeta = existing.metadata
+        }
+      }
+      return {
+        id: existing.id,
+        userId: existing.userId,
+        toolId: existing.toolId,
+        toolName: existing.toolName,
+        actionTitle: existing.actionTitle,
+        details: existing.details,
+        inputSnippet: existing.inputSnippet,
+        outputSnippet: existing.outputSnippet,
+        metadata: parsedMeta,
+        createdAt: (existing.createdAt instanceof Date ? existing.createdAt : new Date(existing.createdAt)).toISOString(),
+      }
+    }
+
     const metaString =
       typeof activity.metadata === 'object' && activity.metadata !== null
         ? JSON.stringify(activity.metadata)

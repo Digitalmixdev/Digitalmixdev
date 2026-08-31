@@ -26,7 +26,8 @@ import {
   Wrench,
 } from 'lucide-react'
 import { ToolActivityItem } from '@/types/history'
-import { getLocalActivityHistory } from '@/lib/history-service'
+import { getLocalActivityHistory, syncHistoryWithServer } from '@/lib/history-service'
+import { fetchUserHistoryAction } from '@/actions/history'
 import { useLanguage } from '@/lib/i18n/context'
 import { ALL_TOOLS } from '@/constants/tools'
 
@@ -134,14 +135,27 @@ export function RecentToolActivityList({
     return initialActivities
   })
 
-  // Listen for real-time history updates
+  // Listen for real-time history updates and sync with server
   useEffect(() => {
-    const local = getLocalActivityHistory()
-    if (local.length > 0) {
-      setActivities(local)
-    } else if (initialActivities.length > 0) {
-      setActivities(initialActivities)
+    if (initialActivities.length > 0) {
+      const merged = syncHistoryWithServer(initialActivities)
+      setActivities(merged)
+    } else {
+      const local = getLocalActivityHistory()
+      if (local.length > 0) {
+        setActivities(local)
+      }
     }
+
+    // Fetch fresh activities from server in background
+    fetchUserHistoryAction(50)
+      .then((serverItems) => {
+        if (serverItems && serverItems.length > 0) {
+          const merged = syncHistoryWithServer(serverItems)
+          setActivities(merged)
+        }
+      })
+      .catch(() => {})
 
     const handleUpdate = (e: any) => {
       if (e?.detail?.all) {

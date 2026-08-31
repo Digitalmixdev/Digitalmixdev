@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import {
   History,
   Star,
@@ -18,6 +19,7 @@ import { useLanguage } from '@/lib/i18n/context'
 import { ToolActivityItem } from '@/types/history'
 import { HistoryView } from '@/components/dashboard/history-view'
 import { RecentToolActivityList } from '@/components/dashboard/recent-tool-activity-list'
+import { getLocalActivityHistory } from '@/lib/history-service'
 
 interface DashboardContentProps {
   user: {
@@ -42,12 +44,37 @@ export function DashboardContent({
   const { t, language, dir } = useLanguage()
   const isRtl = dir === 'rtl'
   const isArabic = language === 'ar'
+  const searchParams = useSearchParams()
 
   // View state: 'dashboard' or 'history'
-  const [currentView, setCurrentView] = useState<'dashboard' | 'history'>('dashboard')
-  const [historyCount, setHistoryCount] = useState(
-    Math.max(stats.historyCount, initialActivities.length)
-  )
+  const [currentView, setCurrentView] = useState<'dashboard' | 'history'>(() => {
+    return searchParams?.get('view') === 'history' ? 'history' : 'dashboard'
+  })
+
+  const [historyCount, setHistoryCount] = useState(() => {
+    const local = getLocalActivityHistory()
+    return Math.max(stats.historyCount, initialActivities.length, local.length)
+  })
+
+  useEffect(() => {
+    if (searchParams?.get('view') === 'history') {
+      setCurrentView('history')
+    }
+  }, [searchParams])
+
+  useEffect(() => {
+    const handleUpdate = (e: any) => {
+      if (e?.detail?.all) {
+        setHistoryCount(e.detail.all.length)
+      } else {
+        setHistoryCount(getLocalActivityHistory().length)
+      }
+    }
+    window.addEventListener('digitalmix_history_updated', handleUpdate)
+    return () => {
+      window.removeEventListener('digitalmix_history_updated', handleUpdate)
+    }
+  }, [])
 
   const displayName = user.name || user.email.split('@')[0] || 'Developer'
 

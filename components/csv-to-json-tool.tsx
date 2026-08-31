@@ -27,8 +27,11 @@ import { toast } from 'sonner'
 const toolMeta: ToolMetadata = {
   id: 'csv-json',
   name: 'CSV to JSON Converter',
+  name_ar: 'محول ملفات CSV إلى JSON',
   description:
     'Convert Excel CSV spreadsheets into structured JSON arrays with automatic type detection and 100% client-side privacy.',
+  description_ar:
+    'قم بتحويل ملفات وجداول البيانات CSV إلى مصفوفات JSON منظمة مع اكتشاف تلقائي للأنواع وخصوصية كاملة داخل المتصفح.',
   category: {
     id: 'database',
     name: 'Database Tools',
@@ -36,6 +39,7 @@ const toolMeta: ToolMetadata = {
   },
   icon: FileSpreadsheet,
   privacyBadge: '100% Client-Side • PapaParse Powered',
+  privacyBadge_ar: 'معالجة محلية 100% • مدعوم بمحرك PapaParse',
   features: [
     {
       icon: Zap,
@@ -58,6 +62,28 @@ const toolMeta: ToolMetadata = {
       desc: 'Exports clean formatted JSON directly to your local file system.',
     },
   ],
+  features_ar: [
+    {
+      icon: Zap,
+      title: 'الاستدلال التلقائي على الأنواع',
+      desc: 'يقوم بتحليل الأرقام والقيم البوليانية والـ null بذكاء وتحويلها إلى قيم JSON مطابقة.',
+    },
+    {
+      icon: Layers,
+      title: 'تعيين رؤوس الأعمدة',
+      desc: 'يحول عناوين الأعمدة في الصف الأول إلى مفاتيح خصائص كائنات JSON قياسية.',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'أمان الملفات السرية',
+      desc: 'جداول بيانات العملاء وصادرات المبيعات الداخلية تتم معالجتها داخل الذاكرة المحلية.',
+    },
+    {
+      icon: Sparkles,
+      title: 'تحميل فوري',
+      desc: 'يصدر ملفات JSON منسقة ونظيفة مباشرة إلى نظام ملفات جهازك.',
+    },
+  ],
   faqs: [
     {
       q: 'Does this tool support commas inside quoted cells?',
@@ -70,6 +96,20 @@ const toolMeta: ToolMetadata = {
     {
       q: 'What is the maximum CSV file size supported?',
       a: 'Because parsing occurs in the client browser thread, files up to 50MB+ can be converted with high speed and zero upload delays.',
+    },
+  ],
+  faqs_ar: [
+    {
+      q: 'هل تدعم هذه الأداة الفواصل داخل الخلايا محاطة بعلامات التنصيص؟',
+      a: 'نعم. يعتمد محرك التحليل على معايير RFC 4180 القياسية للتعامل بشكل صحيح مع الفواصل وعلامات التنصيص وأسطر النص داخل الخلايا.',
+    },
+    {
+      q: 'هل رؤوس الأعمدة مطلوبة في ملف CSV؟',
+      a: 'افتراضياً، يتم استخدام الصف الأول كمفاتيح لخصائص الكائنات. إذا كان ملفك يفتقر إلى الرؤوس، سيتم ترقيم الحقول تسلسلياً.',
+    },
+    {
+      q: 'ما هو الحد الأقصى لحجم ملف CSV المدعوم؟',
+      a: 'نظراً لأن التحليل يتم في متصفح العميل، يمكن تحويل ملفات تتجاوز 50 ميجابايت بسرعة عالية وبدون أي تأخير في الرفع.',
     },
   ],
 }

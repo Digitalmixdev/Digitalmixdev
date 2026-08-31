@@ -370,6 +370,47 @@ function QRCodeToolContent() {
     }
   }
 
+  // Validation & Input Handlers
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value
+    // Allow letters (all unicode letters including Arabic), spaces, hyphens, dots, apostrophes
+    const filtered = raw.replace(/[^\p{L}\s.'-]/gu, '')
+    if (raw !== filtered) {
+      toast.error(isArabic ? 'حقل الاسم يقبل الأحرف فقط' : 'Name accepts letters only')
+    }
+    setVcardName(filtered)
+  }
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value
+    // Allow letters, spaces, &, /, -, ., ,, ()
+    const filtered = raw.replace(/[^\p{L}\s.&/\-,'()]/gu, '')
+    if (raw !== filtered) {
+      toast.error(isArabic ? 'حقل المسمى الوظيفي يقبل الأحرف فقط' : 'Job title accepts letters only')
+    }
+    setVcardTitle(filtered)
+  }
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value
+    // Allow digits, +, -, (, ), spaces, #, *
+    const filtered = raw.replace(/[^\d+()\s\-#*]/g, '')
+    if (raw !== filtered) {
+      toast.error(isArabic ? 'رقم الهاتف يقبل الأرقام والرموز فقط' : 'Phone number accepts digits only')
+    }
+    setVcardPhone(filtered)
+  }
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setVcardEmail(e.target.value)
+  }
+
+  const handleEmailBlur = () => {
+    if (vcardEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(vcardEmail.trim())) {
+      toast.error(isArabic ? 'يرجى إدخال بريد إلكتروني صالح (مثال: name@example.com)' : 'Please enter a valid email address')
+    }
+  }
+
   const getEncodedPayload = (): string => {
     switch (qrType) {
       case 'url':
@@ -380,8 +421,8 @@ function QRCodeToolContent() {
         return [
           'BEGIN:VCARD',
           'VERSION:3.0',
-          `N:${vcardName || 'Contact'}`,
-          `FN:${vcardName || 'Contact'}`,
+          vcardName ? `N:${vcardName}` : '',
+          vcardName ? `FN:${vcardName}` : '',
           vcardOrg ? `ORG:${vcardOrg}` : '',
           vcardTitle ? `TITLE:${vcardTitle}` : '',
           vcardPhone ? `TEL:${vcardPhone}` : '',
@@ -762,13 +803,15 @@ function QRCodeToolContent() {
         }
 
         // Full Name
-        ctx.fillStyle = currentThemeConfig.textColor
-        ctx.font = 'bold 40px system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
-        ctx.textAlign = 'center'
-        ctx.fillText(vcardName || 'Your Full Name', 600, topY)
+        if (vcardName) {
+          ctx.fillStyle = currentThemeConfig.textColor
+          ctx.font = 'bold 40px system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
+          ctx.textAlign = 'center'
+          ctx.fillText(vcardName, 600, topY)
+          topY += 34
+        }
 
         // Title & Org
-        topY += 34
         if (vcardTitle || vcardOrg) {
           ctx.fillStyle = currentThemeConfig.accentColor
           ctx.font = '600 22px system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
@@ -815,32 +858,15 @@ function QRCodeToolContent() {
         const textX = isSplitLeft ? 400 : 90
         ctx.textAlign = 'left'
 
-        let curY = 110
-        if (showLogo && vcardName) {
-          const initials = vcardName
-            .split(' ')
-            .map((n) => n[0])
-            .slice(0, 2)
-            .join('')
-            .toUpperCase()
-
-          ctx.fillStyle = currentThemeConfig.accentColor
-          drawRoundedRect(ctx, textX, curY - 34, 52, 52, 14)
-          ctx.fill()
-
-          ctx.fillStyle = '#ffffff'
-          ctx.font = 'bold 22px system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
-          ctx.textAlign = 'center'
-          ctx.fillText(initials, textX + 26, curY + 1)
-          ctx.textAlign = 'left'
-
-          curY += 52
-        }
+        let curY = 150
 
         // Full Name
-        ctx.fillStyle = currentThemeConfig.textColor
-        ctx.font = 'bold 42px system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
-        ctx.fillText(vcardName || 'Your Full Name', textX, curY)
+        if (vcardName) {
+          ctx.fillStyle = currentThemeConfig.textColor
+          ctx.font = 'bold 42px system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
+          ctx.fillText(vcardName, textX, curY)
+          curY += 10
+        }
 
         // Job Title
         if (vcardTitle) {
@@ -1013,10 +1039,25 @@ function QRCodeToolContent() {
           </Button>
 
           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSavedCardsModal(true)}
+            className="h-9 px-3.5 gap-2 text-xs font-semibold border-border/80 hover:border-amber-500/50 text-foreground cursor-pointer"
+          >
+            <FolderOpen className="h-4 w-4 text-amber-500" />
+            <span>{isArabic ? 'البطاقات المحفوظة' : 'Saved Cards'}</span>
+            {savedCards.length > 0 && (
+              <span className="ms-1 px-1.5 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded-full">
+                {savedCards.length}
+              </span>
+            )}
+          </Button>
+
+          <Button
             variant="ghost"
             size="sm"
             onClick={saveToHistory}
-            className="h-9 px-3 gap-1.5 text-xs text-muted-foreground hover:text-primary"
+            className="h-9 px-3 gap-1.5 text-xs text-muted-foreground hover:text-primary cursor-pointer"
             title={isArabic ? 'حفظ التصميم الحالي في السجل' : 'Save current design to history'}
           >
             <Sparkles className="h-3.5 w-3.5" />
@@ -1177,110 +1218,17 @@ function QRCodeToolContent() {
 
             {qrType === 'vcard' && (
               <div className="space-y-4">
-                {/* Quick Examples / Presets */}
-                <div className="p-3 bg-muted/40 rounded-xl border border-border/70 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <Sparkles size={13} className="text-primary" />
-                      {isArabic ? 'أمثلة ونماذج سريعة:' : 'Quick Card Examples:'}
-                    </span>
-                    {(vcardName || vcardPhone || vcardEmail || vcardOrg || vcardTitle || vcardWebsite || vcardAddress) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setVcardName('')
-                          setVcardTitle('')
-                          setVcardOrg('')
-                          setVcardPhone('')
-                          setVcardEmail('')
-                          setVcardWebsite('')
-                          setVcardAddress('')
-                          toast.success(isArabic ? 'تم مسح كافة الحقول' : 'Cleared all fields')
-                        }}
-                        className="text-[11px] font-semibold text-destructive hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        <Trash2 size={12} />
-                        {isArabic ? 'مسح كافة الحقول' : 'Clear All Fields'}
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setVcardName('Alex Mercer')
-                        setVcardTitle('Senior Solutions Architect')
-                        setVcardOrg('DigitalMix Labs')
-                        setVcardPhone('+1 (555) 382-9011')
-                        setVcardEmail('alex@digitalmix.dev')
-                        setVcardWebsite('https://digitalmix.dev')
-                        setVcardAddress('104 Silicon Valley Way, CA')
-                        applyCardTheme('digitalmix')
-                        toast.success(isArabic ? 'تم تطبيق نموذج Alex Mercer' : 'Loaded Alex Mercer preset')
-                      }}
-                      className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-background border border-border/80 hover:border-primary/50 text-foreground hover:bg-primary/5 transition-all cursor-pointer"
-                    >
-                      Alex Mercer (Tech)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setVcardName('Sarah Jenkins')
-                        setVcardTitle('VP of Growth & Strategy')
-                        setVcardOrg('Nova Ventures')
-                        setVcardPhone('+1 (555) 789-2044')
-                        setVcardEmail('sarah@novaventures.io')
-                        setVcardWebsite('https://novaventures.io')
-                        setVcardAddress('New York, NY • USA')
-                        applyCardTheme('minimal')
-                        toast.success(isArabic ? 'تم تطبيق نموذج Sarah Jenkins' : 'Loaded Sarah Jenkins preset')
-                      }}
-                      className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-background border border-border/80 hover:border-primary/50 text-foreground hover:bg-primary/5 transition-all cursor-pointer"
-                    >
-                      Sarah Jenkins (Growth)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setVcardName('Dr. Marcus Chen')
-                        setVcardTitle('Medical Director & Founder')
-                        setVcardOrg('OmniHealth AI')
-                        setVcardPhone('+1 (555) 492-1188')
-                        setVcardEmail('marcus@omnihealth.org')
-                        setVcardWebsite('https://omnihealth.org')
-                        setVcardAddress('Boston, MA • USA')
-                        applyCardTheme('executive')
-                        toast.success(isArabic ? 'تم تطبيق نموذج Dr. Marcus Chen' : 'Loaded Dr. Marcus Chen preset')
-                      }}
-                      className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-background border border-border/80 hover:border-primary/50 text-foreground hover:bg-primary/5 transition-all cursor-pointer"
-                    >
-                      Dr. Marcus Chen (Executive)
-                    </button>
-                  </div>
-                </div>
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Full Name */}
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                        <User size={13} className="text-primary" /> {isArabic ? 'الاسم الكامل' : 'Full Name'}
-                      </label>
-                      {vcardName && (
-                        <button
-                          type="button"
-                          onClick={() => setVcardName('')}
-                          className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-0.5 cursor-pointer"
-                        >
-                          <X size={11} /> {isArabic ? 'حذف' : 'Clear'}
-                        </button>
-                      )}
-                    </div>
+                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                      <User size={13} className="text-primary" /> {isArabic ? 'الاسم الكامل' : 'Full Name'}
+                    </label>
                     <div className="relative">
                       <input
                         type="text"
                         value={vcardName}
-                        onChange={(e) => setVcardName(e.target.value)}
+                        onChange={handleNameChange}
                         placeholder="John Doe"
                         className="w-full h-11 px-3 pe-8 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
                       />
@@ -1299,25 +1247,14 @@ function QRCodeToolContent() {
 
                   {/* Job Title */}
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                        <Briefcase size={13} className="text-primary" /> {isArabic ? 'المسمى الوظيفي (اختياري)' : 'Job Title / Role (Optional)'}
-                      </label>
-                      {vcardTitle && (
-                        <button
-                          type="button"
-                          onClick={() => setVcardTitle('')}
-                          className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-0.5 cursor-pointer"
-                        >
-                          <X size={11} /> {isArabic ? 'حذف' : 'Clear'}
-                        </button>
-                      )}
-                    </div>
+                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                      <Briefcase size={13} className="text-primary" /> {isArabic ? 'المسمى الوظيفي' : 'Job Title / Role'}
+                    </label>
                     <div className="relative">
                       <input
                         type="text"
                         value={vcardTitle}
-                        onChange={(e) => setVcardTitle(e.target.value)}
+                        onChange={handleTitleChange}
                         placeholder="Senior Full-Stack Engineer"
                         className="w-full h-11 px-3 pe-8 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
                       />
@@ -1338,20 +1275,9 @@ function QRCodeToolContent() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Company / Organization */}
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                        <Layers size={13} className="text-primary" /> {isArabic ? 'الشركة / المؤسسة (اختياري)' : 'Company / Organization (Optional)'}
-                      </label>
-                      {vcardOrg && (
-                        <button
-                          type="button"
-                          onClick={() => setVcardOrg('')}
-                          className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-0.5 cursor-pointer"
-                        >
-                          <X size={11} /> {isArabic ? 'حذف' : 'Clear'}
-                        </button>
-                      )}
-                    </div>
+                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                      <Layers size={13} className="text-primary" /> {isArabic ? 'الشركة / المؤسسة' : 'Company / Organization'}
+                    </label>
                     <div className="relative">
                       <input
                         type="text"
@@ -1375,25 +1301,14 @@ function QRCodeToolContent() {
 
                   {/* Phone Number */}
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                        <Phone size={13} className="text-primary" /> {isArabic ? 'رقم الهاتف (اختياري)' : 'Phone Number (Optional)'}
-                      </label>
-                      {vcardPhone && (
-                        <button
-                          type="button"
-                          onClick={() => setVcardPhone('')}
-                          className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-0.5 cursor-pointer"
-                        >
-                          <X size={11} /> {isArabic ? 'حذف الرقم' : 'Clear'}
-                        </button>
-                      )}
-                    </div>
+                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                      <Phone size={13} className="text-primary" /> {isArabic ? 'رقم الهاتف' : 'Phone Number'}
+                    </label>
                     <div className="relative">
                       <input
                         type="tel"
                         value={vcardPhone}
-                        onChange={(e) => setVcardPhone(e.target.value)}
+                        onChange={handlePhoneChange}
                         placeholder="+1 (555) 234-5678"
                         className="w-full h-11 px-3 pe-8 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
                       />
@@ -1402,7 +1317,7 @@ function QRCodeToolContent() {
                           type="button"
                           onClick={() => setVcardPhone('')}
                           className="absolute end-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-destructive cursor-pointer"
-                          title={isArabic ? 'حذف رقم الهاتف من البطاقة' : 'Remove phone number from card'}
+                          title={isArabic ? 'حذف رقم الهاتف' : 'Remove phone number'}
                         >
                           <X size={13} />
                         </button>
@@ -1414,25 +1329,15 @@ function QRCodeToolContent() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Email Address */}
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                        <Mail size={13} className="text-primary" /> {isArabic ? 'البريد الإلكتروني (اختياري)' : 'Email Address (Optional)'}
-                      </label>
-                      {vcardEmail && (
-                        <button
-                          type="button"
-                          onClick={() => setVcardEmail('')}
-                          className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-0.5 cursor-pointer"
-                        >
-                          <X size={11} /> {isArabic ? 'حذف' : 'Clear'}
-                        </button>
-                      )}
-                    </div>
+                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                      <Mail size={13} className="text-primary" /> {isArabic ? 'البريد الإلكتروني' : 'Email Address'}
+                    </label>
                     <div className="relative">
                       <input
                         type="email"
                         value={vcardEmail}
-                        onChange={(e) => setVcardEmail(e.target.value)}
+                        onChange={handleEmailChange}
+                        onBlur={handleEmailBlur}
                         placeholder="john@example.com"
                         className="w-full h-11 px-3 pe-8 rounded-xl border border-border bg-background text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
                       />
@@ -1451,20 +1356,9 @@ function QRCodeToolContent() {
 
                   {/* Website URL */}
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                        <Globe size={13} className="text-primary" /> {isArabic ? 'الموقع الإلكتروني (اختياري)' : 'Website URL (Optional)'}
-                      </label>
-                      {vcardWebsite && (
-                        <button
-                          type="button"
-                          onClick={() => setVcardWebsite('')}
-                          className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-0.5 cursor-pointer"
-                        >
-                          <X size={11} /> {isArabic ? 'حذف' : 'Clear'}
-                        </button>
-                      )}
-                    </div>
+                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                      <Globe size={13} className="text-primary" /> {isArabic ? 'الموقع الإلكتروني' : 'Website URL'}
+                    </label>
                     <div className="relative">
                       <input
                         type="url"
@@ -1489,20 +1383,9 @@ function QRCodeToolContent() {
 
                 {/* Address / Location */}
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                      <MapPin size={13} className="text-primary" /> {isArabic ? 'الموقع / العنوان (اختياري)' : 'Address / Location (Optional)'}
-                    </label>
-                    {vcardAddress && (
-                      <button
-                        type="button"
-                        onClick={() => setVcardAddress('')}
-                        className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-0.5 cursor-pointer"
-                      >
-                        <X size={11} /> {isArabic ? 'حذف' : 'Clear'}
-                      </button>
-                    )}
-                  </div>
+                  <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                    <MapPin size={13} className="text-primary" /> {isArabic ? 'الموقع / العنوان' : 'Address / Location'}
+                  </label>
                   <div className="relative">
                     <input
                       type="text"
@@ -1686,7 +1569,7 @@ function QRCodeToolContent() {
               )}
 
               {/* Layout & Style Options */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground">
                     {isArabic ? 'تنسيق البطاقة' : 'Card Layout'}
@@ -1715,24 +1598,6 @@ function QRCodeToolContent() {
                     <option value="pill">{isArabic ? 'حواف دائرية كبيرة' : 'Modern Pill'}</option>
                     <option value="sharp">{isArabic ? 'حواف حادة كلاسيكية' : 'Sharp Modern'}</option>
                   </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground">
-                    {isArabic ? 'رمز الحروف الأولى' : 'Monogram Avatar'}
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowLogo(!showLogo)}
-                    className={`w-full h-10 px-3 rounded-xl border text-xs font-semibold transition-all flex items-center justify-between cursor-pointer ${
-                      showLogo
-                        ? 'border-primary/50 bg-primary/10 text-primary'
-                        : 'border-border bg-background text-muted-foreground'
-                    }`}
-                  >
-                    <span>{showLogo ? (isArabic ? 'الشارة مفعلة' : 'Avatar ON') : isArabic ? 'الشارة مخفية' : 'Avatar OFF'}</span>
-                    <Check size={14} className={showLogo ? 'opacity-100' : 'opacity-0'} />
-                  </button>
                 </div>
               </div>
             </div>
@@ -1873,62 +1738,100 @@ function QRCodeToolContent() {
           {qrType === 'vcard' && activePreviewMode === 'card' ? (
             <div className="w-full space-y-4">
               <div
-                className={`w-full rounded-2xl p-5 text-left rtl:text-right shadow-lg border relative overflow-hidden transition-all ${
-                  cardStyle === 'cyber'
-                    ? 'bg-slate-950 text-cyan-400 border-cyan-500/40 shadow-cyan-500/10'
-                    : cardStyle === 'minimal'
-                    ? 'bg-white text-slate-900 border-slate-200'
-                    : cardStyle === 'executive'
-                    ? 'bg-zinc-900 text-amber-100 border-amber-500/40 shadow-amber-500/10'
-                    : 'bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white border-indigo-500/30 shadow-indigo-500/20'
-                }`}
+                className={`w-full ${
+                  cardBorderRadius === 'pill'
+                    ? 'rounded-3xl'
+                    : cardBorderRadius === 'sharp'
+                    ? 'rounded-none'
+                    : 'rounded-2xl'
+                } p-5 text-left rtl:text-right shadow-lg border relative overflow-hidden transition-all`}
+                style={{
+                  background: `linear-gradient(135deg, ${currentThemeConfig.bgStart}, ${currentThemeConfig.bgEnd})`,
+                  color: currentThemeConfig.textColor,
+                  borderColor: currentThemeConfig.borderColor,
+                  boxShadow: `0 10px 25px -5px ${currentThemeConfig.accentColor}25`,
+                }}
               >
                 {/* Header banner decoration */}
-                <div
-                  className={`h-12 -mx-5 -mt-5 mb-4 px-4 flex items-center justify-between text-xs font-bold tracking-wider uppercase opacity-90 ${
-                    cardStyle === 'cyber'
-                      ? 'bg-gradient-to-r from-cyan-900 to-blue-900 text-cyan-200 border-b border-cyan-500/30'
-                      : cardStyle === 'minimal'
-                      ? 'bg-slate-100 text-slate-700 border-b border-slate-200'
-                      : cardStyle === 'executive'
-                      ? 'bg-gradient-to-r from-amber-950 to-zinc-900 text-amber-300 border-b border-amber-500/30'
-                      : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white'
-                  }`}
-                >
-                  <span>{cardCompany || vcardOrg || 'DigitalMix Labs'}</span>
-                  <span className="text-[10px] lowercase opacity-75">
-                    {(cardWebsite || vcardWebsite || 'https://digitalmix.dev').replace(/^https?:\/\//, '')}
-                  </span>
-                </div>
+                {(cardCompany || cardWebsite) && (
+                  <div
+                    className="h-11 -mx-5 -mt-5 mb-4 px-4 flex items-center justify-between text-xs font-bold tracking-wider uppercase opacity-95 transition-all"
+                    style={{
+                      background: `linear-gradient(to right, ${currentThemeConfig.bgEnd}, ${currentThemeConfig.accentColor}33)`,
+                      color: currentThemeConfig.accentColor,
+                      borderBottom: `1px solid ${currentThemeConfig.borderColor}80`,
+                    }}
+                  >
+                    <span className="truncate">{cardCompany}</span>
+                    <span className="text-[10px] lowercase opacity-80 truncate ms-2">
+                      {cardWebsite.replace(/^https?:\/\//, '')}
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex items-center gap-4">
                   <div className="flex-1 min-w-0 space-y-1">
-                    <h4 className="text-base font-extrabold tracking-tight truncate">
-                      {cardFullName || vcardName || 'Alex Mercer'}
-                    </h4>
-                    <p className={`text-xs font-semibold ${cardStyle === 'minimal' ? 'text-primary' : 'text-primary/90'}`}>
-                      {cardTitle || vcardTitle || 'Solutions Architect'}
-                    </p>
-                    <div className="space-y-0.5 pt-2 text-[11px] opacity-80 font-mono">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Phone className="w-3 h-3 shrink-0" /> <span>{cardPhone || vcardPhone || '+1 (555) 382-9011'}</span>
+                    {cardFullName && (
+                      <h4
+                        className="text-base font-extrabold tracking-tight truncate"
+                        style={{ color: currentThemeConfig.textColor }}
+                      >
+                        {cardFullName}
+                      </h4>
+                    )}
+                    {cardTitle && (
+                      <p
+                        className="text-xs font-semibold truncate"
+                        style={{ color: currentThemeConfig.accentColor }}
+                      >
+                        {cardTitle}
+                      </p>
+                    )}
+                    {(cardPhone || cardEmail || cardAddress) && (
+                      <div
+                        className="space-y-0.5 pt-2 text-[11px] font-mono"
+                        style={{ color: currentThemeConfig.mutedColor || currentThemeConfig.textColor + 'cc' }}
+                      >
+                        {cardPhone && (
+                          <div className="flex items-center gap-1.5 truncate">
+                            <Phone className="w-3 h-3 shrink-0" style={{ color: currentThemeConfig.accentColor }} />
+                            <span>{cardPhone}</span>
+                          </div>
+                        )}
+                        {cardEmail && (
+                          <div className="flex items-center gap-1.5 truncate">
+                            <Mail className="w-3 h-3 shrink-0" style={{ color: currentThemeConfig.accentColor }} />
+                            <span>{cardEmail}</span>
+                          </div>
+                        )}
+                        {cardAddress && (
+                          <div className="flex items-center gap-1.5 truncate">
+                            <MapPin className="w-3 h-3 shrink-0" style={{ color: currentThemeConfig.accentColor }} />
+                            <span>{cardAddress}</span>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Mail className="w-3 h-3 shrink-0" /> <span>{cardEmail || vcardEmail || 'alex@digitalmix.dev'}</span>
+                    )}
+                    {!cardFullName && !cardTitle && !cardPhone && !cardEmail && !cardAddress && !cardCompany && !cardWebsite && (
+                      <div
+                        className="py-4 text-xs italic opacity-60"
+                        style={{ color: currentThemeConfig.mutedColor || '#999999' }}
+                      >
+                        {isArabic ? 'البطاقة فارغة • اكتب بياناتك لتظهر هنا' : 'Empty Card • Fill in your details'}
                       </div>
-                      <div className="flex items-center gap-1.5 truncate">
-                        <MapPin className="w-3 h-3 shrink-0" /> <span>{cardAddress || vcardAddress || '104 Silicon Valley Way, CA'}</span>
-                      </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Embedded Mini QR */}
-                  <div className="p-2 rounded-xl bg-white shadow-md shrink-0 border border-border/60">
+                  <div
+                    className="p-2 rounded-xl bg-white shadow-md shrink-0 border"
+                    style={{ borderColor: currentThemeConfig.borderColor }}
+                  >
                     <QRCodeSVG
                       value={payload}
                       size={76}
-                      fgColor="#000000"
-                      bgColor="#FFFFFF"
+                      fgColor={currentThemeConfig.qrFg || '#000000'}
+                      bgColor={currentThemeConfig.qrBg || '#FFFFFF'}
                       level="M"
                     />
                   </div>

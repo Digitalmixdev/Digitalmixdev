@@ -87,7 +87,7 @@ export async function getUserStats(userId: string): Promise<UserStats> {
     ])
 
     return {
-      historyCount: Math.max(activityCount || 0, dbUser?.toolsUsedCount || 0),
+      historyCount: activityCount || 0,
       toolsUsedCount: toolCount,
       favoritesCount: favoriteCount,
     }

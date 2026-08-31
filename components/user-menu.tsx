@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
-import { LayoutDashboard, Star, LogOut, Loader2, Settings } from 'lucide-react'
+import { LayoutDashboard, History, Star, LogOut, Loader2, Settings } from 'lucide-react'
 import { useAuth } from '@/components/auth-provider'
 import { useLanguage } from '@/lib/i18n/context'
 import { UserAvatar } from '@/components/user-avatar'
@@ -23,7 +23,8 @@ interface UserMenuProps {
 
 export function UserMenu({ align = 'end', className }: UserMenuProps) {
   const { user, logout } = useAuth()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
+  const isArabic = language === 'ar'
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   if (!user) return null
@@ -77,6 +78,13 @@ export function UserMenu({ align = 'end', className }: UserMenuProps) {
           <Link href="/dashboard" className="flex items-center gap-2.5 px-2 py-2 text-sm font-medium">
             <LayoutDashboard className="h-4 w-4 text-primary" />
             <span>{t('nav.dashboard', 'Dashboard')}</span>
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-secondary">
+          <Link href="/dashboard?view=history" className="flex items-center gap-2.5 px-2 py-2 text-sm font-medium">
+            <History className="h-4 w-4 text-sky-500" />
+            <span>{isArabic ? 'سجل النشاط' : 'Activity History'}</span>
           </Link>
         </DropdownMenuItem>
 

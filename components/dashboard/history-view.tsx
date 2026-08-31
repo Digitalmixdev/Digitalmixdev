@@ -35,6 +35,8 @@ import { useLanguage } from '@/lib/i18n/context'
 import { ToolActivityItem } from '@/types/history'
 import {
   getLocalActivityHistory,
+  saveLocalActivityHistory,
+  syncHistoryWithServer,
   deleteLocalActivity,
   clearLocalActivityHistory,
   exportHistoryAsJson,
@@ -73,30 +75,24 @@ export function HistoryView({ initialActivities = [], onCountChange }: HistoryVi
 
   // Sync with initialActivities and local storage
   useEffect(() => {
-    const local = getLocalActivityHistory()
-    if (local.length > 0) {
-      setActivities(local)
-      if (onCountChange) onCountChange(local.length)
-    } else if (initialActivities.length > 0) {
-      setActivities(initialActivities)
-      if (onCountChange) onCountChange(initialActivities.length)
+    // Initial merge of SSR activities with local storage
+    if (initialActivities.length > 0) {
+      const merged = syncHistoryWithServer(initialActivities)
+      setActivities(merged)
+      if (onCountChange) onCountChange(merged.length)
+    } else {
+      const local = getLocalActivityHistory()
+      if (local.length > 0) {
+        setActivities(local)
+        if (onCountChange) onCountChange(local.length)
+      }
     }
 
-    // Attempt to fetch fresh from server
+    // Fetch latest fresh activities from server in background & merge
     fetchUserHistoryAction()
       .then((serverItems) => {
         if (serverItems && serverItems.length > 0) {
-          // Merge local and server without duplicates
-          const localMap = new Map<string, ToolActivityItem>()
-          local.forEach((item) => localMap.set(item.id, item))
-          serverItems.forEach((item) => {
-            if (!localMap.has(item.id)) {
-              localMap.set(item.id, item)
-            }
-          })
-          const merged = Array.from(localMap.values()).sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          )
+          const merged = syncHistoryWithServer(serverItems)
           setActivities(merged)
           if (onCountChange) onCountChange(merged.length)
         }

@@ -2,7 +2,11 @@ import { ToolActivityItem } from '@/types/history'
 import { logActivityAction } from '@/actions/history'
 
 const LOCAL_STORAGE_KEY = 'digitalmix_user_activity_history'
-const MAX_LOCAL_ITEMS = 150
+const MAX_LOCAL_ITEMS = 300
+
+// In-flight log deduplication tracker (prevents double logging on rapid clicks or React StrictMode re-renders)
+let lastLoggedActivitySignature = ''
+let lastLoggedActivityTime = 0
 
 /**
  * Universal function to log any tool activity across the entire app.
@@ -16,9 +20,25 @@ export async function logToolActivity(activity: {
   inputSnippet?: string | null
   outputSnippet?: string | null
   metadata?: Record<string, any> | string | null
+  createdAt?: string
 }): Promise<ToolActivityItem> {
+  const now = Date.now()
+  const sig = `${activity.toolId}|${activity.actionTitle}|${(activity.details || '').slice(0, 40)}`
+
+  // Debounce duplicate invocations within 1.5 seconds
+  if (sig === lastLoggedActivitySignature && now - lastLoggedActivityTime < 1500) {
+    const existing = getLocalActivityHistory()
+    if (existing.length > 0) return existing[0]
+  }
+
+  lastLoggedActivitySignature = sig
+  lastLoggedActivityTime = now
+
+  const localId = `act_${now}_${Math.random().toString(36).substring(2, 7)}`
+  const timestampIso = activity.createdAt || new Date(now).toISOString()
+
   const newItem: ToolActivityItem = {
-    id: `act_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+    id: localId,
     toolId: activity.toolId,
     toolName: activity.toolName,
     category: activity.category,
@@ -27,15 +47,26 @@ export async function logToolActivity(activity: {
     inputSnippet: activity.inputSnippet ?? null,
     outputSnippet: activity.outputSnippet ?? null,
     metadata: activity.metadata ?? null,
-    createdAt: new Date().toISOString(),
+    createdAt: timestampIso,
   }
 
-  // 1. Save to LocalStorage immediately
+  // 1. Save to LocalStorage immediately with de-duplication
   if (typeof window !== 'undefined') {
     try {
       const raw = localStorage.getItem(LOCAL_STORAGE_KEY)
       const list: ToolActivityItem[] = raw ? JSON.parse(raw) : []
-      const updated = [newItem, ...list.filter((it) => it.id !== newItem.id)].slice(0, MAX_LOCAL_ITEMS)
+
+      // Filter out duplicate identical actions within recent seconds
+      const filtered = list.filter((it) => {
+        if (it.id === newItem.id) return false
+        if (it.toolId === newItem.toolId && it.actionTitle === newItem.actionTitle) {
+          const diffMs = Math.abs(new Date(it.createdAt).getTime() - new Date(newItem.createdAt).getTime())
+          if (diffMs < 3000) return false
+        }
+        return true
+      })
+
+      const updated = [newItem, ...filtered].slice(0, MAX_LOCAL_ITEMS)
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated))
 
       // Dispatch event for active UI components
@@ -51,9 +82,27 @@ export async function logToolActivity(activity: {
 
   // 2. Sync to Server in background if logged in
   try {
-    logActivityAction(activity).catch(() => {
-      // Background sync silent catch
-    })
+    logActivityAction(activity)
+      .then((serverSavedItem) => {
+        // If server returned a record, update the local ID so it matches the DB ID
+        if (serverSavedItem && serverSavedItem.item && serverSavedItem.item.id && typeof window !== 'undefined') {
+          try {
+            const raw = localStorage.getItem(LOCAL_STORAGE_KEY)
+            if (raw) {
+              const list: ToolActivityItem[] = JSON.parse(raw)
+              const updatedList = list.map((item) =>
+                item.id === localId ? { ...item, id: serverSavedItem.item!.id } : item
+              )
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedList))
+            }
+          } catch {
+            // ignore
+          }
+        }
+      })
+      .catch(() => {
+        // Background sync silent catch
+      })
   } catch {
     // Non-blocking
   }
@@ -62,7 +111,7 @@ export async function logToolActivity(activity: {
 }
 
 /**
- * Retrieve all history items from local cache and merge seamlessly.
+ * Retrieve all history items from local cache safely.
  */
 export function getLocalActivityHistory(): ToolActivityItem[] {
   if (typeof window === 'undefined') return []
@@ -82,14 +131,67 @@ export function getLocalActivityHistory(): ToolActivityItem[] {
 export function saveLocalActivityHistory(items: ToolActivityItem[]): void {
   if (typeof window === 'undefined') return
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(items.slice(0, MAX_LOCAL_ITEMS)))
+    const safeItems = (Array.isArray(items) ? items : []).slice(0, MAX_LOCAL_ITEMS)
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(safeItems))
     window.dispatchEvent(
       new CustomEvent('digitalmix_history_updated', {
-        detail: { all: items },
+        detail: { all: safeItems },
       })
     )
   } catch (e) {
     console.warn('Error updating local activity history:', e)
+  }
+}
+
+/**
+ * Merge local and server activities seamlessly without duplicate counting.
+ */
+export function syncHistoryWithServer(serverActivities: ToolActivityItem[] = []): ToolActivityItem[] {
+  if (typeof window === 'undefined') return serverActivities
+
+  try {
+    const local = getLocalActivityHistory()
+    const map = new Map<string, ToolActivityItem>()
+
+    // 1. Add server items first (canonical source of truth for logged-in user)
+    serverActivities.forEach((item) => {
+      if (item && item.id) {
+        map.set(item.id, item)
+      }
+    })
+
+    // 2. Add local items that have not yet reached the server
+    local.forEach((item) => {
+      if (!item || !item.id) return
+
+      if (map.has(item.id)) return
+
+      // Check if another server item represents the same action within 15 seconds
+      const itemTime = new Date(item.createdAt).getTime()
+      const isDuplicate = Array.from(map.values()).some((s) => {
+        if (s.toolId === item.toolId && s.actionTitle === item.actionTitle) {
+          const sTime = new Date(s.createdAt).getTime()
+          return Math.abs(sTime - itemTime) < 15000
+        }
+        return false
+      })
+
+      if (!isDuplicate) {
+        map.set(item.id, item)
+      }
+    })
+
+    const merged = Array.from(map.values())
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, MAX_LOCAL_ITEMS)
+
+    // Persist merged items
+    saveLocalActivityHistory(merged)
+
+    return merged
+  } catch (e) {
+    console.warn('Error syncing history with server:', e)
+    return serverActivities.length > 0 ? serverActivities : getLocalActivityHistory()
   }
 }
 

@@ -62,8 +62,11 @@ export interface SqlHistoryItem {
 const toolMeta: ToolMetadata = {
   id: 'sql-formatter',
   name: 'SQL Formatter & Beautifier',
+  name_ar: 'منسق ومجمل استعلامات SQL',
   description:
     'Instantly beautify, format, parse, and minify your SQL queries. Supports standard SQL, PostgreSQL, MySQL, SQLite, and PL/SQL with 100% client-side privacy.',
+  description_ar:
+    'قم بتجميل وتنسيق وتحليل وضغط استعلامات SQL فوراً. يدعم SQL القياسية، PostgreSQL، MySQL، SQLite، وPL/SQL مع خصوصية كاملة بنسبة 100% في المتصفح.',
   category: {
     id: 'database',
     name: 'Database Tools',
@@ -71,6 +74,7 @@ const toolMeta: ToolMetadata = {
   },
   icon: Database,
   privacyBadge: '100% Client-Side • Multi-Dialect Support',
+  privacyBadge_ar: 'معالجة محلية 100% • دعم متعدد للهجات القواعد',
   features: [
     {
       icon: Sparkles,
@@ -93,6 +97,28 @@ const toolMeta: ToolMetadata = {
       desc: 'Easily switch between human-readable indentation and minified one-liners.',
     },
   ],
+  features_ar: [
+    {
+      icon: Sparkles,
+      title: 'تنسيق مخصص حسب قاعدة البيانات',
+      desc: 'تنسيق دقيق للاستعلامات لـ PostgreSQL و MySQL و SQLite و PL/SQL.',
+    },
+    {
+      icon: Zap,
+      title: 'إحصائيات وتحليل الاستعلام',
+      desc: 'مقاييس بصرية فورية لطول الاستعلام وكلمات SELECT و JOIN و WHERE.',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'أمان وعدم نقل البيانات',
+      desc: 'مخططات قواعد البيانات الحساسة والجداول لا تغادر متصفحك أبداً.',
+    },
+    {
+      icon: Minimize2,
+      title: 'ضغط وتجميل النصوص',
+      desc: 'التبديل بسهولة بين المسافات المقروءة والنصوص المضغوطة في سطر واحد.',
+    },
+  ],
   faqs: [
     {
       q: 'Which SQL dialects are supported?',
@@ -105,6 +131,20 @@ const toolMeta: ToolMetadata = {
     {
       q: 'Can I upload and download .sql script files?',
       a: 'Yes. Use the Upload button to read SQL scripts directly from your filesystem, and click Download to save formatted results.',
+    },
+  ],
+  faqs_ar: [
+    {
+      q: 'ما هي لغات ولهجات SQL المدعومة؟',
+      a: 'ندعم SQL القياسية ANSI، PostgreSQL، MySQL، SQLite، وOracle PL/SQL. يمكنك اختيار اللهجة المفضلة من القائمة المنسدلة.',
+    },
+    {
+      q: 'هل تقوم هذه الأداة بتخزين أو تسجيل استعلامات قاعدة البيانات الخاصة بي؟',
+      a: 'لا. تتم عملية التنسيق بالكامل داخل متصفحك المحلي. لا يتم إرسال بيانات الاعتماد أو أسماء الجداول أو استعلامات SQL إلى خوادمنا.',
+    },
+    {
+      q: 'هل يمكنني رفع وتحميل ملفات نصوص .sql؟',
+      a: 'نعم. استخدم زر الرفع لقراءة ملفات SQL مباشرة من جهازك، وانقر فوق تحميل لحفظ النتائج المنמسقة.',
     },
   ],
 }

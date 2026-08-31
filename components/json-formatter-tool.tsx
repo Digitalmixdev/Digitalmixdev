@@ -52,8 +52,11 @@ export interface JsonHistoryItem {
 const toolMeta: ToolMetadata = {
   id: 'json-formatter',
   name: 'JSON Formatter & Validator',
+  name_ar: 'منسق ومتحقق بيانات JSON',
   description:
     'Format, validate, parse, and minify JSON data instantly with syntax error highlighting and structural statistics.',
+  description_ar:
+    'قم بتنسيق والتحقق من وتحليل وضغط بيانات JSON فوراً مع تمييز أخطاء بناء الجسمل وإحصائيات الهيكل.',
   category: {
     id: 'database',
     name: 'Database Tools',
@@ -61,6 +64,7 @@ const toolMeta: ToolMetadata = {
   },
   icon: FileCode,
   privacyBadge: '100% Client-Side • Tree Depth & Key Stats',
+  privacyBadge_ar: 'معالجة محلية 100% • إحصائيات المفاتيح وعمق الهيكل',
   features: [
     {
       icon: Sparkles,
@@ -83,6 +87,28 @@ const toolMeta: ToolMetadata = {
       desc: 'Strip unnecessary whitespaces for compact API network payloads.',
     },
   ],
+  features_ar: [
+    {
+      icon: Sparkles,
+      title: 'التحقق من الهيكل والبناء',
+      desc: 'يحدد بدقة أخطاء بناء الجملة، الأقواس غير المغلقة، والفواصل الزائدة غير القانونية.',
+    },
+    {
+      icon: Layers,
+      title: 'إحصائيات مصفوفة عميقة',
+      desc: 'يقيس إجمالي المفاتيح، أقصى عمق للتداخل، الأسطر، وحجم الحمولة.',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'خصوصية المتصفح المحلي',
+      desc: 'جميع عمليات تحليل JSON تعمل حصرياً داخل ذاكرة متصفحك المحلي.',
+    },
+    {
+      icon: Minimize2,
+      title: 'ضغط فوري للبيانات',
+      desc: 'إزالة المسافات والأسطر غير الضرورية لإنتاج حمولة شبكية مضغوطة لواجهات البرمجة.',
+    },
+  ],
   faqs: [
     {
       q: 'Why is my JSON showing an invalid syntax error?',
@@ -95,6 +121,20 @@ const toolMeta: ToolMetadata = {
     {
       q: 'How does the Minify function work?',
       a: 'Minify parses the structured data and outputs a condensed one-line string with all indentation, linebreaks, and spacing removed.',
+    },
+  ],
+  faqs_ar: [
+    {
+      q: 'لماذا تظهر بيانات JSON الخاصة بي خطأ في البناء؟',
+      a: 'الأسباب الشائعة تشمل الفواصل الزائدة في المصفوفات/الكائنات، المفاتيح غير المحاطة بعلامات تنصيص، استخدام علامات التنصيص المفردة بدلاً من المزدوجة، أو الأقواس الناقصة.',
+    },
+    {
+      q: 'هل يمكنني تنسيق ملفات JSON الكبيرة؟',
+      a: 'نعم. تعتمد الأداة على محرك متصفحك المحلي للتعامل مع ملفات بحجم ميجابايت بسلاسة ودون أي رفع للخادم.',
+    },
+    {
+      q: 'كيف تعمل وظيفة ضغط البيانات (Minify)؟',
+      a: 'تقوم وظيفة الضغط بتحليل البيانات الهيكلية وإخراج نص مكثف في سطر واحد مع إزالة كافة المسافات والمسافات البادئة.',
     },
   ],
 }

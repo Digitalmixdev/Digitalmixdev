@@ -62,7 +62,9 @@ export interface ToolRelatedItem {
 export interface ToolMetadata {
   id: ToolId | string
   name: string
+  name_ar?: string
   description: string
+  description_ar?: string
   category: {
     id: string
     name: string
@@ -70,8 +72,11 @@ export interface ToolMetadata {
   }
   icon: LucideIcon
   privacyBadge?: string
+  privacyBadge_ar?: string
   features?: ToolFeature[]
+  features_ar?: ToolFeature[]
   faqs?: ToolFaq[]
+  faqs_ar?: ToolFaq[]
   relatedTools?: ToolRelatedItem[]
 }
 
@@ -115,15 +120,26 @@ export function ToolLayout({
   const router = useRouter()
   const { isAuthenticated, isLoading } = useAuth()
   const { t, language } = useLanguage()
+  const isArabic = language === 'ar'
   const [mounted, setMounted] = useState(false)
   const [isFavorite, setIsFavorite] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const ToolIcon = metadata.icon || Wrench
 
-  const localizedToolName = t(`tool.${metadata.id.replace(/-/g, '_')}`, metadata.name)
-  const localizedToolDesc = t(`tool.${metadata.id.replace(/-/g, '_')}_desc`, metadata.description)
+  const localizedToolName = isArabic && metadata.name_ar
+    ? metadata.name_ar
+    : t(`tool.${metadata.id.replace(/-/g, '_')}`, metadata.name)
+
+  const localizedToolDesc = isArabic && metadata.description_ar
+    ? metadata.description_ar
+    : t(`tool.${metadata.id.replace(/-/g, '_')}_desc`, metadata.description)
+
   const localizedCategoryName = t(`cat.${metadata.category.id}`, metadata.category.name)
+
+  const localizedPrivacyBadge = isArabic
+    ? (metadata.privacyBadge_ar || t('tool_layout.privacy_badge', '100% معالجة داخل متصفحك • بدون تخزين على السيرفر'))
+    : (metadata.privacyBadge || t('tool_layout.privacy_badge', '100% Client-Side • Zero Server Storage'))
 
   const defaultPillarsLocalized: ToolFeature[] = [
     {
@@ -148,8 +164,13 @@ export function ToolLayout({
     },
   ]
 
-  const features = metadata.features && metadata.features.length > 0 ? metadata.features : defaultPillarsLocalized
-  const faqs = metadata.faqs || []
+  const features = isArabic && metadata.features_ar && metadata.features_ar.length > 0
+    ? metadata.features_ar
+    : (metadata.features && metadata.features.length > 0 ? metadata.features : defaultPillarsLocalized)
+
+  const faqs = isArabic && metadata.faqs_ar && metadata.faqs_ar.length > 0
+    ? metadata.faqs_ar
+    : (metadata.faqs || [])
 
   // Compute related tools dynamically if not explicitly provided
   const relatedTools: ToolRelatedItem[] =
@@ -370,7 +391,7 @@ export function ToolLayout({
           {/* Privacy Guarantee Badge */}
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 shadow-xs">
             <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-            <span>{t('tool_layout.privacy_badge', metadata.privacyBadge || '100% Client-Side • Zero Server Storage')}</span>
+            <span>{localizedPrivacyBadge}</span>
           </div>
         </div>
       </section>

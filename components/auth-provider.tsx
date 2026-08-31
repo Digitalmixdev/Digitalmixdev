@@ -4,6 +4,8 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { useRouter } from 'next/navigation'
 import type { SessionUser } from '@/lib/auth/jwt'
 import { getSessionAction, logoutAction } from '@/actions/auth'
+import { fetchUserHistoryAction, syncLocalActivitiesToServerAction } from '@/actions/history'
+import { getLocalActivityHistory, syncHistoryWithServer } from '@/lib/history-service'
 
 const STORAGE_KEY = 'digitalmix_auth_user'
 
@@ -47,6 +49,22 @@ export function AuthProvider({
       const currentUser = await getSessionAction()
       if (currentUser) {
         setUser(currentUser)
+        // Background sync: synchronize local history with cloud database
+        try {
+          const localItems = getLocalActivityHistory()
+          if (localItems.length > 0) {
+            syncLocalActivitiesToServerAction(localItems).catch(() => {})
+          }
+          fetchUserHistoryAction(100)
+            .then((serverItems) => {
+              if (serverItems && serverItems.length > 0) {
+                syncHistoryWithServer(serverItems)
+              }
+            })
+            .catch(() => {})
+        } catch {
+          // ignore
+        }
       } else {
         // Explicitly clear local state if server has no session (account deleted or logged out)
         setUser(null)
