@@ -22,8 +22,11 @@ import md5 from 'crypto-js/md5'
 const toolMeta: ToolMetadata = {
   id: 'hash-generator',
   name: 'Cryptographic Hash Generator',
+  name_ar: 'مولد الهاش والتشفير الاتجاهي (Hash Generator)',
   description:
     'Compute secure message digests and cryptographic checksums including MD5, SHA-1, SHA-256, and SHA-512 in real-time with Web Crypto API.',
+  description_ar:
+    'احسب ملخصات الرسائل الآمنة والتحقق من التجزئة التشفيرية بما في ذلك MD5 و SHA-1 و SHA-256 و SHA-512 في الوقت الفعلي باستخدام واجهة Web Crypto API.',
   category: {
     id: 'developer',
     name: 'Developer Tools',
@@ -31,6 +34,7 @@ const toolMeta: ToolMetadata = {
   },
   icon: Key,
   privacyBadge: '100% Client-Side • Web Crypto Subsystem',
+  privacyBadge_ar: 'معالجة محلية 100% • نظام Web Crypto الفرعي',
   features: [
     {
       icon: Zap,
@@ -53,6 +57,28 @@ const toolMeta: ToolMetadata = {
       desc: 'Ideal for verifying file downloads, data integrity checksums, and password hashing.',
     },
   ],
+  features_ar: [
+    {
+      icon: Zap,
+      title: 'معالجة مسرعة بالعتاد',
+      desc: 'مدعوم بواسطة محرك المتصفح الأصلي crypto.subtle لتنفيذ فائق السرعة.',
+    },
+    {
+      icon: Lock,
+      title: 'مجموعة خوارزميات متعددة',
+      desc: 'توليد قيم هاش MD5 و SHA-1 و SHA-256 و SHA-512 في نفس الوقت.',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'ضمان عدم تسريب البيانات',
+      desc: 'الأسرار المدخلة ومفاتيح واجهات البرمجة لا يتم تسجيلها أو تخزينها عن بعد أبداً.',
+    },
+    {
+      icon: Key,
+      title: 'سلامة التدقيق والتحقق',
+      desc: 'مثالي للتحقق من تحميل الملفات، تكامل البيانات، وتشفير كلمات المرور.',
+    },
+  ],
   faqs: [
     {
       q: 'What is a cryptographic hash function?',
@@ -65,6 +91,20 @@ const toolMeta: ToolMetadata = {
     {
       q: 'Which hash algorithm is most secure?',
       a: 'SHA-256 and SHA-512 are modern industry standards and collision resistant. MD5 and SHA-1 are cryptographically broken for security, but remain useful for quick checksums.',
+    },
+  ],
+  faqs_ar: [
+    {
+      q: 'ما هي دالة التجزئة التشفيرية (Hash)؟',
+      a: 'التجزئة التشفيرية هي خوارزمية رياضيّة تحول أي بيانات ذات طولة عشوائي إلى سلسلة حروف بطول ثابت (ملخص). حتى التغيير في بت واحد يغير الناتج كلياً.',
+    },
+    {
+      q: 'هل يمكن فك تشفير الهاش لإرجاعه إلى النص العادي؟',
+      a: 'لا. دالات التجزئة التشفيرية هي دالات أحادية الاتجاه بطبيعتها ولا يمكن عكسها أو فك تشفيرها. يتم التحقق عبر تجزئة النص المقارن ومقارنة الملخصات.',
+    },
+    {
+      q: 'ما هي خوارزمية الهاش الأكثر أماناً؟',
+      a: 'SHA-256 و SHA-512 هي المعايير الصناعية الحديثة والمقاومة للتداخل. أما MD5 و SHA-1 فمعتبرة غير آمنة تشفيرياً لكنها مفيدة للتدقيق السريع.',
     },
   ],
 }

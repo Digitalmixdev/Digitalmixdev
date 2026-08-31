@@ -24,8 +24,11 @@ import { logToolActivity } from '@/lib/history-service'
 const toolMeta: ToolMetadata = {
   id: 'base64',
   name: 'Base64 Encoder / Decoder',
+  name_ar: 'ترميز وفك ترميز Base64',
   description:
     'Instantly convert plain text or binary structures into safe ASCII strings, or reverse existing Base64 strings back to readable text format.',
+  description_ar:
+    'قم بتحويل النصوص العادية أو البيانات الثنائية فوراً إلى نصوص ASCII آمنة، أو عكس سلاسل Base64 الحالية إلى نص قابل للقراءة.',
   category: {
     id: 'developer',
     name: 'Developer Tools',
@@ -33,6 +36,7 @@ const toolMeta: ToolMetadata = {
   },
   icon: Binary,
   privacyBadge: '100% Client-Side • UTF-8 & ASCII Supported',
+  privacyBadge_ar: 'معالجة محلية 100% • دعم كامل لـ UTF-8 و ASCII',
   features: [
     {
       icon: Zap,
@@ -55,6 +59,28 @@ const toolMeta: ToolMetadata = {
       desc: 'Generates standard RFC 4648 compliant Base64 strings.',
     },
   ],
+  features_ar: [
+    {
+      icon: Zap,
+      title: 'خط أنابيب في الوقت الفعلي',
+      desc: 'ترميز وفك ترميز ثنائي الاتجاه فوراً أثناء الكتابة.',
+    },
+    {
+      icon: Globe,
+      title: 'دعم كامل لـ UTF-8',
+      desc: 'يتعامل بسلاسة مع الحروف العربية، الرموز التعبيرية (الإيموجي)، والرموز متعددة البايت.',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'معالجة محلية 100%',
+      desc: 'لا يتم أبداً رفع أو تخزين بياناتك أو نصوصك على خوادم خارجية.',
+    },
+    {
+      icon: Lock,
+      title: 'تصدير آمن ومتوافق',
+      desc: 'إنشاء سلاسل Base64 قياسية متوافقة تماماً مع معيار RFC 4648.',
+    },
+  ],
   faqs: [
     {
       q: 'What is Base64 encoding used for?',
@@ -67,6 +93,20 @@ const toolMeta: ToolMetadata = {
     {
       q: 'Why do I see an error when decoding?',
       a: 'Decoding errors usually occur when the input is not valid Base64 (contains invalid characters, missing padding =, or resolving to invalid multi-byte character sequences). Check the character set switch if decoding international text.',
+    },
+  ],
+  faqs_ar: [
+    {
+      q: 'ما هو استخدام ترميز Base64؟',
+      a: 'تم تصميم ترميز Base64 لنقل البيانات الثنائية أو الحروف الخاصة بأمان عبر البروتوكولات النصية (مثل JSON أو XML أو البريد الإلكتروني) والتي قد تؤدي بخلاف ذلك إلى تلف البيانات الثنائية.',
+    },
+    {
+      q: 'هل يُعتبر Base64 تشفيراً للبيانات؟',
+      a: 'لا. Base64 هو تنسيق ترميز وليس خوارزمية تشفير. يمكن لأي شخص فك ترميز Base64 إلى شكله الأصلي بدون مفتاح سري. لا تستخدم Base64 بمفرده لتأمين البيانات الحساسة.',
+    },
+    {
+      q: 'لماذا تظهر لي رسالة خطأ عند فك الترميز؟',
+      a: 'تحدث أخطاء فك الترميز عادةً عندما لا يكون المدخل نص Base64 صالحاً (يحتوي على حروف غير صالحة أو علامات حشو مفقودة). تحقق من إعداد مجموعة الحروف إذا كنت تفك تشفير نصوص دولية.',
     },
   ],
 }

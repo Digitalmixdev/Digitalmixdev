@@ -35,7 +35,6 @@ import { useLanguage } from '@/lib/i18n/context'
 import { ToolActivityItem } from '@/types/history'
 import {
   getLocalActivityHistory,
-  saveLocalActivityHistory,
   syncHistoryWithServer,
   deleteLocalActivity,
   clearLocalActivityHistory,
@@ -58,9 +57,7 @@ export function HistoryView({ initialActivities = [], onCountChange }: HistoryVi
   const isRtl = dir === 'rtl'
 
   const [activities, setActivities] = useState<ToolActivityItem[]>(() => {
-    const local = getLocalActivityHistory()
-    if (local.length > 0) return local
-    return initialActivities
+    return syncHistoryWithServer(initialActivities)
   })
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -75,26 +72,17 @@ export function HistoryView({ initialActivities = [], onCountChange }: HistoryVi
 
   // Sync with initialActivities and local storage
   useEffect(() => {
-    // Initial merge of SSR activities with local storage
-    if (initialActivities.length > 0) {
-      const merged = syncHistoryWithServer(initialActivities)
-      setActivities(merged)
-      if (onCountChange) onCountChange(merged.length)
-    } else {
-      const local = getLocalActivityHistory()
-      if (local.length > 0) {
-        setActivities(local)
-        if (onCountChange) onCountChange(local.length)
-      }
-    }
+    const merged = syncHistoryWithServer(initialActivities)
+    setActivities(merged)
+    if (onCountChange) onCountChange(merged.length)
 
-    // Fetch latest fresh activities from server in background & merge
+    // Attempt to fetch fresh from server
     fetchUserHistoryAction()
       .then((serverItems) => {
         if (serverItems && serverItems.length > 0) {
-          const merged = syncHistoryWithServer(serverItems)
-          setActivities(merged)
-          if (onCountChange) onCountChange(merged.length)
+          const freshMerged = syncHistoryWithServer(serverItems)
+          setActivities(freshMerged)
+          if (onCountChange) onCountChange(freshMerged.length)
         }
       })
       .catch(() => {})

@@ -22,8 +22,11 @@ import { logToolActivity } from '@/lib/history-service'
 const toolMeta: ToolMetadata = {
   id: 'regex-tester',
   name: 'RegEx Tester & Debugger',
+  name_ar: 'محبر ومختبر التعابير النمطية (RegEx Tester)',
   description:
     'Test, debug, analyze, and build regular expressions with real-time match highlighting, capture group inspection, and quick cheat sheets.',
+  description_ar:
+    'اختبر، وقم بتصحيح، وتحليل، وبناء التعابير النمطية (Regular Expressions) مع تمييز التطابقات في الوقت الفعلي، فحص مجموعات الالتقاط، وورقة مرجعية سريعة.',
   category: {
     id: 'developer',
     name: 'Developer Tools',
@@ -31,6 +34,7 @@ const toolMeta: ToolMetadata = {
   },
   icon: Code,
   privacyBadge: '100% Client-Side • Live Highlight Matcher',
+  privacyBadge_ar: 'معالجة محلية 100% • مطابق وتمييز حي',
   features: [
     {
       icon: Zap,
@@ -53,6 +57,28 @@ const toolMeta: ToolMetadata = {
       desc: 'Input test strings and proprietary regex patterns are evaluated purely on your machine.',
     },
   ],
+  features_ar: [
+    {
+      icon: Zap,
+      title: 'محرك مطابقة في الوقت الفعلي',
+      desc: 'يُظهر مجموعات الالتقاط ومواقع المؤشرات فوراً أثناء كتابة النمط الخاص بك.',
+    },
+    {
+      icon: Layers,
+      title: 'تحكم كامل في الأعلام (Flags)',
+      desc: 'تبديل وضع الشمول Global (g)، تجاهل الأحرف الكبيرة والصغيرة (i)، الأسطر المتعددة (m)، وDotAll (s).',
+    },
+    {
+      icon: BookOpen,
+      title: 'مرجع سريع مدمج',
+      desc: 'مراجع سريعة مدمجة للرموز الشائعة، الروابط، وفئات الحروف.',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'صفر بيانات مسجلة',
+      desc: 'يتم تقييم نصوص الاختبار وأنماط التعابير النمطية حصرياً على جهازك.',
+    },
+  ],
   faqs: [
     {
       q: 'What do the RegEx flags mean?',
@@ -65,6 +91,20 @@ const toolMeta: ToolMetadata = {
     {
       q: 'Are capture groups supported?',
       a: 'Yes. Any parenthesis groups in your pattern are automatically dissected into numbered capture group badges.',
+    },
+  ],
+  faqs_ar: [
+    {
+      q: 'ماذا تعني أعلام التعابير النمطية (RegEx Flags)؟',
+      a: 'علم g يبحث عن جميع التطابقات. علم i يتجاهل حالة الأحرف. علم m يتعامل مع ^ و $ كبداية ونهاية لكل سطر. علم s يسمح للنقطة (.) بمطابقة الأسطر الجديدة.',
+    },
+    {
+      q: 'هل تتعامل هذه الأداة مع التراجع الكارثي (Catastrophic Backtracking)؟',
+      a: 'تتم عمليات التقييم في المتصفح. لمنع تجميد المتصفح، تجنب استخدام المحددات غير المحدودة المتداخلة مثل (a+)+ مع النصوص الطويلة.',
+    },
+    {
+      q: 'هل مجموعات الالتقاط (Capture Groups) مدعومة؟',
+      a: 'نعم. أي مجموعات أقواس في نمطك يتم تقسيمها تلقائياً إلى شارات مجموعات التقاط مرقمة.',
     },
   ],
 }

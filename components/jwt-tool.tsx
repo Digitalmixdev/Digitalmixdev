@@ -25,8 +25,11 @@ import { logToolActivity } from '@/lib/history-service'
 const toolMeta: ToolMetadata = {
   id: 'jwt',
   name: 'JWT Decoder & Encoder',
+  name_ar: 'محلل ومنشئ رموز JWT',
   description:
     'Decode, verify, inspect, and generate JSON Web Tokens (JWT) locally with instant claim parsing and HMAC signature validation.',
+  description_ar:
+    'فك تشفير، والتحقق، وفحص، وتوليد رموز المصادقة JSON Web Tokens (JWT) محلياً مع تحليل فوري للادعاءات والتحقق من توقيع HMAC.',
   category: {
     id: 'developer',
     name: 'Developer Tools',
@@ -34,6 +37,7 @@ const toolMeta: ToolMetadata = {
   },
   icon: Shield,
   privacyBadge: '100% Client-Side • Zero Token Transmission',
+  privacyBadge_ar: 'معالجة محلية 100% • بدون نقل للرموز',
   features: [
     {
       icon: ShieldCheck,
@@ -56,6 +60,28 @@ const toolMeta: ToolMetadata = {
       desc: 'Inspect sub, iat, exp timestamps and custom claim structures instantly.',
     },
   ],
+  features_ar: [
+    {
+      icon: ShieldCheck,
+      title: 'عزل تام للخصوصية',
+      desc: 'مفاتيح السر ورموز المصادقة لا تغادر متصفحك المحلي أبداً.',
+    },
+    {
+      icon: Zap,
+      title: 'محرك ثنائي الاتجاه',
+      desc: 'التبديل بسلاسة بين فك ترميز الرموز وإنشاء رموز JWT جديدة في الوقت الفعلي.',
+    },
+    {
+      icon: Key,
+      title: 'دعم خوارزميات HMAC',
+      desc: 'يدعم سير عمل التوقيع المشفر القياسي HS256 و HS384 و HS512.',
+    },
+    {
+      icon: Lock,
+      title: 'فاحص ادعاءات الحمولة',
+      desc: 'فحص الطوابع الزمنية sub و iat و exp وهياكل الادعاءات المخصصة فوراً.',
+    },
+  ],
   faqs: [
     {
       q: 'Is it safe to paste production JWT tokens here?',
@@ -68,6 +94,20 @@ const toolMeta: ToolMetadata = {
     {
       q: 'How are JWT components structured?',
       a: 'A standard JWT consists of three parts separated by dots (.): Header (algorithm & token type), Payload (claims data), and Signature (verifies integrity).',
+    },
+  ],
+  faqs_ar: [
+    {
+      q: 'هل من الآمن لصق رموز JWT الخاصة ببيئة الإنتاج هنا؟',
+      a: 'نعم. تعمل كافة عمليات التحليل وفك التشفير وعمليات التشفير 100% محلياً في متصفحك. لا يتم إرسال أي رمز أو مفتاح سري إلى أي خادم خارجي.',
+    },
+    {
+      q: 'ما هو رمز المصادقة JSON Web Token (JWT)؟',
+      a: 'رمز JWT هو معيار مفتوح RFC 7519 يحدد طريقة مدمجة ومستقلة لنقل المعلومات بشكل آمن بين الأطراف ككائن JSON.',
+    },
+    {
+      q: 'كيف يتم هيكلة مكونات JWT؟',
+      a: 'يتكون رمز JWT القياسي من ثلاثة أجزاء مفصولة بنقاط (.): الترويسة Header، الحمولة Payload، والتوقيع Signature.',
     },
   ],
 }

@@ -21,8 +21,11 @@ import { logToolActivity } from '@/lib/history-service'
 const toolMeta: ToolMetadata = {
   id: 'uuid-generator',
   name: 'UUID v4 Token Generator',
+  name_ar: 'مولد رموز UUID الإصدار 4',
   description:
     'Generate bulk cryptographically secure RFC 4122 Version 4 UUID tokens in real-time with format customization and TXT/JSON download.',
+  description_ar:
+    'قم بتوليد رموز UUID الإصدار 4 المتوافقة مع معيار RFC 4122 والآمنة تشفيرياً دفعة واحدة في الوقت الفعلي مع تخصيص التنسيق والتحميل كملف TXT أو JSON.',
   category: {
     id: 'developer',
     name: 'Developer Tools',
@@ -30,6 +33,7 @@ const toolMeta: ToolMetadata = {
   },
   icon: Fingerprint,
   privacyBadge: '100% Client-Side • CSPRNG Random Engine',
+  privacyBadge_ar: 'معالجة محلية 100% • محرك عشوائي آمن CSPRNG',
   features: [
     {
       icon: Zap,
@@ -52,6 +56,28 @@ const toolMeta: ToolMetadata = {
       desc: 'Easily toggle uppercase casing, bracket wrappers {}, and clean export formats.',
     },
   ],
+  features_ar: [
+    {
+      icon: Zap,
+      title: 'إنتروبيا التشفير الآمن',
+      desc: 'مدعوم بواسطة crypto.randomUUID لتوليد عشوائية آمنة تشفيرياً (CSPRNG).',
+    },
+    {
+      icon: Layers,
+      title: 'توليد الرموز دفعة واحدة',
+      desc: 'إنشاء ما يصل إلى 100 رمز UUID فريد متوافق مع RFC 4122 بنقرة زر واحدة.',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'صفر معرفة للخادم',
+      desc: 'يتم إنشاء المعرفات حصرياً داخل الذاكرة المحلية ولا يتم تخزينها خارجياً أبداً.',
+    },
+    {
+      icon: Lock,
+      title: 'خيارات تنسيق للمطورين',
+      desc: 'تبديل الحروف الكبيرة، الأقواس المحيطة {}، وتنسيقات التصدير النظيفة بسهولة.',
+    },
+  ],
   faqs: [
     {
       q: 'What is a UUID Version 4?',
@@ -64,6 +90,20 @@ const toolMeta: ToolMetadata = {
     {
       q: 'Can I download generated UUIDs in bulk?',
       a: 'Yes. You can copy the complete list to your clipboard or download them as a .txt or .json document.',
+    },
+  ],
+  faqs_ar: [
+    {
+      q: 'ما هو معرف UUID الإصدار 4؟',
+      a: 'معرف UUID v4 هو معرف فريد عالمياً بطول 128 بت يتم إنشاؤه باستخدام الأرقام العشوائية. مع وجود 122 بت عشوائي، فإن احتمال التداخل معدوم تقريباً.',
+    },
+    {
+      q: 'هل رموز UUID المولدة آمنة للمفاتيح الأساسية في قواعد البيانات؟',
+      a: 'نعم. رموز UUID v4 المعيارية المتوافقة مع RFC 4122 هي المعيار لقواعد بيانات PostgreSQL و MongoDB و MySQL وهندسة الخدمات المصغرة.',
+    },
+    {
+      q: 'هل يمكنني تنزيل رموز UUID المولدة دفعة واحدة؟',
+      a: 'نعم. يمكنك نسخ القائمة الكاملة إلى الحافظة أو تنزيلها كملف مستند TXT أو JSON.',
     },
   ],
 }

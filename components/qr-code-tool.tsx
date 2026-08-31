@@ -1021,15 +1021,15 @@ function QRCodeToolContent() {
   return (
     <ToolLayout metadata={toolMeta} maxWidth="6xl">
       {/* Scanner Cross-Link & History Trigger */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 px-1">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 mb-4 px-1">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto max-w-full no-scrollbar py-0.5">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShowHistoryModal(true)}
-            className="h-9 px-3.5 gap-2 text-xs font-semibold border-border/80 hover:border-primary/50 text-foreground"
+            className="h-8 px-2.5 sm:px-3.5 gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-semibold border-border/80 hover:border-primary/50 text-foreground shrink-0"
           >
-            <History className="h-4 w-4 text-primary" />
+            <History className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary shrink-0" />
             <span>{isArabic ? 'سجل الـ QR' : 'QR History'}</span>
             {history.length > 0 && (
               <span className="ms-1 px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded-full">
@@ -1042,10 +1042,10 @@ function QRCodeToolContent() {
             variant="outline"
             size="sm"
             onClick={() => setShowSavedCardsModal(true)}
-            className="h-9 px-3.5 gap-2 text-xs font-semibold border-border/80 hover:border-amber-500/50 text-foreground cursor-pointer"
+            className="h-8 px-2.5 sm:px-3.5 gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-semibold border-border/80 hover:border-amber-500/50 text-foreground cursor-pointer shrink-0"
           >
-            <FolderOpen className="h-4 w-4 text-amber-500" />
-            <span>{isArabic ? 'البطاقات المحفوظة' : 'Saved Cards'}</span>
+            <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-500 shrink-0" />
+            <span>{isArabic ? 'البطاقات' : 'Saved Cards'}</span>
             {savedCards.length > 0 && (
               <span className="ms-1 px-1.5 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded-full">
                 {savedCards.length}
@@ -1057,20 +1057,20 @@ function QRCodeToolContent() {
             variant="ghost"
             size="sm"
             onClick={saveToHistory}
-            className="h-9 px-3 gap-1.5 text-xs text-muted-foreground hover:text-primary cursor-pointer"
+            className="h-8 px-2 sm:px-3 gap-1 text-[11px] sm:text-xs text-muted-foreground hover:text-primary cursor-pointer shrink-0"
             title={isArabic ? 'حفظ التصميم الحالي في السجل' : 'Save current design to history'}
           >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>{isArabic ? 'حفظ في السجل' : 'Save to History'}</span>
+            <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
+            <span>{isArabic ? 'حفظ' : 'Save'}</span>
           </Button>
         </div>
 
         <Link
           href="/tools/qr-barcode-scanner"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline bg-primary/10 hover:bg-primary/15 px-3 py-1.5 rounded-xl border border-primary/20 transition-colors ms-auto"
+          className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-primary hover:underline bg-primary/10 hover:bg-primary/15 px-3 py-1.5 rounded-xl border border-primary/20 transition-colors shrink-0"
         >
-          <ScanLine className="w-3.5 h-3.5" />
-          {isArabic ? 'تحتاج لمسح رمز؟ افتح ماسح QR والباركود ←' : 'Need to scan a code? Open QR & Barcode Scanner →'}
+          <ScanLine className="w-3.5 h-3.5 shrink-0" />
+          {isArabic ? 'ماسح QR والباركود ←' : 'Open Scanner →'}
         </Link>
       </div>
 

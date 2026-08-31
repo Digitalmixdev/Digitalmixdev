@@ -182,11 +182,11 @@ const PRESET_CONVERSIONS = [
   { from: 'jpg' as FormatKey, to: 'pdf' as FormatKey, label: 'Images to PDF', icon: '🖼️' },
   { from: 'docx' as FormatKey, to: 'pdf' as FormatKey, label: 'Word to PDF', icon: '📄' },
   { from: 'pdf' as FormatKey, to: 'docx' as FormatKey, label: 'PDF to Word', icon: '📑' },
+  { from: 'pdf' as FormatKey, to: 'pptx' as FormatKey, label: 'PDF to PPTX', icon: '📽️' },
   { from: 'pdf' as FormatKey, to: 'jpg' as FormatKey, label: 'PDF to Images', icon: '📸' },
   { from: 'xlsx' as FormatKey, to: 'pdf' as FormatKey, label: 'Excel to PDF', icon: '📊' },
   { from: 'pptx' as FormatKey, to: 'pdf' as FormatKey, label: 'PPTX to PDF', icon: '📽️' },
   { from: 'html' as FormatKey, to: 'pdf' as FormatKey, label: 'HTML to PDF', icon: '🌐' },
-  { from: 'xlsx' as FormatKey, to: 'html' as FormatKey, label: 'Excel to HTML', icon: '📋' },
 ]
 
 export interface DocumentQueueItem {
@@ -636,6 +636,27 @@ export default function DocumentConverterTool() {
             res = { blob: htmlBlob, filename: `${baseName}.html`, mimeType: 'text/html', previewHtml: htmlContent, pageCount: pdfData.pageCount }
           } else if (tgt === 'txt') {
             res = { blob: new Blob([pdfData.text], { type: 'text/plain;charset=utf-8' }), filename: `${baseName}.txt`, mimeType: 'text/plain', previewText: pdfData.text, pageCount: pdfData.pageCount }
+          } else if (tgt === 'pptx') {
+            const slides = pdfData.pages.map((p) => {
+              const lines = p.text.split('\n').filter((l) => l.trim().length > 0)
+              const title = lines[0] ? lines[0].slice(0, 60) : `Page ${p.pageNumber}`
+              const bullets = lines.slice(1, 10).map((l) => l.slice(0, 120))
+              if (bullets.length === 0) {
+                bullets.push(`PDF Content from Page ${p.pageNumber}`)
+              }
+              return {
+                title,
+                bullets,
+              }
+            })
+            const pptxBlob = await generatePptxFile({ title: baseName, slides })
+            res = {
+              blob: pptxBlob,
+              filename: `${baseName}.pptx`,
+              mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+              previewText: pdfData.text,
+              pageCount: pdfData.pageCount,
+            }
           }
         }
         // 5. HTML Source
