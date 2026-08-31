@@ -81,6 +81,13 @@ export function UserMenu({ align = 'end', className }: UserMenuProps) {
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-secondary">
+          <Link href="/dashboard?view=history" className="flex items-center gap-2.5 px-2 py-2 text-sm font-medium">
+            <History className="h-4 w-4 text-sky-500" />
+            <span>{useLanguage().language === 'ar' ? 'سجل النشاطات' : 'Activity History'}</span>
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-secondary">
           <Link href="/settings" className="flex items-center gap-2.5 px-2 py-2 text-sm font-medium">
             <Settings className="h-4 w-4 text-emerald-500" />
             <span>{t('nav.settings', 'Settings')}</span>
@@ -91,13 +98,6 @@ export function UserMenu({ align = 'end', className }: UserMenuProps) {
           <Link href="/favorites" className="flex items-center gap-2.5 px-2 py-2 text-sm font-medium">
             <Star className="h-4 w-4 text-amber-500" />
             <span>{t('nav.favorites', 'Favorites')}</span>
-          </Link>
-        </DropdownMenuItem>
-
-        <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-secondary">
-          <Link href="/dashboard?view=history" className="flex items-center gap-2.5 px-2 py-2 text-sm font-medium">
-            <History className="h-4 w-4 text-sky-500" />
-            <span>{useLanguage().language === 'ar' ? 'سجل النشاطات' : 'Activity History'}</span>
           </Link>
         </DropdownMenuItem>
 

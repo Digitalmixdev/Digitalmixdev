@@ -91,6 +91,15 @@ export async function fetchUserHistoryAction(
 }
 
 /**
+ * Sync local activity items to server and return fresh history.
+ */
+export async function syncLocalActivitiesToServerAction(
+  localItems?: ToolActivityItem[]
+): Promise<ToolActivityItem[]> {
+  return fetchUserHistoryAction(100, localItems)
+}
+
+/**
  * Delete a specific history item.
  */
 export async function deleteHistoryItemAction(
