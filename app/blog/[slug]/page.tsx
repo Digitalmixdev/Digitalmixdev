@@ -100,7 +100,7 @@ export default async function BlogPostPage({ params }: { params: Params }) {
       <div className="mb-8">
         <Link
           href="/blog"
-          className="inline-flex items-center text-sm font-semibold text-primary hover:text-primary/80 transition-colors group px-3 py-1.5 rounded-lg border bg-card hover:bg-accent"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-primary transition group"
         >
           <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" />
           Return to Blog Page
@@ -138,16 +138,7 @@ export default async function BlogPostPage({ params }: { params: Params }) {
           </div>
         )}
 
-        {/* Return Button Bottom */}
-        <div className="mt-12 pt-6 border-t flex items-center justify-start">
-          <Link
-            href="/blog"
-            className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border bg-card hover:bg-accent transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Return to Blog Page
-          </Link>
-        </div>
+
       </article>
 
       {related.length > 0 && (

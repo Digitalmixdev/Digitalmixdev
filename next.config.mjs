@@ -59,12 +59,12 @@ const nextConfig = {
           key: 'Content-Security-Policy',
           value: 
             "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://www.clarity.ms https://scripts.clarity.ms https://www.googletagmanager.com https://www.google-analytics.com https://js.stripe.com; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://www.clarity.ms https://scripts.clarity.ms https://www.googletagmanager.com https://www.google-analytics.com https://js.stripe.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://adservice.google.com; " +
             "style-src 'self' 'unsafe-inline'; " +
             "img-src 'self' data: https: blob:; " +
             "font-src 'self' data: https:; " +
-            "connect-src 'self' https://*.clarity.ms https: wss:; " +
-            "frame-src 'self' https://challenges.cloudflare.com https://www.google.com; " +
+            "connect-src 'self' https://*.clarity.ms https://pagead2.googlesyndication.com https://*.googlesyndication.com https: wss:; " +
+            "frame-src 'self' https://challenges.cloudflare.com https://www.google.com https://googleads.g.doubleclick.net https://*.googlesyndication.com https://tpc.googlesyndication.com; " +
             "worker-src 'self' blob:; " +
             "object-src 'none'; " +
             "base-uri 'self'; " +
