@@ -138,8 +138,8 @@ export function RecentToolActivityList({
     const merged = syncHistoryWithServer(initialActivities)
     setActivities(merged)
 
-    // Attempt to fetch fresh from server
-    fetchUserHistoryAction()
+    // Attempt to fetch fresh from server and sync local items
+    fetchUserHistoryAction(100, getLocalActivityHistory())
       .then((serverItems) => {
         if (serverItems && serverItems.length > 0) {
           const freshMerged = syncHistoryWithServer(serverItems)

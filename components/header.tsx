@@ -221,7 +221,7 @@ export function Header() {
                 </Button>
               </div>
             ) : mounted && isAuthenticated ? (
-              <div className="hidden sm:flex items-center min-h-[36px]">
+              <div className="flex items-center min-h-[36px]">
                 <UserMenu />
               </div>
             ) : null}

@@ -617,8 +617,14 @@ export default function DocumentConverterTool() {
         // 4. PDF Source
         else if (src === 'pdf') {
           const pdfData = await parsePdf(file)
+          const pageImages = await renderPdfToImages(file, 'jpg', 0.92, 2.0).catch(() => [])
           if (tgt === 'docx') {
-            const docxBlob = await generateDocxFile({ title: baseName, text: pdfData.text, paragraphs: pdfData.pages.map((p) => `--- Page ${p.pageNumber} ---\n${p.text}`) })
+            const docxBlob = await generateDocxFile({
+              title: baseName,
+              text: pdfData.text,
+              paragraphs: pdfData.pages.map((p) => `--- Page ${p.pageNumber} ---\n${p.text}`),
+              images: pageImages.map(img => ({ data: img.blob, type: 'jpg' })),
+            })
             res = { blob: docxBlob, filename: `${baseName}.docx`, mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', previewText: pdfData.text, pageCount: pdfData.pageCount }
           } else if (tgt === 'jpg' || tgt === 'png') {
             const images = await renderPdfToImages(file, tgt)
@@ -649,7 +655,11 @@ export default function DocumentConverterTool() {
                 bullets,
               }
             })
-            const pptxBlob = await generatePptxFile({ title: baseName, slides })
+            const pptxBlob = await generatePptxFile({
+              title: baseName,
+              slides,
+              images: pageImages.map(img => ({ data: img.blob, type: 'jpg' })),
+            })
             res = {
               blob: pptxBlob,
               filename: `${baseName}.pptx`,

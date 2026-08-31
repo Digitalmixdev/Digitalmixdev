@@ -136,43 +136,6 @@ export function MobileMenu({
             <LanguageSwitcher variant="button" />
           </div>
 
-          <div className={`grid ${isSignedIn ? 'grid-cols-3' : 'grid-cols-2'} gap-2 shrink-0 pb-2 border-b border-border/40`}>
-            <Link
-              href="/tools"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-1.5 p-2.5 rounded-xl bg-card border border-border/70 text-xs font-bold text-foreground hover:border-primary/40 hover:bg-secondary/60 transition-all truncate"
-            >
-              <div className="p-1 rounded-lg bg-primary/10 text-primary shrink-0">
-                <LayoutDashboard className="h-3.5 w-3.5" />
-              </div>
-              <span className="truncate">{t('nav.all_tools', 'All Tools')}</span>
-            </Link>
-
-            {isSignedIn && (
-              <Link
-                href="/favorites"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-1.5 p-2.5 rounded-xl bg-card border border-border/70 text-xs font-bold text-foreground hover:border-amber-500/40 hover:bg-amber-500/5 transition-all truncate"
-              >
-                <div className="p-1 rounded-lg bg-amber-500/10 text-amber-500 shrink-0">
-                  <Star className="h-3.5 w-3.5 fill-amber-500" />
-                </div>
-                <span className="truncate">{t('nav.favorites', 'Favorites')}</span>
-              </Link>
-            )}
-
-            <Link
-              href="/dashboard?view=history"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-1.5 p-2.5 rounded-xl bg-card border border-border/70 text-xs font-bold text-foreground hover:border-sky-500/40 hover:bg-sky-500/5 transition-all truncate"
-            >
-              <div className="p-1 rounded-lg bg-sky-500/10 text-sky-500 shrink-0">
-                <History className="h-3.5 w-3.5" />
-              </div>
-              <span className="truncate">{useLanguage().language === 'ar' ? 'السجل' : 'History'}</span>
-            </Link>
-          </div>
-
           {/* Categories Navigation */}
           <nav className="space-y-3 shrink-0">
             {categories.map((category) => {

@@ -323,6 +323,7 @@ export async function generateDocxFile(options: {
   text?: string
   html?: string
   paragraphs?: string[]
+  images?: { data: Blob | ArrayBuffer | Uint8Array; type?: 'jpg' | 'png' }[]
 }): Promise<Blob> {
   const zip = new JSZip()
 
@@ -394,6 +395,66 @@ export async function generateDocxFile(options: {
     `
   }
 
+  let wordRelsContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+`
+
+  if (options.images && options.images.length > 0) {
+    let imgBody = ''
+    let relIndex = 2
+    for (let i = 0; i < options.images.length; i++) {
+      const img = options.images[i]
+      const imgExt = img.type || 'jpg'
+      const imgFilename = `media/image${i + 1}.${imgExt}`
+      const relId = `rId${relIndex++}`
+
+      wordRelsContent += `  <Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="${imgFilename}"/>\n`
+      zip.file(`word/${imgFilename}`, img.data)
+
+      imgBody += `
+        <w:p>
+          <w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="240"/></w:pPr>
+          <w:r>
+            <w:drawing>
+              <wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">
+                <wp:extent cx="5486400" cy="7772400"/>
+                <wp:effectExtent l="0" t="0" r="0" b="0"/>
+                <wp:docPr id="${i + 1}" name="Picture ${i + 1}"/>
+                <wp:cNvGraphicFramePr>
+                  <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noResize="1"/>
+                </wp:cNvGraphicFramePr>
+                <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+                  <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                    <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                      <pic:nvPr>
+                        <pic:cNvPr id="${i + 1}" name="Page ${i + 1}"/>
+                        <pic:cNvPicPr/>
+                      </pic:nvPr>
+                      <pic:blipFill>
+                        <a:blip r:embed="${relId}"/>
+                        <a:stretch><a:fillRect/></a:stretch>
+                      </pic:blipFill>
+                      <pic:spPr>
+                        <a:xfrm>
+                          <a:off x="0" y="0"/>
+                          <a:ext cx="5486400" cy="7772400"/>
+                        </a:xfrm>
+                        <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+                      </pic:spPr>
+                    </pic:pic>
+                  </a:graphicData>
+                </a:graphic>
+              </wp:inline>
+            </w:drawing>
+          </w:r>
+        </w:p>
+      `
+    }
+    bodyXml = imgBody + bodyXml
+  }
+  wordRelsContent += `</Relationships>`
+
   // Section properties (Letter/A4 standard layout)
   bodyXml += `
     <w:sectPr>
@@ -406,7 +467,10 @@ export async function generateDocxFile(options: {
 
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
-            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+            xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+            xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+            xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
   <w:body>
     ${bodyXml}
   </w:body>
@@ -416,6 +480,9 @@ export async function generateDocxFile(options: {
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
+  <Default Extension="jpeg" ContentType="image/jpeg"/>
+  <Default Extension="jpg" ContentType="image/jpeg"/>
+  <Default Extension="png" ContentType="image/png"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
   <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
 </Types>`
@@ -423,11 +490,6 @@ export async function generateDocxFile(options: {
   const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
-</Relationships>`
-
-  const wordRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>`
 
   const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -446,7 +508,7 @@ export async function generateDocxFile(options: {
 
   zip.file('[Content_Types].xml', contentTypesXml)
   zip.file('_rels/.rels', relsXml)
-  zip.file('word/_rels/document.xml.rels', wordRelsXml)
+  zip.file('word/_rels/document.xml.rels', wordRelsContent)
   zip.file('word/document.xml', documentXml)
   zip.file('word/styles.xml', stylesXml)
 
@@ -464,6 +526,7 @@ export async function generateDocxFile(options: {
 export async function generatePptxFile(options: {
   title?: string
   slides: { title: string; bullets: string[]; body?: string }[]
+  images?: { data: Blob | ArrayBuffer | Uint8Array; type?: 'jpg' | 'png' }[]
 }): Promise<Blob> {
   const zip = new JSZip()
   const presentationTitle = options.title || 'Presentation'
@@ -511,6 +574,43 @@ export async function generatePptxFile(options: {
       `
     }
 
+    let slideRelsContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+`
+    let picXml = ''
+    if (options.images && options.images[i]) {
+      const img = options.images[i]
+      const imgExt = img.type || 'jpg'
+      const imgFilename = `media/image${slideNum}.${imgExt}`
+      const imgRelId = `rId1`
+      slideRelsContent += `  <Relationship Id="${imgRelId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../${imgFilename}"/>\n`
+      zip.file(`ppt/${imgFilename}`, img.data)
+
+      picXml = `
+      <!-- Page Background Image -->
+      <p:pic>
+        <p:nvPicPr>
+          <p:cNvPr id="4" name="Page Image ${slideNum}"/>
+          <p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr>
+          <p:nvPr/>
+        </p:nvPicPr>
+        <p:blipFill>
+          <a:blip r:embed="${imgRelId}"/>
+          <a:stretch><a:fillRect/></a:stretch>
+        </p:blipFill>
+        <p:spPr>
+          <a:xfrm>
+            <a:off x="0" y="0"/>
+            <a:ext cx="12192000" cy="6858000"/>
+          </a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+        </p:spPr>
+      </p:pic>
+      `
+    }
+    slideRelsContent += `</Relationships>`
+    zip.file(`ppt/slides/_rels/slide${slideNum}.xml.rels`, slideRelsContent)
+
     const slideXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
        xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -530,6 +630,7 @@ export async function generatePptxFile(options: {
           <a:chExt cx="0" cy="0"/>
         </a:xfrm>
       </p:grpSpPr>
+      ${picXml}
       <!-- Title Box -->
       <p:sp>
         <p:nvSpPr>
@@ -586,6 +687,9 @@ export async function generatePptxFile(options: {
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
+  <Default Extension="jpeg" ContentType="image/jpeg"/>
+  <Default Extension="jpg" ContentType="image/jpeg"/>
+  <Default Extension="png" ContentType="image/png"/>
   <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
   ${contentTypesOverrides}
 </Types>`

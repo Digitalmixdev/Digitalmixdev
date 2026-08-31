@@ -46,16 +46,44 @@ export async function logActivityAction(activity: {
 }
 
 /**
- * Fetch all history items for the logged-in user.
+ * Fetch all history items for the logged-in user and sync any local items to server.
  */
 export async function fetchUserHistoryAction(
-  limit: number = 100
+  limit: number = 100,
+  localItems?: ToolActivityItem[]
 ): Promise<ToolActivityItem[]> {
   try {
     const session = await getSession()
     if (!session?.user?.id) return []
 
-    return await getUserActivities(session.user.id, limit)
+    const userId = session.user.id
+
+    if (localItems && localItems.length > 0) {
+      const serverActivities = await getUserActivities(userId, 50)
+      for (const item of localItems) {
+        if (!item || !item.toolId) continue
+        const exists = serverActivities.some(
+          (s) =>
+            s.toolId === item.toolId &&
+            s.actionTitle === item.actionTitle &&
+            Math.abs(new Date(s.createdAt).getTime() - new Date(item.createdAt).getTime()) < 15000
+        )
+        if (!exists) {
+          await recordUserActivity(userId, {
+            toolId: item.toolId,
+            toolName: item.toolName,
+            actionTitle: item.actionTitle,
+            details: item.details,
+            inputSnippet: item.inputSnippet,
+            outputSnippet: item.outputSnippet,
+            metadata: item.metadata,
+          })
+          await recordToolUsage(userId, item.toolId).catch(() => {})
+        }
+      }
+    }
+
+    return await getUserActivities(userId, limit)
   } catch (error) {
     console.error('Error in fetchUserHistoryAction:', error)
     return []
@@ -77,49 +105,6 @@ export async function deleteHistoryItemAction(
   } catch (error) {
     console.error('Error in deleteHistoryItemAction:', error)
     return { success: false }
-  }
-}
-
-/**
- * Sync offline/local activities to the logged-in user database in batch.
- */
-export async function syncLocalActivitiesToServerAction(
-  activities: {
-    toolId: string
-    toolName: string
-    category?: string
-    actionTitle: string
-    details: string
-    inputSnippet?: string | null
-    outputSnippet?: string | null
-    metadata?: Record<string, any> | string | null
-  }[]
-): Promise<{ success: boolean; count: number }> {
-  try {
-    const session = await getSession()
-    if (!session?.user?.id || !activities || activities.length === 0) {
-      return { success: false, count: 0 }
-    }
-
-    const userId = session.user.id
-    let count = 0
-    const existing = await getUserActivities(userId, 200)
-    const existingKeys = new Set(
-      existing.map((e) => `${e.toolId}|${e.actionTitle}|${(e.details || '').slice(0, 50)}`)
-    )
-
-    for (const act of activities.slice(0, 50)) {
-      const key = `${act.toolId}|${act.actionTitle}|${(act.details || '').slice(0, 50)}`
-      if (!existingKeys.has(key)) {
-        await recordUserActivity(userId, act)
-        count++
-      }
-    }
-
-    return { success: true, count }
-  } catch (error) {
-    console.error('Error in syncLocalActivitiesToServerAction:', error)
-    return { success: false, count: 0 }
   }
 }
 
