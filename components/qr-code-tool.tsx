@@ -248,14 +248,31 @@ function QRCodeToolContent() {
   const [wifiPassword, setWifiPassword] = useState('')
   const [wifiSecurity, setWifiSecurity] = useState('WPA')
 
-  // vCard States
-  const [vcardName, setVcardName] = useState('')
-  const [vcardTitle, setVcardTitle] = useState('')
-  const [vcardEmail, setVcardEmail] = useState('')
-  const [vcardPhone, setVcardPhone] = useState('')
-  const [vcardOrg, setVcardOrg] = useState('')
-  const [vcardWebsite, setVcardWebsite] = useState('')
-  const [vcardAddress, setVcardAddress] = useState('')
+  // vCard & Digital Business Card States
+  const [cardStyle, setCardStyle] = useState<'digitalmix' | 'cyber' | 'minimal' | 'executive'>('digitalmix')
+  const [cardFullName, setCardFullName] = useState('Alex Mercer')
+  const [cardTitle, setCardTitle] = useState('Senior Solutions Architect')
+  const [cardCompany, setCardCompany] = useState('DigitalMix Labs')
+  const [cardPhone, setCardPhone] = useState('+1 (555) 382-9011')
+  const [cardEmail, setCardEmail] = useState('alex@digitalmix.dev')
+  const [cardWebsite, setCardWebsite] = useState('https://digitalmix.dev')
+  const [cardAddress, setCardAddress] = useState('104 Silicon Valley Way, CA')
+
+  // Compatible alias getters / setters
+  const vcardName = cardFullName
+  const setVcardName = setCardFullName
+  const vcardTitle = cardTitle
+  const setVcardTitle = setCardTitle
+  const vcardOrg = cardCompany
+  const setVcardOrg = setCardCompany
+  const vcardPhone = cardPhone
+  const setVcardPhone = setCardPhone
+  const vcardEmail = cardEmail
+  const setVcardEmail = setCardEmail
+  const vcardWebsite = cardWebsite
+  const setVcardWebsite = setCardWebsite
+  const vcardAddress = cardAddress
+  const setVcardAddress = setCardAddress
 
   // Business Card Customizer States
   const [cardTheme, setCardTheme] = useState<string>('digitalmix')
@@ -267,7 +284,7 @@ function QRCodeToolContent() {
   const [cardLayout, setCardLayout] = useState<'split-right' | 'split-left' | 'badge-top'>('split-right')
   const [cardBorderRadius, setCardBorderRadius] = useState<'rounded' | 'pill' | 'sharp'>('rounded')
   const [showLogo, setShowLogo] = useState(true)
-  const [activePreviewMode, setActivePreviewMode] = useState<'qr' | 'card'>('qr')
+  const [activePreviewMode, setActivePreviewMode] = useState<'qr' | 'card'>('card')
   const [isGeneratingCard, setIsGeneratingCard] = useState(false)
 
   // Saved Business Cards (Templates)
@@ -305,9 +322,12 @@ function QRCodeToolContent() {
     }
   }, [])
 
-  // Sync theme changes to custom color pickers
+  // Sync theme changes to custom color pickers and visual styles
   const applyCardTheme = (themeId: string) => {
     setCardTheme(themeId)
+    if (themeId === 'cyber' || themeId === 'minimal' || themeId === 'executive' || themeId === 'digitalmix') {
+      setCardStyle(themeId)
+    }
     const found = CARD_THEMES.find((t) => t.id === themeId)
     if (found && themeId !== 'custom') {
       setCardBgStart(found.bgStart)
@@ -1849,132 +1869,70 @@ function QRCodeToolContent() {
             )}
           </div>
 
-          {/* DEDICATED DIGITAL BUSINESS CARD PREVIEW */}
+          {/* DigitalMix Business Card Preview Card */}
           {qrType === 'vcard' && activePreviewMode === 'card' ? (
             <div className="w-full space-y-4">
               <div
-                className={`relative w-full rounded-2xl p-5 sm:p-6 shadow-xl border overflow-hidden transition-all ${
-                  cardBorderRadius === 'pill' ? 'rounded-3xl' : cardBorderRadius === 'sharp' ? 'rounded-none' : 'rounded-2xl'
+                className={`w-full rounded-2xl p-5 text-left rtl:text-right shadow-lg border relative overflow-hidden transition-all ${
+                  cardStyle === 'cyber'
+                    ? 'bg-slate-950 text-cyan-400 border-cyan-500/40 shadow-cyan-500/10'
+                    : cardStyle === 'minimal'
+                    ? 'bg-white text-slate-900 border-slate-200'
+                    : cardStyle === 'executive'
+                    ? 'bg-zinc-900 text-amber-100 border-amber-500/40 shadow-amber-500/10'
+                    : 'bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white border-indigo-500/30 shadow-indigo-500/20'
                 }`}
-                style={{
-                  background: `linear-gradient(135deg, ${currentThemeConfig.bgStart}, ${currentThemeConfig.bgEnd})`,
-                  borderColor: currentThemeConfig.borderColor,
-                  color: currentThemeConfig.textColor,
-                }}
               >
-                {/* Decorative background glows */}
+                {/* Header banner decoration */}
                 <div
-                  className="absolute -top-12 -right-12 w-36 h-36 rounded-full blur-2xl pointer-events-none opacity-20"
-                  style={{ backgroundColor: currentThemeConfig.accentColor }}
-                />
+                  className={`h-12 -mx-5 -mt-5 mb-4 px-4 flex items-center justify-between text-xs font-bold tracking-wider uppercase opacity-90 ${
+                    cardStyle === 'cyber'
+                      ? 'bg-gradient-to-r from-cyan-900 to-blue-900 text-cyan-200 border-b border-cyan-500/30'
+                      : cardStyle === 'minimal'
+                      ? 'bg-slate-100 text-slate-700 border-b border-slate-200'
+                      : cardStyle === 'executive'
+                      ? 'bg-gradient-to-r from-amber-950 to-zinc-900 text-amber-300 border-b border-amber-500/30'
+                      : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white'
+                  }`}
+                >
+                  <span>{cardCompany || vcardOrg || 'DigitalMix Labs'}</span>
+                  <span className="text-[10px] lowercase opacity-75">
+                    {(cardWebsite || vcardWebsite || 'https://digitalmix.dev').replace(/^https?:\/\//, '')}
+                  </span>
+                </div>
 
-                {cardLayout === 'badge-top' ? (
-                  /* Centered Badge Top Layout Preview */
-                  <div className="flex flex-col items-center text-center space-y-3">
-                    <div className="p-2.5 rounded-xl bg-white shadow-md border border-white/20 shrink-0">
-                      <QRCodeSVG
-                        value={payload}
-                        size={120}
-                        fgColor="#000000"
-                        bgColor="#FFFFFF"
-                        level="M"
-                        includeMargin={false}
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <h4 className="text-lg font-bold tracking-tight" style={{ color: currentThemeConfig.textColor }}>
-                        {vcardName || 'Your Full Name'}
-                      </h4>
-                      {(vcardTitle || vcardOrg) && (
-                        <p className="text-xs font-semibold" style={{ color: currentThemeConfig.accentColor }}>
-                          {[vcardTitle, vcardOrg].filter(Boolean).join(' • ')}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="pt-2 border-t w-full text-[11px] space-y-1" style={{ borderColor: currentThemeConfig.borderColor + '66' }}>
-                      {vcardPhone && <p className="opacity-90">📞 {vcardPhone}</p>}
-                      {vcardEmail && <p className="opacity-90">✉️ {vcardEmail}</p>}
-                      {vcardWebsite && <p className="opacity-90">🌐 {vcardWebsite.replace(/^https?:\/\//, '')}</p>}
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <h4 className="text-base font-extrabold tracking-tight truncate">
+                      {cardFullName || vcardName || 'Alex Mercer'}
+                    </h4>
+                    <p className={`text-xs font-semibold ${cardStyle === 'minimal' ? 'text-primary' : 'text-primary/90'}`}>
+                      {cardTitle || vcardTitle || 'Solutions Architect'}
+                    </p>
+                    <div className="space-y-0.5 pt-2 text-[11px] opacity-80 font-mono">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Phone className="w-3 h-3 shrink-0" /> <span>{cardPhone || vcardPhone || '+1 (555) 382-9011'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Mail className="w-3 h-3 shrink-0" /> <span>{cardEmail || vcardEmail || 'alex@digitalmix.dev'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 truncate">
+                        <MapPin className="w-3 h-3 shrink-0" /> <span>{cardAddress || vcardAddress || '104 Silicon Valley Way, CA'}</span>
+                      </div>
                     </div>
                   </div>
-                ) : (
-                  /* Horizontal Split Layout Preview */
-                  <div className={`flex items-center justify-between gap-4 ${cardLayout === 'split-left' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    {/* Left: Contact Info */}
-                    <div className="space-y-2.5 min-w-0 flex-1 text-start">
-                      {showLogo && vcardName && (
-                        <div
-                          className="h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs shadow-xs text-white"
-                          style={{ backgroundColor: currentThemeConfig.accentColor }}
-                        >
-                          {vcardName.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()}
-                        </div>
-                      )}
 
-                      <div>
-                        <h4 className="text-base sm:text-lg font-bold tracking-tight truncate" style={{ color: currentThemeConfig.textColor }}>
-                          {vcardName || 'Your Full Name'}
-                        </h4>
-                        {vcardTitle && (
-                          <p className="text-xs font-semibold truncate" style={{ color: currentThemeConfig.accentColor }}>
-                            {vcardTitle}
-                          </p>
-                        )}
-                        {vcardOrg && (
-                          <p className="text-xs font-medium opacity-80 truncate" style={{ color: currentThemeConfig.textColor }}>
-                            {vcardOrg}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="space-y-1 text-[11px] border-t pt-2" style={{ borderColor: currentThemeConfig.borderColor + '88' }}>
-                        {vcardPhone && (
-                          <div className="flex items-center gap-1.5 truncate">
-                            <span className="opacity-70">📞</span>
-                            <span className="truncate">{vcardPhone}</span>
-                          </div>
-                        )}
-                        {vcardEmail && (
-                          <div className="flex items-center gap-1.5 truncate">
-                            <span className="opacity-70">✉️</span>
-                            <span className="truncate">{vcardEmail}</span>
-                          </div>
-                        )}
-                        {vcardWebsite && (
-                          <div className="flex items-center gap-1.5 truncate">
-                            <span className="opacity-70">🌐</span>
-                            <span className="truncate">{vcardWebsite.replace(/^https?:\/\//, '')}</span>
-                          </div>
-                        )}
-                        {vcardAddress && (
-                          <div className="flex items-center gap-1.5 truncate">
-                            <span className="opacity-70">📍</span>
-                            <span className="truncate">{vcardAddress}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Right: Embedded QR code with Scan Badge */}
-                    <div className="flex flex-col items-center gap-1.5 shrink-0">
-                      <div className="p-2 rounded-xl bg-white shadow-md border border-white/30">
-                        <QRCodeSVG
-                          value={payload}
-                          size={110}
-                          fgColor="#000000"
-                          bgColor="#FFFFFF"
-                          level="M"
-                          includeMargin={false}
-                        />
-                      </div>
-                      <span className="text-[9px] font-bold uppercase tracking-wider opacity-70">
-                        {isArabic ? 'امسح للتواصل' : 'Scan Contact'}
-                      </span>
-                    </div>
+                  {/* Embedded Mini QR */}
+                  <div className="p-2 rounded-xl bg-white shadow-md shrink-0 border border-border/60">
+                    <QRCodeSVG
+                      value={payload}
+                      size={76}
+                      fgColor="#000000"
+                      bgColor="#FFFFFF"
+                      level="M"
+                    />
                   </div>
-                )}
+                </div>
               </div>
 
               {/* Business Card Action Buttons */}
@@ -1982,7 +1940,7 @@ function QRCodeToolContent() {
                 <Button
                   onClick={downloadBusinessCardPNG}
                   disabled={isGeneratingCard}
-                  className="w-full text-xs font-bold gap-2 rounded-xl shadow-md h-11 bg-primary text-primary-foreground hover:bg-primary/90"
+                  className="w-full text-xs font-bold gap-2 rounded-xl shadow-md h-11 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
                 >
                   <FileDown className="h-4 w-4" />
                   {isGeneratingCard
@@ -1998,7 +1956,7 @@ function QRCodeToolContent() {
                   <Button
                     variant="outline"
                     onClick={downloadVCardFile}
-                    className="w-full text-xs font-semibold gap-1.5 rounded-xl h-9 border-border"
+                    className="w-full text-xs font-semibold gap-1.5 rounded-xl h-9 border-border cursor-pointer"
                   >
                     <Download className="h-3.5 w-3.5" />
                     {isArabic ? 'تحميل جهة الاتصال (.vcf)' : 'Download .VCF File'}
@@ -2007,7 +1965,7 @@ function QRCodeToolContent() {
                   <Button
                     variant="outline"
                     onClick={() => setShowSaveCardModal(true)}
-                    className="w-full text-xs font-semibold gap-1.5 rounded-xl h-9 border-border text-foreground"
+                    className="w-full text-xs font-semibold gap-1.5 rounded-xl h-9 border-border text-foreground cursor-pointer"
                   >
                     <Save className="h-3.5 w-3.5 text-amber-500" />
                     {isArabic ? 'حفظ هذا التصميم' : 'Save Custom Card'}

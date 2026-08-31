@@ -55,28 +55,15 @@ export function DashboardContent({
     return (
       <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-200">
         {/* Back to Dashboard Bar */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card/90 backdrop-blur-md p-5 rounded-2xl border border-border shadow-xs">
+        <div className="flex items-center justify-between bg-card/90 backdrop-blur-md p-4 sm:p-5 rounded-2xl border border-border shadow-xs">
           <button
             type="button"
             onClick={() => setCurrentView('dashboard')}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-secondary hover:bg-secondary/80 text-foreground transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-secondary hover:bg-secondary/80 text-foreground transition-all cursor-pointer shadow-2xs hover:scale-[1.01]"
           >
             {isRtl ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             <span>{isArabic ? 'العودة إلى لوحة التحكم' : 'Back to Dashboard'}</span>
           </button>
-
-          <div className="flex items-center gap-3">
-            <UserAvatar
-              name={user.name}
-              email={user.email}
-              avatarData={user.avatarData}
-              className="h-9 w-9 text-xs ring-1 ring-primary/30"
-            />
-            <div className="text-end hidden sm:block">
-              <p className="text-xs font-bold text-foreground">{displayName}</p>
-              <p className="text-[10px] text-muted-foreground font-mono">{user.email}</p>
-            </div>
-          </div>
         </div>
 
         {/* Full Detailed Activity History View */}

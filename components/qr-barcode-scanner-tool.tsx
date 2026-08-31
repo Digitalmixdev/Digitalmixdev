@@ -1182,38 +1182,6 @@ export function QRCodeScannerTool() {
       <div id="dm-file-scanner-temp" className="hidden" />
 
       <div className="space-y-6 max-w-5xl mx-auto">
-        {/* Quick Cross-Tools Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            {isArabic ? 'أدوات مساعدة سريعة:' : 'Related Tools:'}
-          </span>
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/tools/qr-code-generator"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/70 bg-card hover:bg-muted/60 text-foreground text-xs font-semibold shadow-2xs transition-all hover:scale-[1.02]"
-            >
-              <QrCode size={13} className="text-primary" />
-              <span>{isArabic ? 'مولد رموز QR' : 'QR Code Generator'}</span>
-            </Link>
-
-            <Link
-              href="/tools/image-and-file-compressor"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/70 bg-card hover:bg-muted/60 text-foreground text-xs font-semibold shadow-2xs transition-all hover:scale-[1.02]"
-            >
-              <FileText size={13} className="text-emerald-500" />
-              <span>{isArabic ? 'ضاغط الصور والملفات' : 'Image Compressor'}</span>
-            </Link>
-
-            <Link
-              href="/tools/image-converter"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/70 bg-card hover:bg-muted/60 text-foreground text-xs font-semibold shadow-2xs transition-all hover:scale-[1.02]"
-            >
-              <RefreshCw size={13} className="text-blue-500" />
-              <span>{isArabic ? 'محول صيغ الصور' : 'Image Converter'}</span>
-            </Link>
-          </div>
-        </div>
-
         {/* Top Control Bar & Mode Tabs */}
         <div className="flex flex-wrap items-center justify-between gap-4 p-2 bg-card border border-border/80 rounded-2xl shadow-xs">
           {/* Navigation Tabs */}
