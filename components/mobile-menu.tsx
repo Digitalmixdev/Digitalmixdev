@@ -138,6 +138,64 @@ export function MobileMenu({
 
 
 
+          {/* Categories Navigation */}
+          <nav className="space-y-3 shrink-0">
+            {categories.map((category) => {
+              const IconComponent = iconMap[category.id] || Code
+              const categoryTitle = getCategoryTitle(category.id, category.name)
+
+              return (
+                <div key={category.id} className="rounded-2xl border border-border/60 bg-card/60 p-2.5 space-y-1">
+                  <div className="flex items-center justify-between px-2 py-1.5 text-foreground font-bold text-xs tracking-wider uppercase">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1 rounded-md bg-primary/10 text-primary">
+                        <IconComponent className="h-3.5 w-3.5" />
+                      </div>
+                      <span>{categoryTitle}</span>
+                    </div>
+                    <span className="text-[10px] font-semibold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                      {category.tools.length}
+                    </span>
+                  </div>
+
+                    <div className="space-y-0.5 pt-0.5">
+                      {category.tools.map((item) => {
+                        const isActive = item.active !== false
+                        const ToolIcon = toolIconMap[item.icon] || Code
+                        const toolName = t(`tool.${item.id.replace(/-/g, '_')}`, item.name)
+
+                        return (
+                          <Link
+                            key={item.id}
+                            href={isActive ? item.href : '#'}
+                            onClick={(e) => {
+                              if (handleToolClick) handleToolClick(item, e)
+                              if (isActive) setMobileMenuOpen(false)
+                            }}
+                            className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium transition-all ${
+                              isActive
+                                ? 'text-muted-foreground hover:bg-secondary hover:text-foreground active:scale-[0.99]'
+                                : 'text-muted-foreground/40'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <ToolIcon className="h-3.5 w-3.5 text-primary shrink-0" />
+                              <span className="truncate">{toolName}</span>
+                            </div>
+                            {!isActive && (
+                              <span className="text-[9px] font-bold bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground/70 ml-2 rtl:ml-0 rtl:mr-2 shrink-0">
+                                {t('nav.coming_soon', 'Soon')}
+                              </span>
+                            )}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                </div>
+              )
+            })}
+          </nav>
+
           {/* Auth Section */}
           <div className="shrink-0 pt-2 border-t border-border/40 space-y-2">
             {isLoaded && !isSignedIn && (
@@ -169,10 +227,15 @@ export function MobileMenu({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <Button asChild variant="ghost" size="sm" className="justify-start text-xs font-semibold rounded-xl" onClick={() => setMobileMenuOpen(false)}>
                     <Link href="/dashboard" className="flex items-center gap-2">
                       <LayoutDashboard className="h-3.5 w-3.5 text-primary" /> {t('nav.dashboard', 'Dashboard')}
+                    </Link>
+                  </Button>
+                  <Button asChild variant="ghost" size="sm" className="justify-start text-xs font-semibold rounded-xl" onClick={() => setMobileMenuOpen(false)}>
+                    <Link href="/dashboard?view=history" className="flex items-center gap-2">
+                      <History className="h-3.5 w-3.5 text-sky-500" /> {useLanguage().language === 'ar' ? 'سجل النشاطات' : 'Activity History'}
                     </Link>
                   </Button>
                   <Button asChild variant="ghost" size="sm" className="justify-start text-xs font-semibold rounded-xl" onClick={() => setMobileMenuOpen(false)}>

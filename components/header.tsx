@@ -181,7 +181,6 @@ export function Header() {
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Language Switcher */}
             <LanguageSwitcher variant="dropdown" className="hidden sm:flex" />
-            <LanguageSwitcher variant="compact" className="sm:hidden flex" />
 
             {/* Theme Toggle */}
             <Button 
@@ -210,7 +209,7 @@ export function Header() {
               </Button>
             )}
 
-            {/* Auth Section */}
+            {/* Auth Section (Desktop only for Avatar/UserMenu, Mobile uses Hamburger Menu) */}
             {mounted && !isLoading && !isAuthenticated ? (
               <div className="hidden lg:flex items-center gap-2 animate-in fade-in duration-150">
                 <Button asChild variant="ghost" size="sm" className="h-9 px-3 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground">
@@ -221,7 +220,7 @@ export function Header() {
                 </Button>
               </div>
             ) : mounted && isAuthenticated ? (
-              <div className="flex items-center min-h-[36px]">
+              <div className="hidden sm:flex items-center min-h-[36px]">
                 <UserMenu />
               </div>
             ) : null}
