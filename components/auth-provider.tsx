@@ -4,6 +4,8 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { useRouter } from 'next/navigation'
 import type { SessionUser } from '@/lib/auth/jwt'
 import { getSessionAction, logoutAction } from '@/actions/auth'
+import { fetchUserHistoryAction } from '@/actions/history'
+import { getLocalActivityHistory, syncHistoryWithServer } from '@/lib/history-service'
 
 const STORAGE_KEY = 'digitalmix_auth_user'
 
@@ -47,6 +49,14 @@ export function AuthProvider({
       const currentUser = await getSessionAction()
       if (currentUser) {
         setUser(currentUser)
+        // Background sync user activity history from PostgreSQL database to local device cache
+        fetchUserHistoryAction(100, getLocalActivityHistory())
+          .then((serverItems) => {
+            if (serverItems && Array.isArray(serverItems)) {
+              syncHistoryWithServer(serverItems)
+            }
+          })
+          .catch(() => {})
       } else {
         // Explicitly clear local state if server has no session (account deleted or logged out)
         setUser(null)

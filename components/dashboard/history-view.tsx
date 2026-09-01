@@ -36,8 +36,8 @@ import { ToolActivityItem } from '@/types/history'
 import {
   getLocalActivityHistory,
   syncHistoryWithServer,
-  deleteLocalActivity,
-  clearLocalActivityHistory,
+  deleteActivityItem,
+  clearAllActivities,
   exportHistoryAsJson,
   exportHistoryAsCsv,
 } from '@/lib/history-service'
@@ -148,38 +148,23 @@ export function HistoryView({ initialActivities = [], onCountChange }: HistoryVi
     e.stopPropagation()
     setIsDeletingId(item.id)
 
-    // Remove locally
-    const updated = deleteLocalActivity(item.id)
+    // Remove locally, from tool histories, and sync DB deletion
+    const updated = deleteActivityItem(item.id)
     setActivities(updated)
     if (onCountChange) onCountChange(updated.length)
     showToast(t('dashboard.history_item_deleted'))
-
-    // Remove on server
-    try {
-      await deleteHistoryItemAction(item.id)
-    } catch {
-      // Background catch
-    } finally {
-      setIsDeletingId(null)
-    }
+    setIsDeletingId(null)
   }
 
   // Clear all items
   const handleClearAll = async () => {
     setIsClearing(true)
-    clearLocalActivityHistory()
+    clearAllActivities()
     setActivities([])
     if (onCountChange) onCountChange(0)
     setIsClearModalOpen(false)
     showToast(t('dashboard.history_all_cleared'))
-
-    try {
-      await clearAllHistoryAction()
-    } catch {
-      // background
-    } finally {
-      setIsClearing(false)
-    }
+    setIsClearing(false)
   }
 
   const handleCopyText = (text: string, id: string, e?: React.MouseEvent) => {

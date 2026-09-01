@@ -28,7 +28,7 @@ import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
 import { useLanguage } from '@/lib/i18n/context'
-import { logToolActivity } from '@/lib/history-service'
+import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities } from '@/lib/history-service'
 
 interface JsonStats {
   lines: number
@@ -156,17 +156,66 @@ export default function JsonFormatterTool() {
   const [historySearch, setHistorySearch] = useState('')
   const [copiedHistoryId, setCopiedHistoryId] = useState<string | null>(null)
 
-  // Load history on mount
-  useEffect(() => {
+  // Sync JSON history with local storage & central activity history
+  const syncJsonHistoryState = useCallback(() => {
     try {
+      let localJson: JsonHistoryItem[] = []
       const saved = localStorage.getItem('digitalmix_json_history')
       if (saved) {
-        setHistory(JSON.parse(saved))
+        localJson = JSON.parse(saved)
       }
+
+      const activityItems = getToolHistoryFromActivities('json-formatter')
+      const convertedFromActivities: JsonHistoryItem[] = activityItems
+        .map((act) => {
+          const meta = act.metadata as any
+          return {
+            id: act.id,
+            title: act.actionTitle || 'JSON Data',
+            input: act.inputSnippet || '',
+            output: act.outputSnippet || '',
+            indentSpaces: meta?.indentSpaces || 2,
+            type: (meta?.type || 'format') as 'format' | 'minify',
+            timestamp: new Date(act.createdAt).getTime(),
+            stats: {
+              lines: meta?.lines || 1,
+              characters: meta?.characters || 0,
+              keyCount: meta?.keyCount || 0,
+              maxDepth: meta?.maxDepth || 1,
+              fileSizeKB: meta?.fileSizeKB || '0.00',
+            },
+          } as JsonHistoryItem
+        })
+        .filter((item) => item.input || item.output)
+
+      const map = new Map<string, JsonHistoryItem>()
+      convertedFromActivities.forEach((item) => map.set(item.id, item))
+      localJson.forEach((item) => {
+        if (!map.has(item.id)) {
+          const exists = Array.from(map.values()).some((existing) => existing.output === item.output)
+          if (!exists) map.set(item.id, item)
+        }
+      })
+
+      const merged = Array.from(map.values()).sort((a, b) => b.timestamp - a.timestamp)
+      setHistory(merged)
     } catch {
       // ignore
     }
   }, [])
+
+  useEffect(() => {
+    syncJsonHistoryState()
+
+    const handleUpdate = () => {
+      syncJsonHistoryState()
+    }
+
+    window.addEventListener('digitalmix_history_updated', handleUpdate)
+    return () => {
+      window.removeEventListener('digitalmix_history_updated', handleUpdate)
+    }
+  }, [syncJsonHistoryState])
 
   const calculateJsonStats = (jsonStr: string): JsonStats => {
     const lines = jsonStr ? jsonStr.split('\n').length : 0
@@ -289,6 +338,7 @@ export default function JsonFormatterTool() {
 
   const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
+    deleteActivityItem(id)
     setHistory((prev) => {
       const updated = prev.filter((item) => item.id !== id)
       try {

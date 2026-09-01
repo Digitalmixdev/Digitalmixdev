@@ -45,7 +45,7 @@ import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
 import { useLanguage } from '@/lib/i18n/context'
-import { logToolActivity } from '@/lib/history-service'
+import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities } from '@/lib/history-service'
 
 export interface CardThemeConfig {
   id: string
@@ -306,21 +306,70 @@ function QRCodeToolContent() {
   const [historySearch, setHistorySearch] = useState('')
   const [copiedHistoryId, setCopiedHistoryId] = useState<string | null>(null)
 
-  // Load history & saved cards from localStorage
-  useEffect(() => {
+  // Load history & saved cards from localStorage and sync with global activity history
+  const syncQrHistoryState = useCallback(() => {
     try {
+      let localQr: QrHistoryItem[] = []
       const saved = localStorage.getItem('digitalmix_qr_history')
       if (saved) {
-        setHistory(JSON.parse(saved))
+        localQr = JSON.parse(saved)
       }
       const savedCardsData = localStorage.getItem('digitalmix_saved_business_cards')
       if (savedCardsData) {
         setSavedCards(JSON.parse(savedCardsData))
       }
+
+      // Merge with central ActivityHistory
+      const activityItems = getToolHistoryFromActivities('qr-code-generator')
+      const convertedFromActivities: QrHistoryItem[] = activityItems
+        .map((act) => {
+          const meta = act.metadata as any
+          if (!meta) return null
+          return {
+            id: act.id,
+            type: (meta.qrType || 'url') as string,
+            payload: meta.payload || act.inputSnippet || '',
+            fgColor: meta.fgColor || '#000000',
+            bgColor: meta.bgColor || '#FFFFFF',
+            errorLevel: meta.errorLevel || 'M',
+            title: meta.title || act.actionTitle || 'QR Code',
+            timestamp: new Date(act.createdAt).getTime(),
+          } as QrHistoryItem
+        })
+        .filter(Boolean) as QrHistoryItem[]
+
+      const map = new Map<string, QrHistoryItem>()
+      convertedFromActivities.forEach((item) => map.set(item.id, item))
+      localQr.forEach((item) => {
+        if (!map.has(item.id)) {
+          const exists = Array.from(map.values()).some(
+            (existing) => existing.payload === item.payload && existing.type === item.type
+          )
+          if (!exists) map.set(item.id, item)
+        }
+      })
+
+      const merged = Array.from(map.values()).sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      )
+      setHistory(merged)
     } catch {
       // ignore
     }
   }, [])
+
+  useEffect(() => {
+    syncQrHistoryState()
+
+    const handleUpdate = () => {
+      syncQrHistoryState()
+    }
+
+    window.addEventListener('digitalmix_history_updated', handleUpdate)
+    return () => {
+      window.removeEventListener('digitalmix_history_updated', handleUpdate)
+    }
+  }, [syncQrHistoryState])
 
   // Sync theme changes to custom color pickers and visual styles
   const applyCardTheme = (themeId: string) => {
@@ -630,6 +679,7 @@ function QRCodeToolContent() {
 
   const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
+    deleteActivityItem(id)
     setHistory((prev) => {
       const updated = prev.filter((item) => item.id !== id)
       try {

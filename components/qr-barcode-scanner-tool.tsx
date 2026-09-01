@@ -50,7 +50,7 @@ import { Button } from '@/components/ui/button'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
-import { logToolActivity } from '@/lib/history-service'
+import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities } from '@/lib/history-service'
 import { useLanguage } from '@/lib/i18n/context'
 
 const toolMeta: ToolMetadata = {
@@ -539,17 +539,58 @@ export function QRCodeScannerTool() {
     }
   }, [])
 
-  // Load history from localStorage
-  useEffect(() => {
+  // Sync Scan history from local storage & central activity history
+  const syncScanHistoryState = useCallback(() => {
     try {
+      let localScan: ScanHistoryItem[] = []
       const saved = localStorage.getItem('digitalmix_scan_history')
       if (saved) {
-        setHistory(JSON.parse(saved))
+        localScan = JSON.parse(saved)
       }
+
+      const activityItems = getToolHistoryFromActivities('qr-barcode-scanner')
+      const convertedFromActivities: ScanHistoryItem[] = activityItems
+        .map((act) => {
+          const raw = act.details?.replace('Decoded content: ', '') || act.outputSnippet || ''
+          return {
+            id: act.id,
+            raw,
+            format: act.inputSnippet || 'QR_CODE',
+            type: (act.actionTitle?.replace('Scanned ', '').toLowerCase() || 'text') as any,
+            timestamp: new Date(act.createdAt).getTime(),
+            title: act.details?.slice(0, 40) || act.actionTitle || 'Scanned Code',
+          } as ScanHistoryItem
+        })
+        .filter((item) => item.raw)
+
+      const map = new Map<string, ScanHistoryItem>()
+      convertedFromActivities.forEach((item) => map.set(item.id, item))
+      localScan.forEach((item) => {
+        if (!map.has(item.id)) {
+          const exists = Array.from(map.values()).some((existing) => existing.raw === item.raw)
+          if (!exists) map.set(item.id, item)
+        }
+      })
+
+      const merged = Array.from(map.values()).sort((a, b) => b.timestamp - a.timestamp)
+      setHistory(merged)
     } catch {
       // ignore
     }
   }, [])
+
+  useEffect(() => {
+    syncScanHistoryState()
+
+    const handleUpdate = () => {
+      syncScanHistoryState()
+    }
+
+    window.addEventListener('digitalmix_history_updated', handleUpdate)
+    return () => {
+      window.removeEventListener('digitalmix_history_updated', handleUpdate)
+    }
+  }, [syncScanHistoryState])
 
   // Save history to localStorage
   const saveToHistory = useCallback((payload: ParsedPayload) => {
@@ -1153,6 +1194,7 @@ export function QRCodeScannerTool() {
   // Delete single history item
   const deleteHistoryItem = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
+    deleteActivityItem(id)
     setHistory((prev) => {
       const updated = prev.filter((item) => item.id !== id)
       try {

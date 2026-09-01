@@ -30,7 +30,7 @@ import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
 import { useLanguage } from '@/lib/i18n/context'
-import { logToolActivity } from '@/lib/history-service'
+import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities } from '@/lib/history-service'
 
 type SqlDialect = 'sql' | 'mysql' | 'postgresql' | 'sqlite' | 'plsql'
 
@@ -174,17 +174,66 @@ export default function SqlFormatterTool() {
   const [historySearch, setHistorySearch] = useState('')
   const [copiedHistoryId, setCopiedHistoryId] = useState<string | null>(null)
 
-  // Load history on mount
-  useEffect(() => {
+  // Sync SQL history with local storage & central activity history
+  const syncSqlHistoryState = useCallback(() => {
     try {
+      let localSql: SqlHistoryItem[] = []
       const saved = localStorage.getItem('digitalmix_sql_history')
       if (saved) {
-        setHistory(JSON.parse(saved))
+        localSql = JSON.parse(saved)
       }
+
+      const activityItems = getToolHistoryFromActivities('sql-formatter')
+      const convertedFromActivities: SqlHistoryItem[] = activityItems
+        .map((act) => {
+          const meta = act.metadata as any
+          return {
+            id: act.id,
+            title: act.actionTitle || 'SQL Query',
+            input: act.inputSnippet || '',
+            output: act.outputSnippet || '',
+            dialect: (meta?.dialect || 'sql') as SqlDialect,
+            type: (meta?.type || 'format') as 'format' | 'minify',
+            timestamp: new Date(act.createdAt).getTime(),
+            stats: {
+              lines: meta?.lines || 1,
+              characters: meta?.characters || 0,
+              selectCount: meta?.selectCount || 0,
+              joinCount: meta?.joinCount || 0,
+              whereCount: meta?.whereCount || 0,
+            },
+          } as SqlHistoryItem
+        })
+        .filter((item) => item.input || item.output)
+
+      const map = new Map<string, SqlHistoryItem>()
+      convertedFromActivities.forEach((item) => map.set(item.id, item))
+      localSql.forEach((item) => {
+        if (!map.has(item.id)) {
+          const exists = Array.from(map.values()).some((existing) => existing.output === item.output)
+          if (!exists) map.set(item.id, item)
+        }
+      })
+
+      const merged = Array.from(map.values()).sort((a, b) => b.timestamp - a.timestamp)
+      setHistory(merged)
     } catch {
       // ignore
     }
   }, [])
+
+  useEffect(() => {
+    syncSqlHistoryState()
+
+    const handleUpdate = () => {
+      syncSqlHistoryState()
+    }
+
+    window.addEventListener('digitalmix_history_updated', handleUpdate)
+    return () => {
+      window.removeEventListener('digitalmix_history_updated', handleUpdate)
+    }
+  }, [syncSqlHistoryState])
 
   // Save item to history
   const saveToHistory = useCallback(
@@ -282,6 +331,7 @@ export default function SqlFormatterTool() {
 
   const deleteHistoryItem = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
+    deleteActivityItem(id)
     setHistory((prev) => {
       const updated = prev.filter((item) => item.id !== id)
       try {

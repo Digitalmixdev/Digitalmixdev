@@ -1,5 +1,5 @@
 import { ToolActivityItem } from '@/types/history'
-import { logActivityAction } from '@/actions/history'
+import { logActivityAction, deleteHistoryItemAction, clearAllHistoryAction } from '@/actions/history'
 
 const LOCAL_STORAGE_KEY = 'digitalmix_user_activity_history'
 const MAX_LOCAL_ITEMS = 300
@@ -244,6 +244,87 @@ export function clearLocalActivityHistory(): void {
   } catch (e) {
     console.warn('Error clearing local activity history:', e)
   }
+}
+
+/**
+ * Delete a specific activity record locally & on server DB, and clean up tool-specific storages.
+ */
+export function deleteActivityItem(id: string): ToolActivityItem[] {
+  if (typeof window === 'undefined') return []
+
+  // 1. Delete from primary activity storage
+  const filtered = deleteLocalActivity(id)
+
+  // 2. Remove matching ID from tool-specific local storages
+  const toolKeys = [
+    'digitalmix_qr_history',
+    'digitalmix_sql_history',
+    'digitalmix_json_history',
+    'digitalmix_scan_history',
+  ]
+
+  toolKeys.forEach((key) => {
+    try {
+      const raw = localStorage.getItem(key)
+      if (raw) {
+        const list = JSON.parse(raw)
+        if (Array.isArray(list)) {
+          const updated = list.filter((item: any) => item.id !== id && item.activityId !== id)
+          localStorage.setItem(key, JSON.stringify(updated))
+        }
+      }
+    } catch {
+      // ignore
+    }
+  })
+
+  // 3. Sync delete action to server database
+  deleteHistoryItemAction(id).catch(() => {})
+
+  // 4. Notify all components & cross-tab sync
+  notifyHistoryUpdated(filtered)
+
+  return filtered
+}
+
+/**
+ * Clear all activity history records locally & on server DB, and clean up tool-specific storages.
+ */
+export function clearAllActivities(): void {
+  if (typeof window === 'undefined') return
+
+  // 1. Clear primary activity storage
+  clearLocalActivityHistory()
+
+  // 2. Clear tool-specific local storages
+  const toolKeys = [
+    'digitalmix_qr_history',
+    'digitalmix_sql_history',
+    'digitalmix_json_history',
+    'digitalmix_scan_history',
+  ]
+
+  toolKeys.forEach((key) => {
+    try {
+      localStorage.removeItem(key)
+    } catch {
+      // ignore
+    }
+  })
+
+  // 3. Sync clear action to server database
+  clearAllHistoryAction().catch(() => {})
+
+  // 4. Notify all components
+  notifyHistoryUpdated([])
+}
+
+/**
+ * Get all recorded activities for a specific tool ID.
+ */
+export function getToolHistoryFromActivities(toolId: string): ToolActivityItem[] {
+  const local = getLocalActivityHistory()
+  return local.filter((item) => item.toolId === toolId)
 }
 
 /**
