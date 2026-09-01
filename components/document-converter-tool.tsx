@@ -567,15 +567,16 @@ export default function DocumentConverterTool() {
         if (src === 'docx') {
           const docxData = await parseDocx(file)
           if (tgt === 'pdf') {
-            const pdfBlob = docxData.images && docxData.images.length > 0
-              ? await generatePdfDocument({
-                  title: baseName,
-                  images: await Promise.all(docxData.images.map(async img => ({
+            const pdfBlob = await generatePdfDocument({
+              title: baseName,
+              text: docxData.text,
+              images: docxData.images && docxData.images.length > 0 && !docxData.text
+                ? await Promise.all(docxData.images.map(async img => ({
                     data: await img.blob.arrayBuffer(),
                     type: (img.filename.toLowerCase().endsWith('png') ? 'png' : 'jpg') as 'png' | 'jpg'
                   })))
-                })
-              : await generatePdfDocument({ title: baseName, text: docxData.text })
+                : undefined
+            })
             res = { blob: pdfBlob, filename: `${baseName}.pdf`, mimeType: 'application/pdf', previewHtml: docxData.html, previewText: docxData.text, pageCount: docxData.images?.length || 1 }
           } else if (tgt === 'html') {
             const htmlBlob = generateHtmlDocument({ title: baseName, bodyHtml: docxData.html, sourceType: 'Word Document' })

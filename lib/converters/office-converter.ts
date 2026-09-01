@@ -355,6 +355,12 @@ function cleanPdfText(str: string): string {
     .trim()
 }
 
+// Helper to check if text contains Arabic/Hebrew (RTL) characters
+export function containsRtl(text: string): boolean {
+  if (!text) return false
+  return /[\u0590-\u083F\u08A0-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFC]/.test(text)
+}
+
 // ----------------------------------------------------
 // 6. DOCX Generation (OpenXML via JSZip)
 // ----------------------------------------------------
@@ -401,37 +407,16 @@ export async function generateDocxFile(options: {
 
   const titleText = cleanPdfText(options.title || paragraphsList[0] || 'Converted Document')
 
-  let bodyXml = ''
-
-  if (titleText) {
-    bodyXml += `
-      <w:p>
-        <w:pPr>
-          <w:pStyle w:val="Title"/>
-          <w:jc w:val="center"/>
-          <w:spacing w:before="240" w:after="240"/>
-        </w:pPr>
-        <w:r>
-          <w:rPr>
-            <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>
-            <w:b/>
-            <w:sz w:val="48"/>
-            <w:szCs w:val="48"/>
-            <w:color w:val="1E293B"/>
-          </w:rPr>
-          <w:t xml:space="preserve">${escapeXml(titleText)}</w:t>
-        </w:r>
-      </w:p>
-    `
-  }
-
   let wordRelsContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 `
 
+  let bodyXml = ''
+
+  // MODE A: If document is composed of full-page scanned/rendered images (e.g. from PDF conversion)
+  // We ONLY output high-res page drawings without duplicating raw text at the bottom.
   if (processedImages.length > 0) {
-    let imgBody = ''
     let relIndex = 2
     for (let i = 0; i < processedImages.length; i++) {
       const img = processedImages[i]
@@ -442,15 +427,18 @@ export async function generateDocxFile(options: {
       wordRelsContent += `  <Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="${imgFilename}"/>\n`
       zip.file(`word/${imgFilename}`, img.data)
 
-      imgBody += `
+      bodyXml += `
         <w:p>
-          <w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="240"/></w:pPr>
+          <w:pPr>
+            <w:jc w:val="center"/>
+            <w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/>
+          </w:pPr>
           <w:r>
             <w:drawing>
               <wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">
                 <wp:extent cx="5486400" cy="7772400"/>
                 <wp:effectExtent l="0" t="0" r="0" b="0"/>
-                <wp:docPr id="${i + 1}" name="Picture ${i + 1}"/>
+                <wp:docPr id="${i + 1}" name="Page ${i + 1}"/>
                 <wp:cNvGraphicFramePr>
                   <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noResize="1"/>
                 </wp:cNvGraphicFramePr>
@@ -479,29 +467,59 @@ export async function generateDocxFile(options: {
             </w:drawing>
           </w:r>
         </w:p>
+        ${i < processedImages.length - 1 ? '<w:p><w:r><w:br w:type="page"/></w:r></w:p>' : ''}
       `
     }
-    bodyXml = imgBody + bodyXml
-  }
+  } else {
+    // MODE B: Flowing text document with native Arabic/RTL & English typography
+    if (titleText) {
+      const isTitleRtl = containsRtl(titleText)
+      bodyXml += `
+        <w:p>
+          <w:pPr>
+            <w:pStyle w:val="Title"/>
+            <w:jc w:val="${isTitleRtl ? 'right' : 'left'}"/>
+            ${isTitleRtl ? '<w:bidi/>' : ''}
+            <w:spacing w:before="240" w:after="240"/>
+          </w:pPr>
+          <w:r>
+            <w:rPr>
+              <w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI" w:cs="Traditional Arabic"/>
+              <w:b/>
+              <w:sz w:val="48"/>
+              <w:szCs w:val="48"/>
+              ${isTitleRtl ? '<w:rtl/>' : ''}
+              <w:color w:val="0F172A"/>
+            </w:rPr>
+            <w:t xml:space="preserve">${escapeXml(titleText)}</w:t>
+          </w:r>
+        </w:p>
+      `
+    }
 
-  for (const para of paragraphsList) {
-    if (para === titleText) continue
-    bodyXml += `
-      <w:p>
-        <w:pPr>
-          <w:spacing w:before="120" w:after="120" w:line="276" w:lineRule="auto"/>
-        </w:pPr>
-        <w:r>
-          <w:rPr>
-            <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>
-            <w:sz w:val="24"/>
-            <w:szCs w:val="24"/>
-            <w:color w:val="334155"/>
-          </w:rPr>
-          <w:t xml:space="preserve">${escapeXml(para)}</w:t>
-        </w:r>
-      </w:p>
-    `
+    for (const para of paragraphsList) {
+      if (para === titleText && paragraphsList.length > 1) continue
+      const isParaRtl = containsRtl(para)
+      bodyXml += `
+        <w:p>
+          <w:pPr>
+            <w:jc w:val="${isParaRtl ? 'right' : 'left'}"/>
+            ${isParaRtl ? '<w:bidi/>' : ''}
+            <w:spacing w:before="120" w:after="120" w:line="280" w:lineRule="auto"/>
+          </w:pPr>
+          <w:r>
+            <w:rPr>
+              <w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI" w:cs="Traditional Arabic"/>
+              <w:sz w:val="24"/>
+              <w:szCs w:val="26"/>
+              ${isParaRtl ? '<w:rtl/>' : ''}
+              <w:color w:val="334155"/>
+            </w:rPr>
+            <w:t xml:space="preserve">${escapeXml(para)}</w:t>
+          </w:r>
+        </w:p>
+      `
+    }
   }
 
   wordRelsContent += `</Relationships>`
@@ -547,10 +565,10 @@ export async function generateDocxFile(options: {
   <w:docDefaults>
     <w:rPrDefault>
       <w:rPr>
-        <w:rFonts w:ascii="Calibri" w:eastAsia="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>
+        <w:rFonts w:ascii="Segoe UI" w:eastAsia="Segoe UI" w:hAnsi="Segoe UI" w:cs="Traditional Arabic"/>
         <w:sz w:val="22"/>
-        <w:szCs w:val="22"/>
-        <w:lang w:val="en-US"/>
+        <w:szCs w:val="24"/>
+        <w:lang w:val="en-US" w:bidi="ar-SA"/>
       </w:rPr>
     </w:rPrDefault>
   </w:docDefaults>
@@ -1075,16 +1093,13 @@ export async function generatePdfDocument(options: {
   images?: { data: ArrayBuffer | Uint8Array; type: 'jpg' | 'png' }[]
   pageSize?: [number, number]
 }): Promise<Blob> {
-  const pdfDoc = await PDFDocument.create()
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-
   const [pageWidth, pageHeight] = options.pageSize || PageSizes.A4
   const margin = 50
   const contentWidth = pageWidth - margin * 2
 
   // If images are provided:
   if (options.images && options.images.length > 0) {
+    const pdfDoc = await PDFDocument.create()
     for (const img of options.images) {
       const page = pdfDoc.addPage([pageWidth, pageHeight])
       let embeddedImg
@@ -1116,11 +1131,137 @@ export async function generatePdfDocument(options: {
     return new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' })
   }
 
-  // Otherwise, render structured text paragraphs:
+  const rawTitle = options.title || 'Document'
+  const rawParagraphs = options.paragraphs || (options.text ? options.text.split('\n') : ['No text provided'])
+  const allText = [rawTitle, ...rawParagraphs].join(' ')
+  const hasRtlOrComplex = containsRtl(allText)
+
+  // If text contains Arabic/RTL, render using Canvas Hi-DPI Engine (Like Adobe / iLovePDF)
+  // to ensure 100% accurate connected glyphs, RTL flow, and zero empty pages
+  if (hasRtlOrComplex && typeof document !== 'undefined') {
+    const pdfDoc = await PDFDocument.create()
+    const scale = 2 // 2x Retina scale for crisp text output
+    const canvasWidth = pageWidth * scale
+    const canvasHeight = pageHeight * scale
+    const canvasMargin = margin * scale
+    const canvasContentWidth = contentWidth * scale
+
+    let canvas = document.createElement('canvas')
+    canvas.width = canvasWidth
+    canvas.height = canvasHeight
+    let ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Canvas rendering context not available')
+
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+
+    let currentY = canvasMargin + 40 * scale
+    const pageCanvases: HTMLCanvasElement[] = [canvas]
+
+    const addNewCanvasPage = () => {
+      canvas = document.createElement('canvas')
+      canvas.width = canvasWidth
+      canvas.height = canvasHeight
+      ctx = canvas.getContext('2d')!
+      ctx.fillStyle = '#FFFFFF'
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+      currentY = canvasMargin + 30 * scale
+      pageCanvases.push(canvas)
+    }
+
+    // Render Title
+    if (rawTitle) {
+      const isTitleRtl = containsRtl(rawTitle)
+      ctx.direction = isTitleRtl ? 'rtl' : 'ltr'
+      ctx.textAlign = isTitleRtl ? 'right' : 'left'
+      ctx.fillStyle = '#0f172a'
+      ctx.font = `bold ${22 * scale}px "Cairo", "Segoe UI", "Tahoma", -apple-system, sans-serif`
+      const titleX = isTitleRtl ? canvasWidth - canvasMargin : canvasMargin
+      ctx.fillText(rawTitle, titleX, currentY)
+      currentY += 45 * scale
+    }
+
+    // Render Paragraphs
+    ctx.font = `${13 * scale}px "Cairo", "Segoe UI", "Tahoma", -apple-system, sans-serif`
+    ctx.fillStyle = '#334155'
+
+    for (const para of rawParagraphs) {
+      const trimmed = para.trim()
+      if (!trimmed) {
+        currentY += 16 * scale
+        continue
+      }
+
+      const isParaRtl = containsRtl(trimmed)
+      ctx.direction = isParaRtl ? 'rtl' : 'ltr'
+      ctx.textAlign = isParaRtl ? 'right' : 'left'
+      const paraX = isParaRtl ? canvasWidth - canvasMargin : canvasMargin
+
+      // Word wrapping for Canvas
+      const words = trimmed.split(/\s+/)
+      let currentLine = ''
+
+      for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word
+        const metrics = ctx.measureText(testLine)
+
+        if (metrics.width > canvasContentWidth && currentLine) {
+          if (currentY > canvasHeight - canvasMargin - 30 * scale) {
+            addNewCanvasPage()
+            ctx.direction = isParaRtl ? 'rtl' : 'ltr'
+            ctx.textAlign = isParaRtl ? 'right' : 'left'
+            ctx.font = `${13 * scale}px "Cairo", "Segoe UI", "Tahoma", -apple-system, sans-serif`
+            ctx.fillStyle = '#334155'
+          }
+          ctx.fillText(currentLine, paraX, currentY)
+          currentY += 24 * scale
+          currentLine = word
+        } else {
+          currentLine = testLine
+        }
+      }
+
+      if (currentLine) {
+        if (currentY > canvasHeight - canvasMargin - 30 * scale) {
+          addNewCanvasPage()
+          ctx.direction = isParaRtl ? 'rtl' : 'ltr'
+          ctx.textAlign = isParaRtl ? 'right' : 'left'
+          ctx.font = `${13 * scale}px "Cairo", "Segoe UI", "Tahoma", -apple-system, sans-serif`
+          ctx.fillStyle = '#334155'
+        }
+        ctx.fillText(currentLine, paraX, currentY)
+        currentY += 28 * scale
+      }
+    }
+
+    // Embed all generated pages into PDFDocument
+    for (const pCanvas of pageCanvases) {
+      const pngBlob = await new Promise<Blob>((resolve) => {
+        pCanvas.toBlob((b) => resolve(b || new Blob([])), 'image/png', 1.0)
+      })
+      const pngBytes = await pngBlob.arrayBuffer()
+      const embeddedPng = await pdfDoc.embedPng(pngBytes)
+      const page = pdfDoc.addPage([pageWidth, pageHeight])
+      page.drawImage(embeddedPng, {
+        x: 0,
+        y: 0,
+        width: pageWidth,
+        height: pageHeight,
+      })
+    }
+
+    const pdfBytes = await pdfDoc.save()
+    return new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' })
+  }
+
+  // Standard Latin/English PDF Generation via StandardFonts
+  const pdfDoc = await PDFDocument.create()
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+
   let page = pdfDoc.addPage([pageWidth, pageHeight])
   let y = pageHeight - margin
 
-  const rawTitle = options.title || 'Document'
   const title = sanitizeForPdfWinAnsi(rawTitle)
 
   safeDrawText(page, boldFont, title, {
@@ -1131,7 +1272,6 @@ export async function generatePdfDocument(options: {
   })
   y -= 45
 
-  const rawParagraphs = options.paragraphs || (options.text ? options.text.split('\n') : ['No text provided'])
   const paragraphs = rawParagraphs.map((p) => sanitizeForPdfWinAnsi(p))
 
   for (const para of paragraphs) {
