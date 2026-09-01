@@ -29,13 +29,13 @@ export function StatsSection() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-12 sm:mb-16">
-          <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 px-3.5 py-1 rounded-full border border-primary/20">
+          <span className="text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 px-3.5 py-1 rounded-full border border-primary/20" suppressHydrationWarning>
             {t('stats.badge', 'Core Philosophy')}
           </span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground mt-3">
+          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground mt-3" suppressHydrationWarning>
             {t('stats.title', 'Why Modern Developers Choose DigitalMix')}
           </h2>
-          <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto text-pretty">
+          <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto text-pretty" suppressHydrationWarning>
             {t('stats.subtitle', 'Built with uncompromising privacy, lightweight footprint, and zero cloud dependency.')}
           </p>
         </div>
@@ -52,10 +52,10 @@ export function StatsSection() {
                   <feature.icon className="h-6 w-6" />
                 </div>
               </div>
-              <h3 className="text-lg sm:text-xl font-bold text-foreground mb-2">
+              <h3 className="text-lg sm:text-xl font-bold text-foreground mb-2" suppressHydrationWarning>
                 {feature.title}
               </h3>
-              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed" suppressHydrationWarning>
                 {feature.description}
               </p>
             </div>

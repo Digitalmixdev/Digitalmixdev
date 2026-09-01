@@ -29,6 +29,7 @@ import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
 import { useLanguage } from '@/lib/i18n/context'
 import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities } from '@/lib/history-service'
+import { registerToolInputGetter } from '@/lib/ai/tool-input-bus'
 
 interface JsonStats {
   lines: number
@@ -149,6 +150,11 @@ export default function JsonFormatterTool() {
   const [isCopied, setIsCopied] = useState(false)
   const [syntaxWarning, setSyntaxWarning] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Register current input with privacy-first AI Assistant bus
+  useEffect(() => {
+    return registerToolInputGetter('json-formatter', () => inputJson)
+  }, [inputJson])
 
   // History State
   const [history, setHistory] = useState<JsonHistoryItem[]>([])

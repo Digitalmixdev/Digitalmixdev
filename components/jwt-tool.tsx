@@ -21,6 +21,7 @@ import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
 import { logToolActivity } from '@/lib/history-service'
+import { registerToolInputGetter } from '@/lib/ai/tool-input-bus'
 
 const toolMeta: ToolMetadata = {
   id: 'jwt',
@@ -126,6 +127,11 @@ export default function JwtTool() {
   const [jwtOutput, setJwtOutput] = useState('')
   const [error, setError] = useState('')
   const [isCopied, setIsCopied] = useState(false)
+
+  // Register current input with privacy-first AI Assistant bus
+  useEffect(() => {
+    return registerToolInputGetter('jwt', () => (mode === 'decode' ? jwtInput : payloadJson))
+  }, [mode, jwtInput, payloadJson])
 
   const recordUsage = async () => {
     try {

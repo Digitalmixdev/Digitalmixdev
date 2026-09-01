@@ -31,6 +31,7 @@ import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
 import { useLanguage } from '@/lib/i18n/context'
 import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities } from '@/lib/history-service'
+import { registerToolInputGetter } from '@/lib/ai/tool-input-bus'
 
 type SqlDialect = 'sql' | 'mysql' | 'postgresql' | 'sqlite' | 'plsql'
 
@@ -167,6 +168,11 @@ export default function SqlFormatterTool() {
   const [isCopied, setIsCopied] = useState(false)
   const [syntaxWarning, setSyntaxWarning] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Register current input with privacy-first AI Assistant bus
+  useEffect(() => {
+    return registerToolInputGetter('sql-formatter', () => inputSql)
+  }, [inputSql])
 
   // History State
   const [history, setHistory] = useState<SqlHistoryItem[]>([])

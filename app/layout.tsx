@@ -8,6 +8,7 @@ import { PWAInstaller } from '@/components/pwa-installer'
 import { LazyThirdPartyScripts } from '@/components/lazy-third-party-scripts'
 import Script from 'next/script'
 import { LanguageProvider } from '@/lib/i18n/context'
+import { DigitalMixAiAssistant } from '@/components/ai-assistant'
 import './globals.css'
 
 const inter = Inter({
@@ -190,13 +191,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
         />
       </head>
-      <body className={`${inter.variable} ${geistMono.variable} font-sans antialiased bg-background`}>
+      <body
+        suppressHydrationWarning
+        className={`${inter.variable} ${geistMono.variable} font-sans antialiased bg-background`}
+      >
         <AuthProvider>
           <LanguageProvider>
             <PWAInstaller />
             <ThemeProvider defaultTheme="dark" enableSystem>
               <UserPreferencesSync />
               {children}
+              <DigitalMixAiAssistant />
               <Toaster />
             </ThemeProvider>
 
