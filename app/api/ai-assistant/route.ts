@@ -125,15 +125,15 @@ Privacy Directives:
       parts: [{ text: userPromptText }],
     })
 
-    const rawModel = (process.env.GEMINI_MODEL || 'gemini-2.0-flash').trim().replace(/['"]/g, '')
+    const rawModel = (process.env.GEMINI_MODEL || 'gemini-3.6-flash').trim().replace(/['"]/g, '')
     const candidateModels = Array.from(
       new Set([
         rawModel,
-        'gemini-2.0-flash',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
-        'gemini-2.5-flash',
+        'gemini-3.6-flash',
+        'gemini-3.5-flash',
+        'gemini-3.5-flash-lite',
         'gemini-3.7-flash',
+        'gemini-2.5-flash',
       ])
     )
 
@@ -156,9 +156,15 @@ Privacy Directives:
         break
       } catch (err: any) {
         lastError = err
-        // If 404 (model not found), try next model candidate
-        if (err?.status === 404 || err?.message?.includes('not found') || err?.message?.includes('404')) {
-          console.warn(`Model ${modelName} not found (404), attempting next candidate...`)
+        // If 404 (model not found) or 503 (high demand), try next model candidate
+        if (
+          err?.status === 404 ||
+          err?.status === 503 ||
+          err?.message?.includes('not found') ||
+          err?.message?.includes('404') ||
+          err?.message?.includes('503')
+        ) {
+          console.warn(`Model ${modelName} returned ${err?.status || 'error'}, attempting next candidate...`)
           continue
         }
         throw err
@@ -166,6 +172,7 @@ Privacy Directives:
     }
 
     if (lastError && !responseText) {
+      console.error('All candidate models failed. Last error details:', JSON.stringify(lastError, Object.getOwnPropertyNames(lastError)))
       throw lastError
     }
 
@@ -177,7 +184,8 @@ Privacy Directives:
       recommendedTools: recommended.length > 0 ? recommended : undefined,
     })
   } catch (error: any) {
-    console.error('AI Assistant API Error:', error)
+    console.error('AI Assistant API Error:', error?.message || error)
+    if (error?.status) console.error('Status:', error.status)
     return NextResponse.json(
       { error: error?.message || 'Failed to generate AI response' },
       { status: 500 }
