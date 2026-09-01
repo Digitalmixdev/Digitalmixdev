@@ -46,13 +46,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
 
-    const apiKey = process.env.GEMINI_API_KEY
-    if (!apiKey) {
+    const rawApiKey = process.env.GEMINI_API_KEY?.trim().replace(/^['"]|['"]$/g, '')
+    if (!rawApiKey) {
       // Return 503 to trigger client-side fallback gracefully
       return NextResponse.json({ error: 'AI service unavailable' }, { status: 503 })
     }
 
-    const ai = new GoogleGenAI({ apiKey })
+    const ai = new GoogleGenAI({ apiKey: rawApiKey })
 
     // Build system instructions with DigitalMix tools knowledge
     const toolsSummary = DIGITALMIX_TOOLS_KNOWLEDGE.map((t) => ({
@@ -125,13 +125,14 @@ Privacy Directives:
       parts: [{ text: userPromptText }],
     })
 
-    const rawModel = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim().replace(/['"]/g, '')
+    const rawModel = (process.env.GEMINI_MODEL || 'gemini-2.0-flash').trim().replace(/['"]/g, '')
     const candidateModels = Array.from(
       new Set([
         rawModel,
-        'gemini-2.5-flash',
-        'gemini-1.5-flash',
         'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
+        'gemini-2.5-flash',
         'gemini-3.7-flash',
       ])
     )
