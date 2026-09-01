@@ -125,17 +125,48 @@ Privacy Directives:
       parts: [{ text: userPromptText }],
     })
 
-    const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-      contents,
-      config: {
-        systemInstruction,
-        temperature: 0.4,
-        maxOutputTokens: 800,
-      },
-    })
+    const rawModel = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim().replace(/['"]/g, '')
+    const candidateModels = Array.from(
+      new Set([
+        rawModel,
+        'gemini-2.5-flash',
+        'gemini-1.5-flash',
+        'gemini-2.0-flash',
+        'gemini-3.7-flash',
+      ])
+    )
 
-    const responseText = response.text || ''
+    let responseText = ''
+    let lastError: any = null
+
+    for (const modelName of candidateModels) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents,
+          config: {
+            systemInstruction,
+            temperature: 0.4,
+            maxOutputTokens: 800,
+          },
+        })
+        responseText = response.text || ''
+        lastError = null
+        break
+      } catch (err: any) {
+        lastError = err
+        // If 404 (model not found), try next model candidate
+        if (err?.status === 404 || err?.message?.includes('not found') || err?.message?.includes('404')) {
+          console.warn(`Model ${modelName} not found (404), attempting next candidate...`)
+          continue
+        }
+        throw err
+      }
+    }
+
+    if (lastError && !responseText) {
+      throw lastError
+    }
 
     // Detect recommended tools based on the user query & response
     const recommended = findRecommendedTools(message, currentToolSlug, 2).map((r) => r.tool)
