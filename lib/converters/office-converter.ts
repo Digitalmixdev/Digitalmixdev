@@ -629,12 +629,15 @@ export async function generatePptxFile(options: {
     for (const bullet of slide.bullets) {
       const cleanBullet = cleanPdfText(bullet)
       if (!cleanBullet) continue
+      const isBulletRtl = containsRtl(cleanBullet)
       bulletsXml += `
         <a:p>
-          <a:pPr lvl="0"/>
+          <a:pPr lvl="0" algn="${isBulletRtl ? 'r' : 'l'}" ${isBulletRtl ? 'rtl="1"' : ''}/>
           <a:r>
-            <a:rPr lang="en-US" sz="2000">
+            <a:rPr lang="${isBulletRtl ? 'ar-SA' : 'en-US'}" altLang="ar-SA" sz="2000">
               <a:solidFill><a:srgbClr val="334155"/></a:solidFill>
+              <a:latin typeface="Segoe UI"/>
+              <a:cs typeface="Traditional Arabic"/>
             </a:rPr>
             <a:t>${escapeXml(cleanBullet)}</a:t>
           </a:r>
@@ -645,11 +648,15 @@ export async function generatePptxFile(options: {
     if (slide.body && slide.bullets.length === 0) {
       const cleanBody = cleanPdfText(slide.body)
       if (cleanBody) {
+        const isBodyRtl = containsRtl(cleanBody)
         bulletsXml += `
           <a:p>
+            <a:pPr algn="${isBodyRtl ? 'r' : 'l'}" ${isBodyRtl ? 'rtl="1"' : ''}/>
             <a:r>
-              <a:rPr lang="en-US" sz="2000">
+              <a:rPr lang="${isBodyRtl ? 'ar-SA' : 'en-US'}" altLang="ar-SA" sz="2000">
                 <a:solidFill><a:srgbClr val="334155"/></a:solidFill>
+                <a:latin typeface="Segoe UI"/>
+                <a:cs typeface="Traditional Arabic"/>
               </a:rPr>
               <a:t>${escapeXml(cleanBody)}</a:t>
             </a:r>
@@ -663,7 +670,9 @@ export async function generatePptxFile(options: {
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
 `
     let picXml = ''
-    if (processedImages[i]) {
+    const hasImageForSlide = !!processedImages[i]
+
+    if (hasImageForSlide) {
       const img = processedImages[i]
       const imgExt = img.type || 'jpg'
       const imgFilename = `media/image${slideNum}.${imgExt}`
@@ -696,6 +705,7 @@ export async function generatePptxFile(options: {
     zip.file(`ppt/slides/_rels/slide${slideNum}.xml.rels`, slideRelsContent)
 
     const slideTitle = cleanPdfText(slide.title) || `Slide ${slideNum}`
+    const isTitleRtl = containsRtl(slideTitle)
 
     const slideXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
@@ -717,6 +727,7 @@ export async function generatePptxFile(options: {
         </a:xfrm>
       </p:grpSpPr>
       ${picXml}
+      ${!hasImageForSlide ? `
       <p:sp>
         <p:nvSpPr>
           <p:cNvPr id="2" name="Title"/>
@@ -733,9 +744,12 @@ export async function generatePptxFile(options: {
           <a:bodyPr/>
           <a:lstStyle/>
           <a:p>
+            <a:pPr algn="${isTitleRtl ? 'r' : 'l'}" ${isTitleRtl ? 'rtl="1"' : ''}/>
             <a:r>
-              <a:rPr lang="en-US" b="1" sz="3200">
+              <a:rPr lang="${isTitleRtl ? 'ar-SA' : 'en-US'}" altLang="ar-SA" b="1" sz="3200">
                 <a:solidFill><a:srgbClr val="0F172A"/></a:solidFill>
+                <a:latin typeface="Segoe UI"/>
+                <a:cs typeface="Traditional Arabic"/>
               </a:rPr>
               <a:t>${escapeXml(slideTitle)}</a:t>
             </a:r>
@@ -761,6 +775,7 @@ export async function generatePptxFile(options: {
           ${bulletsXml}
         </p:txBody>
       </p:sp>` : ''}
+      ` : ''}
     </p:spTree>
   </p:cSld>
 </p:sld>`
