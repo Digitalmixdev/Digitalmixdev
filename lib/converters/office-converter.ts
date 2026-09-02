@@ -361,6 +361,275 @@ export function containsRtl(text: string): boolean {
   return /[\u0590-\u083F\u08A0-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFC]/.test(text)
 }
 
+// Helper to convert HTML / Markdown / Structured text into native Word OpenXML elements
+function renderDocxHeader(text: string, level = 'h2'): string {
+  const isRtl = containsRtl(text)
+  const size = level === 'h1' ? '40' : level === 'h2' ? '32' : '28'
+  return `
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading1"/>
+        <w:jc w:val="${isRtl ? 'right' : 'left'}"/>
+        ${isRtl ? '<w:bidi/>' : ''}
+        <w:spacing w:before="240" w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI" w:cs="Traditional Arabic"/>
+          <w:b/>
+          <w:sz w:val="${size}"/>
+          <w:szCs w:val="${size}"/>
+          ${isRtl ? '<w:rtl/>' : ''}
+          <w:color w:val="0F172A"/>
+        </w:rPr>
+        <w:t xml:space="preserve">${escapeXml(text)}</w:t>
+      </w:r>
+    </w:p>
+  `
+}
+
+function renderDocxParagraph(text: string): string {
+  const isRtl = containsRtl(text)
+  return `
+    <w:p>
+      <w:pPr>
+        <w:jc w:val="${isRtl ? 'right' : 'left'}"/>
+        ${isRtl ? '<w:bidi/>' : ''}
+        <w:spacing w:before="100" w:after="100" w:line="280" w:lineRule="auto"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI" w:cs="Traditional Arabic"/>
+          <w:sz w:val="24"/>
+          <w:szCs w:val="26"/>
+          ${isRtl ? '<w:rtl/>' : ''}
+          <w:color w:val="334155"/>
+        </w:rPr>
+        <w:t xml:space="preserve">${escapeXml(text)}</w:t>
+      </w:r>
+    </w:p>
+  `
+}
+
+function renderDocxPhotoFrame(text: string): string {
+  const isRtl = containsRtl(text)
+  const lines = text.split(/\r?\n|\/|\\/).map((l) => l.trim()).filter(Boolean)
+
+  let innerXml = ''
+  lines.forEach((l) => {
+    innerXml += `
+      <w:p>
+        <w:pPr>
+          <w:jc w:val="center"/>
+          ${isRtl ? '<w:bidi/>' : ''}
+          <w:spacing w:before="40" w:after="40"/>
+        </w:pPr>
+        <w:r>
+          <w:rPr>
+            <w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI" w:cs="Traditional Arabic"/>
+            <w:b/>
+            <w:sz w:val="20"/>
+            <w:szCs w:val="22"/>
+            ${isRtl ? '<w:rtl/>' : ''}
+            <w:color w:val="1E293B"/>
+          </w:rPr>
+          <w:t xml:space="preserve">${escapeXml(l)}</w:t>
+        </w:r>
+      </w:p>
+    `
+  })
+
+  return `
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="3000" w:type="dxa"/>
+        <w:jc w:val="right"/>
+        <w:tblBorders>
+          <w:top w:val="single" w:sz="12" w:space="0" w:color="2563EB"/>
+          <w:left w:val="single" w:sz="12" w:space="0" w:color="2563EB"/>
+          <w:bottom w:val="single" w:sz="12" w:space="0" w:color="2563EB"/>
+          <w:right w:val="single" w:sz="12" w:space="0" w:color="2563EB"/>
+        </w:tblBorders>
+        <w:tblCellMar>
+          <w:top w:w="180" w:type="dxa"/>
+          <w:left w:w="180" w:type="dxa"/>
+          <w:bottom w:w="180" w:type="dxa"/>
+          <w:right w:w="180" w:type="dxa"/>
+        </w:tblCellMar>
+        <w:bidi/>
+      </w:tblPr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="3000" w:type="dxa"/>
+            <w:shd w:val="clear" w:color="auto" w:fill="F8FAFC"/>
+          </w:tcPr>
+          ${innerXml}
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p><w:pPr><w:spacing w:before="100" w:after="100"/></w:pPr></w:p>
+  `
+}
+
+function renderDocxTableFromMatrix(matrix: string[][]): string {
+  if (matrix.length === 0) return ''
+
+  let tblXml = `
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="0" w:type="auto"/>
+        <w:jc w:val="center"/>
+        <w:tblBorders>
+          <w:top w:val="single" w:sz="6" w:space="0" w:color="475569"/>
+          <w:left w:val="single" w:sz="6" w:space="0" w:color="475569"/>
+          <w:bottom w:val="single" w:sz="6" w:space="0" w:color="475569"/>
+          <w:right w:val="single" w:sz="6" w:space="0" w:color="475569"/>
+          <w:insideH w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+          <w:insideV w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+        </w:tblBorders>
+        <w:tblCellMar>
+          <w:top w:w="120" w:type="dxa"/>
+          <w:left w:w="160" w:type="dxa"/>
+          <w:bottom w:w="120" w:type="dxa"/>
+          <w:right w:w="160" w:type="dxa"/>
+        </w:tblCellMar>
+        <w:bidi/>
+      </w:tblPr>
+  `
+
+  matrix.forEach((row, rowIdx) => {
+    tblXml += `<w:tr>`
+    row.forEach((cellText) => {
+      const isRtl = containsRtl(cellText)
+      const isHeader = rowIdx === 0
+
+      tblXml += `
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="0" w:type="auto"/>
+            ${isHeader ? '<w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/>' : ''}
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:jc w:val="${isRtl ? 'right' : 'left'}"/>
+              ${isRtl ? '<w:bidi/>' : ''}
+              <w:spacing w:before="60" w:after="60"/>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI" w:cs="Traditional Arabic"/>
+                ${isHeader ? '<w:b/>' : ''}
+                <w:sz w:val="22"/>
+                <w:szCs w:val="24"/>
+                ${isRtl ? '<w:rtl/>' : ''}
+                <w:color w:val="0F172A"/>
+              </w:rPr>
+              <w:t xml:space="preserve">${escapeXml(cellText)}</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      `
+    })
+    tblXml += `</w:tr>`
+  })
+
+  tblXml += `</w:tbl><w:p><w:pPr><w:spacing w:before="120" w:after="120"/></w:pPr></w:p>`
+  return tblXml
+}
+
+function convertStructuredContentToDocxXml(htmlOrText: string): string {
+  if (!htmlOrText || !htmlOrText.trim()) return ''
+
+  if (typeof window !== 'undefined' && /<[a-z][\s\S]*>/i.test(htmlOrText)) {
+    try {
+      const parser = new DOMParser()
+      const doc = parser.parseFromString(htmlOrText, 'text/html')
+      let xml = ''
+
+      const nodes = Array.from(doc.body.children.length > 0 ? doc.body.children : doc.body.childNodes)
+
+      nodes.forEach((node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const el = node as HTMLElement
+          const tagName = el.tagName.toLowerCase()
+
+          if (tagName === 'table') {
+            const rows = Array.from(el.querySelectorAll('tr'))
+            const matrix = rows.map((r) => Array.from(r.querySelectorAll('td, th')).map((c) => c.textContent?.trim() || ''))
+            xml += renderDocxTableFromMatrix(matrix)
+          } else if (tagName === 'h1' || tagName === 'h2' || tagName === 'h3' || tagName === 'h4') {
+            const txt = el.textContent?.trim() || ''
+            if (txt) xml += renderDocxHeader(txt, tagName)
+          } else if (
+            el.classList.contains('photo-frame') ||
+            el.classList.contains('photo-box') ||
+            el.textContent?.includes('صورة الطالب') ||
+            el.textContent?.includes('صورة الطالبة')
+          ) {
+            xml += renderDocxPhotoFrame(el.textContent?.trim() || 'صورة الطالب / الطالبة\n6 * 4')
+          } else {
+            const txt = el.textContent?.trim() || ''
+            if (txt) xml += renderDocxParagraph(txt)
+          }
+        } else if (node.nodeType === Node.TEXT_NODE) {
+          const txt = node.textContent?.trim() || ''
+          if (txt) xml += renderDocxParagraph(txt)
+        }
+      })
+
+      if (xml.trim().length > 0) return xml
+    } catch (err) {
+      console.warn('DOMParser failed, fallback to plain text parsing:', err)
+    }
+  }
+
+  // Fallback / Plain text line by line
+  const lines = htmlOrText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  let xml = ''
+  let inTable = false
+  let tableRows: string[][] = []
+
+  const flushTable = () => {
+    if (tableRows.length > 0) {
+      xml += renderDocxTableFromMatrix(tableRows)
+      tableRows = []
+    }
+    inTable = false
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+
+    if (line.includes('|') && line.startsWith('|')) {
+      inTable = true
+      if (/^\|[\s\-:|]+\|$/.test(line)) continue
+
+      const cells = line
+        .split('|')
+        .map((c) => c.trim())
+        .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
+      if (cells.length > 0) {
+        tableRows.push(cells)
+      }
+      continue
+    } else if (inTable) {
+      flushTable()
+    }
+
+    if (line.includes('صورة الطالب') || line.includes('صورة الشخصية') || line.includes('صورة ملونة خلفية بيضاء')) {
+      xml += renderDocxPhotoFrame(line)
+      continue
+    }
+
+    xml += renderDocxParagraph(line)
+  }
+
+  if (inTable) flushTable()
+
+  return xml
+}
+
 // ----------------------------------------------------
 // 6. DOCX Generation (OpenXML via JSZip)
 // ----------------------------------------------------
@@ -370,6 +639,7 @@ export async function generateDocxFile(options: {
   html?: string
   paragraphs?: string[]
   images?: { data: Blob | ArrayBuffer | Uint8Array; type?: 'jpg' | 'png' }[]
+  includeImagePages?: boolean
 }): Promise<Blob> {
   const zip = new JSZip()
 
@@ -390,19 +660,6 @@ export async function generateDocxFile(options: {
   } else if (options.text) {
     const lines = options.text.split(/\r?\n\r?\n|\r?\n/).map((l) => cleanPdfText(l)).filter(Boolean)
     paragraphsList.push(...lines)
-  } else if (options.html) {
-    const tempDiv = document.createElement('div')
-    tempDiv.innerHTML = options.html
-    const pElements = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6, p, li, tr')
-    if (pElements.length > 0) {
-      pElements.forEach((el) => {
-        const text = cleanPdfText(el.textContent || '')
-        if (text) paragraphsList.push(text)
-      })
-    } else {
-      const text = cleanPdfText(tempDiv.textContent || '')
-      if (text) paragraphsList.push(text)
-    }
   }
 
   const titleText = cleanPdfText(options.title || paragraphsList[0] || 'Converted Document')
@@ -414,9 +671,10 @@ export async function generateDocxFile(options: {
 
   let bodyXml = ''
 
-  // MODE A: If document is composed of full-page scanned/rendered images (e.g. from PDF conversion)
-  // We ONLY output high-res page drawings without duplicating raw text at the bottom.
-  if (processedImages.length > 0) {
+  const shouldRenderImages = processedImages.length > 0 && (options.includeImagePages || paragraphsList.length === 0)
+
+  // MODE A: Only render background page images if explicitly requested or if no text was found
+  if (shouldRenderImages) {
     let relIndex = 2
     for (let i = 0; i < processedImages.length; i++) {
       const img = processedImages[i]
@@ -474,78 +732,14 @@ export async function generateDocxFile(options: {
     }
   }
 
-  // Append extracted editable text paragraphs (with native RTL / Arabic & English typography)
-  if (paragraphsList.length > 0) {
-    if (processedImages.length > 0) {
-      bodyXml += `
-        <w:p><w:r><w:br w:type="page"/></w:r></w:p>
-        <w:p>
-          <w:pPr>
-            <w:jc w:val="right"/>
-            <w:bidi/>
-            <w:spacing w:before="360" w:after="180"/>
-          </w:pPr>
-          <w:r>
-            <w:rPr>
-              <w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI" w:cs="Traditional Arabic"/>
-              <w:b/>
-              <w:sz w:val="28"/>
-              <w:szCs w:val="30"/>
-              <w:rtl/>
-              <w:color w:val="0F172A"/>
-            </w:rPr>
-            <w:t xml:space="preserve">النص المستخرج القابل للتعديل (Editable Text Content):</w:t>
-          </w:r>
-        </w:p>
-      `
-    } else if (titleText) {
-      const isTitleRtl = containsRtl(titleText)
-      bodyXml += `
-        <w:p>
-          <w:pPr>
-            <w:pStyle w:val="Title"/>
-            <w:jc w:val="${isTitleRtl ? 'right' : 'left'}"/>
-            ${isTitleRtl ? '<w:bidi/>' : ''}
-            <w:spacing w:before="240" w:after="240"/>
-          </w:pPr>
-          <w:r>
-            <w:rPr>
-              <w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI" w:cs="Traditional Arabic"/>
-              <w:b/>
-              <w:sz w:val="48"/>
-              <w:szCs w:val="48"/>
-              ${isTitleRtl ? '<w:rtl/>' : ''}
-              <w:color w:val="0F172A"/>
-            </w:rPr>
-            <w:t xml:space="preserve">${escapeXml(titleText)}</w:t>
-          </w:r>
-        </w:p>
-      `
+  // MODE B: Render extracted editable structured document content directly on Page 1 (with native Word tables, boxes, RTL typography)
+  const structuredSource = options.html || options.text || paragraphsList.join('\n')
+  if (structuredSource && structuredSource.trim().length > 0) {
+    if (shouldRenderImages) {
+      bodyXml += `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`
     }
 
-    for (const para of paragraphsList) {
-      if (!processedImages.length && para === titleText && paragraphsList.length > 1) continue
-      const isParaRtl = containsRtl(para)
-      bodyXml += `
-        <w:p>
-          <w:pPr>
-            <w:jc w:val="${isParaRtl ? 'right' : 'left'}"/>
-            ${isParaRtl ? '<w:bidi/>' : ''}
-            <w:spacing w:before="120" w:after="120" w:line="280" w:lineRule="auto"/>
-          </w:pPr>
-          <w:r>
-            <w:rPr>
-              <w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI" w:cs="Traditional Arabic"/>
-              <w:sz w:val="24"/>
-              <w:szCs w:val="26"/>
-              ${isParaRtl ? '<w:rtl/>' : ''}
-              <w:color w:val="334155"/>
-            </w:rPr>
-            <w:t xml:space="preserve">${escapeXml(para)}</w:t>
-          </w:r>
-        </w:p>
-      `
-    }
+    bodyXml += convertStructuredContentToDocxXml(structuredSource)
   }
 
   wordRelsContent += `</Relationships>`
@@ -619,6 +813,7 @@ export async function generatePptxFile(options: {
   title?: string
   slides: { title: string; bullets: string[]; body?: string }[]
   images?: { data: Blob | ArrayBuffer | Uint8Array; type?: 'jpg' | 'png' }[]
+  includeBackgroundImages?: boolean
 }): Promise<Blob> {
   const zip = new JSZip()
   const presentationTitle = cleanPdfText(options.title || 'Presentation')
@@ -634,6 +829,8 @@ export async function generatePptxFile(options: {
       }
     }
   }
+
+  const shouldRenderImages = !!options.includeBackgroundImages && processedImages.length > 0
 
   let contentTypesOverrides = ''
   let presentationSlideRels = `  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>\n`
@@ -696,7 +893,7 @@ export async function generatePptxFile(options: {
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
 `
     let picXml = ''
-    const hasImageForSlide = !!processedImages[i]
+    const hasImageForSlide = shouldRenderImages && !!processedImages[i]
 
     if (hasImageForSlide) {
       const img = processedImages[i]

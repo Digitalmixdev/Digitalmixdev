@@ -31,6 +31,7 @@ import {
   LogOut,
   Loader2,
   Settings,
+  Palette,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -68,6 +69,7 @@ const toolIconMap: Record<string, LucideIcon> = {
   RefreshCw,
   Image: ImageIcon,
   ScanLine,
+  Palette,
 }
 
 interface MobileMenuProps {

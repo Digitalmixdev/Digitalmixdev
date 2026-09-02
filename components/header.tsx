@@ -34,6 +34,7 @@ import {
   LayoutDashboard,
   Star,
   ScanLine,
+  Palette,
   type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -72,6 +73,7 @@ const toolIconMap: Record<string, LucideIcon> = {
   RefreshCw,
   Image: ImageIcon,
   ScanLine,
+  Palette,
 }
 
 function showComingSoon() {

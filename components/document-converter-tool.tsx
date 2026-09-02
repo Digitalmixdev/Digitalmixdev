@@ -50,6 +50,7 @@ import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
 import { logToolActivity } from '@/lib/history-service'
+import { performOcrOnImageBlob } from '@/lib/ocr-service'
 import {
   parseDocx,
   parsePptx,
@@ -358,6 +359,7 @@ export default function DocumentConverterTool() {
   const [margin, setMargin] = useState<number>(30) // 0, 15, 30, 50
   const [backgroundColor, setBackgroundColor] = useState<string>('#FFFFFF')
   const [exportMode, setExportMode] = useState<'merged' | 'individual'>('merged')
+  const [pdfToDocxMode, setPdfToDocxMode] = useState<'editableText' | 'withImages'>('editableText')
 
   // Check if current queue is primarily images
   const hasImages = items.some((it) => it.isImage)
@@ -676,13 +678,51 @@ export default function DocumentConverterTool() {
           const pdfData = await parsePdf(file)
           const pageImages = await renderPdfToImages(file, 'jpg', 0.92, 2.0).catch(() => [])
           if (tgt === 'docx') {
+            setConversionProgress('Analyzing document structure and performing OCR text recognition...')
+            const finalParagraphs: string[] = []
+            let fullHtml = ''
+
+            for (let i = 0; i < pdfData.pages.length; i++) {
+              const p = pdfData.pages[i]
+              let pageText = p.text?.trim() || ''
+              let pageHtml = ''
+
+              // Run OCR if text is short/scanned image form or missing
+              if (pageText.length < 50 && pageImages[i]) {
+                setConversionProgress(`Recognizing text via OCR on page ${i + 1} of ${pdfData.pages.length}...`)
+                const ocrRes = await performOcrOnImageBlob(pageImages[i].blob)
+                if (ocrRes.text && ocrRes.text.trim().length > pageText.length) {
+                  pageText = ocrRes.text.trim()
+                  pageHtml = ocrRes.html
+                }
+              }
+
+              if (pageText) {
+                if (pdfData.pages.length > 1) {
+                  finalParagraphs.push(`--- Page ${p.pageNumber} ---`)
+                }
+                finalParagraphs.push(pageText)
+                fullHtml += (pageHtml || `<p>${pageText.replace(/\n+/g, '</p><p>')}</p>`) + '\n'
+              }
+            }
+
+            const fullExtractedText = finalParagraphs.join('\n\n')
+
             const docxBlob = await generateDocxFile({
               title: baseName,
-              text: pdfData.text,
-              paragraphs: pdfData.pages.map((p) => `--- Page ${p.pageNumber} ---\n${p.text}`),
-              images: pageImages.map(img => ({ data: img.blob, type: 'jpg' })),
+              text: fullExtractedText,
+              html: fullHtml,
+              paragraphs: finalParagraphs,
+              images: pdfToDocxMode === 'withImages' ? pageImages.map((img) => ({ data: img.blob, type: 'jpg' })) : undefined,
+              includeImagePages: pdfToDocxMode === 'withImages',
             })
-            res = { blob: docxBlob, filename: `${baseName}.docx`, mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', previewText: pdfData.text, pageCount: pdfData.pageCount }
+            res = {
+              blob: docxBlob,
+              filename: `${baseName}.docx`,
+              mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              previewText: fullExtractedText,
+              pageCount: pdfData.pageCount,
+            }
           } else if (tgt === 'jpg' || tgt === 'png') {
             const images = await renderPdfToImages(file, tgt)
             res = {
@@ -700,22 +740,37 @@ export default function DocumentConverterTool() {
           } else if (tgt === 'txt') {
             res = { blob: new Blob([pdfData.text], { type: 'text/plain;charset=utf-8' }), filename: `${baseName}.txt`, mimeType: 'text/plain', previewText: pdfData.text, pageCount: pdfData.pageCount }
           } else if (tgt === 'pptx') {
-            const slides = pdfData.pages.map((p) => {
-              const lines = p.text.split('\n').filter((l) => l.trim().length > 0)
-              const title = lines[0] ? lines[0].slice(0, 60) : `Page ${p.pageNumber}`
-              const bullets = lines.slice(1, 10).map((l) => l.slice(0, 120))
-              if (bullets.length === 0) {
-                bullets.push(`PDF Content from Page ${p.pageNumber}`)
+            setConversionProgress('Generating PPTX slides with extracted editable content...')
+            const slides = []
+            for (let i = 0; i < pdfData.pages.length; i++) {
+              const p = pdfData.pages[i]
+              let pageText = p.text?.trim() || ''
+
+              if (pageText.length < 50 && pageImages[i]) {
+                const ocrRes = await performOcrOnImageBlob(pageImages[i].blob)
+                if (ocrRes.text && ocrRes.text.trim().length > pageText.length) {
+                  pageText = ocrRes.text.trim()
+                }
               }
-              return {
+
+              const lines = pageText.split('\n').filter((l) => l.trim().length > 0)
+              const title = lines[0] ? lines[0].slice(0, 70) : `الصفحة ${p.pageNumber}`
+              const bullets = lines.slice(1, 12).map((l) => l.slice(0, 150))
+              if (bullets.length === 0) {
+                bullets.push(lines[0] || `محتوى الصفحة ${p.pageNumber}`)
+              }
+
+              slides.push({
                 title,
                 bullets,
-              }
-            })
+              })
+            }
+
             const pptxBlob = await generatePptxFile({
               title: baseName,
               slides,
-              images: pageImages.map(img => ({ data: img.blob, type: 'jpg' })),
+              images: pdfToDocxMode === 'withImages' ? pageImages.map((img) => ({ data: img.blob, type: 'jpg' })) : undefined,
+              includeBackgroundImages: pdfToDocxMode === 'withImages',
             })
             res = {
               blob: pptxBlob,
@@ -725,20 +780,44 @@ export default function DocumentConverterTool() {
               pageCount: pdfData.pageCount,
             }
           } else if (tgt === 'xlsx') {
-            const rows: any[][] = [['Page', 'Line Number', 'Extracted Content']]
-            pdfData.pages.forEach((p) => {
-              const lines = p.text.split('\n').filter((l) => l.trim().length > 0)
-              lines.forEach((l, idx) => {
-                if (l.includes('\t')) {
-                  rows.push([p.pageNumber, idx + 1, ...l.split('\t').map((c) => c.trim())])
-                } else if (/\s{2,}/.test(l)) {
-                  rows.push([p.pageNumber, idx + 1, ...l.split(/\s{2,}/).map((c) => c.trim())])
-                } else {
-                  rows.push([p.pageNumber, idx + 1, l.trim()])
+            setConversionProgress('Analyzing document structure & converting to Excel...')
+            let fullHtml = ''
+            const rows: any[][] = []
+
+            for (let i = 0; i < pdfData.pages.length; i++) {
+              const p = pdfData.pages[i]
+              let pageText = p.text?.trim() || ''
+
+              if (pageText.length < 50 && pageImages[i]) {
+                const ocrRes = await performOcrOnImageBlob(pageImages[i].blob)
+                if (ocrRes.text && ocrRes.text.trim().length > pageText.length) {
+                  pageText = ocrRes.text.trim()
+                  if (ocrRes.html) fullHtml += ocrRes.html + '\n'
                 }
-              })
+              }
+
+              if (pageText) {
+                const lines = pageText.split('\n').filter((l) => l.trim().length > 0)
+                lines.forEach((l) => {
+                  if (l.includes('\t')) {
+                    rows.push(l.split('\t').map((c) => c.trim()))
+                  } else if (/\s{2,}/.test(l)) {
+                    rows.push(l.split(/\s{2,}/).map((c) => c.trim()))
+                  } else if (l.includes(':')) {
+                    const parts = l.split(':')
+                    rows.push([parts[0].trim(), parts.slice(1).join(':').trim()])
+                  } else {
+                    rows.push([l.trim()])
+                  }
+                })
+              }
+            }
+
+            const xlsxBlob = generateXlsxFromData({
+              sheetName: baseName,
+              rows: rows.length > 0 ? rows : undefined,
+              htmlTable: fullHtml.includes('<table') ? fullHtml : undefined,
             })
-            const xlsxBlob = generateXlsxFromData({ sheetName: baseName, rows })
             res = {
               blob: xlsxBlob,
               filename: `${baseName}.xlsx`,
@@ -768,6 +847,60 @@ export default function DocumentConverterTool() {
           } else if (tgt === 'docx') {
             const docxBlob = await generateDocxFile({ title: baseName, text: textContent })
             res = { blob: docxBlob, filename: `${baseName}.docx`, mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', previewText: textContent }
+          }
+        }
+        // 7. Image Source (JPG/PNG -> DOCX or XLSX via OCR)
+        else if ((src === 'jpg' || src === 'png') && tgt === 'docx') {
+          setConversionProgress('Recognizing text inside image via OCR...')
+          const ocrRes = await performOcrOnImageBlob(file)
+          const paragraphs = ocrRes.text.split(/\r?\n\r?\n|\r?\n/).map((l) => l.trim()).filter(Boolean)
+          const docxBlob = await generateDocxFile({
+            title: baseName,
+            text: ocrRes.text,
+            html: ocrRes.html,
+            paragraphs: paragraphs.length > 0 ? paragraphs : ['No text recognized from image.'],
+            images: pdfToDocxMode === 'withImages' ? [{ data: await file.arrayBuffer(), type: src as 'jpg' | 'png' }] : undefined,
+            includeImagePages: pdfToDocxMode === 'withImages',
+          })
+          res = {
+            blob: docxBlob,
+            filename: `${baseName}.docx`,
+            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            previewText: ocrRes.text,
+            pageCount: 1,
+          }
+        } else if ((src === 'jpg' || src === 'png') && tgt === 'xlsx') {
+          setConversionProgress('Recognizing text & tabular structure from image for Excel...')
+          const ocrRes = await performOcrOnImageBlob(file)
+          const rows: any[][] = []
+
+          if (ocrRes.text) {
+            const lines = ocrRes.text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+            lines.forEach((l) => {
+              if (l.includes('\t')) {
+                rows.push(l.split('\t').map((c) => c.trim()))
+              } else if (/\s{2,}/.test(l)) {
+                rows.push(l.split(/\s{2,}/).map((c) => c.trim()))
+              } else if (l.includes(':')) {
+                const parts = l.split(':')
+                rows.push([parts[0].trim(), parts.slice(1).join(':').trim()])
+              } else {
+                rows.push([l.trim()])
+              }
+            })
+          }
+
+          const xlsxBlob = generateXlsxFromData({
+            sheetName: baseName,
+            rows: rows.length > 0 ? rows : undefined,
+            htmlTable: ocrRes.html.includes('<table') ? ocrRes.html : undefined,
+          })
+          res = {
+            blob: xlsxBlob,
+            filename: `${baseName}.xlsx`,
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            previewText: ocrRes.text,
+            pageCount: 1,
           }
         }
 
@@ -992,6 +1125,63 @@ export default function DocumentConverterTool() {
             </div>
           </div>
         </div>
+
+        {/* Word Options Panel (when target format is DOCX) */}
+        {validTarget === 'docx' && (
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <FileText className="w-4 h-4 text-primary" />
+                <span>خيارات تحويل Word (Word Conversion Options)</span>
+              </div>
+              <span className="text-xs text-muted-foreground bg-background/80 px-2.5 py-1 rounded-full border border-border">
+                {pdfToDocxMode === 'editableText' ? '⚡ نص قابل للتعديل المباشر' : '🖼️ مع صور الخلفية'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setPdfToDocxMode('editableText')}
+                className={`p-3.5 rounded-xl border text-right transition-all flex flex-col justify-between cursor-pointer ${
+                  pdfToDocxMode === 'editableText'
+                    ? 'border-primary bg-background shadow-xs text-primary font-medium'
+                    : 'border-border/60 bg-background/50 hover:bg-background text-muted-foreground'
+                }`}
+              >
+                <div className="flex items-center justify-between w-full mb-1.5">
+                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-primary" /> نص Word قابل للتعديل (موصى به)
+                  </span>
+                  {pdfToDocxMode === 'editableText' && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  يحلل المستند ويستخرج النصوص (بما فيها النص داخل الصور بالمسح الضوئي OCR) ويضعها مباشرة في ملف Word لتعديلها بسهولة بدون صور خلفية أو صفحات إضافية.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPdfToDocxMode('withImages')}
+                className={`p-3.5 rounded-xl border text-right transition-all flex flex-col justify-between cursor-pointer ${
+                  pdfToDocxMode === 'withImages'
+                    ? 'border-primary bg-background shadow-xs text-primary font-medium'
+                    : 'border-border/60 bg-background/50 hover:bg-background text-muted-foreground'
+                }`}
+              >
+                <div className="flex items-center justify-between w-full mb-1.5">
+                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-primary" /> تضمين صور الخلفية مع النص
+                  </span>
+                  {pdfToDocxMode === 'withImages' && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  يتضمن صور الصفحة الأصلية بالإضافة إلى النصوص لاستعراض الصورة مع النص.
+                </p>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Page & Layout Options (Displayed ONLY when converting images to PDF) */}
         {isImagesToPdf && (

@@ -28,6 +28,7 @@ import {
   Sparkles,
   CheckCircle2,
   ScanLine,
+  Palette,
 } from 'lucide-react'
 import { ALL_TOOLS, TOOL_CATEGORIES, CategoryId } from '@/constants/tools'
 import { useLanguage } from '@/lib/i18n/context'
@@ -51,6 +52,7 @@ const ICON_MAP: Record<string, any> = {
   RefreshCw,
   Image: ImageIcon,
   ScanLine,
+  Palette,
 }
 
 const CATEGORY_ICON_MAP: Record<CategoryId, any> = {

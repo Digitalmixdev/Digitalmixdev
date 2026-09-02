@@ -236,6 +236,40 @@ export default function ImageColorPaletteTool() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const imageRef = useRef<HTMLImageElement | null>(null)
+  const loggedImagesSetRef = useRef<Set<string>>(new Set())
+
+  // Sample display name translator
+  const getSampleDisplayName = (name: string) => {
+    if (!isRtl) return name
+    if (name === 'Sunset Horizon') return t('palette.sample_sunset', 'أفق الغروب')
+    if (name === 'Neon Cyberpunk') return t('palette.sample_neon', 'نيون سايبربانك')
+    if (name === 'Emerald Forest') return t('palette.sample_emerald', 'غابة الزمرد')
+    if (name === 'Pastel Architecture') return t('palette.sample_pastel', 'معمار الباستيل')
+    return name
+  }
+
+  // Ensure tool activity is logged EXACTLY ONCE per image
+  const ensureHistoryLogged = useCallback((name: string, swatches?: ColorData[]) => {
+    const key = name.trim()
+    if (!key || loggedImagesSetRef.current.has(key)) {
+      return // Already logged history for this image!
+    }
+    loggedImagesSetRef.current.add(key)
+
+    const dominantHexes = swatches ? swatches.map((c) => c.hex).slice(0, 4).join(', ') : ''
+
+    logToolActivity({
+      toolId: 'image-color-palette',
+      toolName: 'Image Color Palette Extractor',
+      category: 'files',
+      actionTitle: 'Extracted Color Palette',
+      details: `Analyzed "${name}" (${swatches?.length || 0} swatches extracted)`,
+      inputSnippet: name,
+      outputSnippet: dominantHexes ? `Dominant: ${dominantHexes}` : name,
+    })
+    incrementToolUsage()
+    markToolUsed('image-color-palette')
+  }, [])
 
   // Load Initial Sample Image on Mount
   useEffect(() => {
@@ -305,27 +339,17 @@ export default function ImageColorPaletteTool() {
           setImageName(name)
           imageRef.current = imgElement
 
-          // Log tool activity
-          logToolActivity({
-            toolId: 'image-color-palette',
-            toolName: 'Image Color Palette Extractor',
-            category: 'files',
-            actionTitle: 'Extracted Color Palette',
-            details: `Analyzed "${name}" (${result.dominant.length} swatches extracted via ${algorithm.toUpperCase()})`,
-            inputSnippet: name,
-            outputSnippet: `Dominant: ${result.dominant.map((c) => c.hex).slice(0, 4).join(', ')}`,
-          })
-          incrementToolUsage()
-          markToolUsed('image-color-palette')
+          // Ensure tool activity is logged ONCE per image
+          ensureHistoryLogged(name, result.dominant)
         }
       } catch (err) {
         console.error('Failed to extract color palette:', err)
-        toast.error('Failed to analyze image colors')
+        toast.error(isRtl ? 'فشل تحليل ألوان الصورة' : 'Failed to analyze image colors')
       } finally {
         setIsProcessing(false)
       }
     },
-    [colorCount, algorithm, ignoreWhite, ignoreBlack, adjustments, lockedHexes]
+    [colorCount, algorithm, ignoreWhite, ignoreBlack, adjustments, lockedHexes, ensureHistoryLogged, isRtl]
   )
 
   const handleFile = (file: File) => {
@@ -485,12 +509,18 @@ export default function ImageColorPaletteTool() {
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text)
     setCopiedFormat(label)
-    toast.success(`Copied ${label} to clipboard!`)
+    if (imageName) {
+      ensureHistoryLogged(imageName, paletteResult?.dominant)
+    }
+    toast.success(isRtl ? `تم نسخ ${label} إلى الحافظة!` : `Copied ${label} to clipboard!`)
     setTimeout(() => setCopiedFormat(null), 2000)
   }
 
   const handleDownloadPng = async () => {
     if (!displayedColors.length) return
+    if (imageName) {
+      ensureHistoryLogged(imageName, paletteResult?.dominant)
+    }
     try {
       const blob = await generatePaletteCardPng(displayedColors, imageName)
       const url = URL.createObjectURL(blob)
@@ -499,9 +529,9 @@ export default function ImageColorPaletteTool() {
       a.download = `palette-${imageName.replace(/\.[^/.]+$/, '')}.png`
       a.click()
       URL.revokeObjectURL(url)
-      toast.success('Palette poster PNG downloaded!')
+      toast.success(isRtl ? 'تم تنزيل ملصق الألوان بصيغة PNG!' : 'Palette poster PNG downloaded!')
     } catch (err) {
-      toast.error('Failed to generate PNG poster')
+      toast.error(isRtl ? 'فشل إنشاء ملصق PNG' : 'Failed to generate PNG poster')
     }
   }
 
@@ -542,7 +572,7 @@ export default function ImageColorPaletteTool() {
                     : 'border-border bg-secondary/50 hover:bg-secondary text-foreground'
                 }`}
               >
-                {sample.name}
+                {getSampleDisplayName(sample.name)}
               </button>
             ))}
           </div>

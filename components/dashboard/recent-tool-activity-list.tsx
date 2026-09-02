@@ -24,6 +24,7 @@ import {
   Scan,
   TrendingUp,
   Wrench,
+  Palette,
 } from 'lucide-react'
 import { ToolActivityItem } from '@/types/history'
 import { getLocalActivityHistory, syncHistoryWithServer } from '@/lib/history-service'
@@ -62,6 +63,8 @@ function getToolIcon(toolId?: string, category?: string) {
     case 'image-converter':
     case 'image-resizer':
       return ImageIcon
+    case 'image-color-palette':
+      return Palette
     case 'document-converter':
     case 'pdf-merge':
       return FileText
