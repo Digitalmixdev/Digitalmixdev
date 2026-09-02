@@ -851,6 +851,8 @@ export async function generatePptxFile(options: {
     const slide = slides[i]
     let bulletsXml = ''
 
+    const hasImageForSlide = shouldRenderImages && !!processedImages[i]
+
     for (const bullet of slide.bullets) {
       const cleanBullet = cleanPdfText(bullet)
       if (!cleanBullet) continue
@@ -860,7 +862,7 @@ export async function generatePptxFile(options: {
           <a:pPr lvl="0" algn="${isBulletRtl ? 'r' : 'l'}" ${isBulletRtl ? 'rtl="1"' : ''}/>
           <a:r>
             <a:rPr lang="${isBulletRtl ? 'ar-SA' : 'en-US'}" altLang="ar-SA" sz="2000">
-              <a:solidFill><a:srgbClr val="334155"/></a:solidFill>
+              <a:solidFill><a:srgbClr val="${hasImageForSlide ? 'F1F5F9' : '334155'}"/></a:solidFill>
               <a:latin typeface="Segoe UI"/>
               <a:cs typeface="Traditional Arabic"/>
             </a:rPr>
@@ -879,7 +881,7 @@ export async function generatePptxFile(options: {
             <a:pPr algn="${isBodyRtl ? 'r' : 'l'}" ${isBodyRtl ? 'rtl="1"' : ''}/>
             <a:r>
               <a:rPr lang="${isBodyRtl ? 'ar-SA' : 'en-US'}" altLang="ar-SA" sz="2000">
-                <a:solidFill><a:srgbClr val="334155"/></a:solidFill>
+                <a:solidFill><a:srgbClr val="${hasImageForSlide ? 'F1F5F9' : '334155'}"/></a:solidFill>
                 <a:latin typeface="Segoe UI"/>
                 <a:cs typeface="Traditional Arabic"/>
               </a:rPr>
@@ -895,7 +897,6 @@ export async function generatePptxFile(options: {
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
 `
     let picXml = ''
-    const hasImageForSlide = shouldRenderImages && !!processedImages[i]
 
     if (hasImageForSlide) {
       const img = processedImages[i]
@@ -960,19 +961,23 @@ export async function generatePptxFile(options: {
         </p:nvSpPr>
         <p:spPr>
           <a:xfrm>
-            <a:off x="838200" y="${hasImageForSlide ? '5400000' : '609600'}"/>
-            <a:ext cx="10515600" cy="1000000"/>
+            <a:off x="838200" y="${hasImageForSlide ? '609600' : '609600'}"/>
+            <a:ext cx="10515600" cy="1100000"/>
           </a:xfrm>
-          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val 12000"/></a:avLst></a:prstGeom>
+          ${hasImageForSlide ? `
+          <a:solidFill><a:srgbClr val="0F172A"><a:alpha val="85000"/></a:srgbClr></a:solidFill>
+          <a:ln w="12700"><a:solidFill><a:srgbClr val="38BDF8"><a:alpha val="60000"/></a:srgbClr></a:solidFill></a:ln>
+          ` : ''}
         </p:spPr>
         <p:txBody>
-          <a:bodyPr/>
+          <a:bodyPr lIns="200000" rIns="200000" tIns="150000" bIns="150000" anchor="ctr"/>
           <a:lstStyle/>
           <a:p>
             <a:pPr algn="${isTitleRtl ? 'r' : 'l'}" ${isTitleRtl ? 'rtl="1"' : ''}/>
             <a:r>
               <a:rPr lang="${isTitleRtl ? 'ar-SA' : 'en-US'}" altLang="ar-SA" b="1" sz="2800">
-                <a:solidFill><a:srgbClr val="0F172A"/></a:solidFill>
+                <a:solidFill><a:srgbClr val="${hasImageForSlide ? 'FFFFFF' : '0F172A'}"/></a:solidFill>
                 <a:latin typeface="Segoe UI"/>
                 <a:cs typeface="Traditional Arabic"/>
               </a:rPr>
@@ -990,13 +995,17 @@ export async function generatePptxFile(options: {
         </p:nvSpPr>
         <p:spPr>
           <a:xfrm>
-            <a:off x="838200" y="${hasImageForSlide ? '6200000' : '1800000'}"/>
-            <a:ext cx="10515600" cy="3800000"/>
+            <a:off x="838200" y="${hasImageForSlide ? '1900000' : '1900000'}"/>
+            <a:ext cx="10515600" cy="4400000"/>
           </a:xfrm>
-          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          <a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val 8000"/></a:avLst></a:prstGeom>
+          ${hasImageForSlide ? `
+          <a:solidFill><a:srgbClr val="0F172A"><a:alpha val="85000"/></a:srgbClr></a:solidFill>
+          <a:ln w="12700"><a:solidFill><a:srgbClr val="CBD5E1"><a:alpha val="40000"/></a:srgbClr></a:solidFill></a:ln>
+          ` : ''}
         </p:spPr>
         <p:txBody>
-          <a:bodyPr/>
+          <a:bodyPr lIns="250000" rIns="250000" tIns="200000" bIns="200000"/>
           <a:lstStyle/>
           ${bulletsXml}
         </p:txBody>

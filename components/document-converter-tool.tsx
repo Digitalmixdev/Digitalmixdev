@@ -681,8 +681,8 @@ export default function DocumentConverterTool() {
           const pageImages = await renderPdfToImages(file, 'jpg', 0.92, 2.0).catch(() => [])
           if (tgt === 'docx') {
             setConversionProgress('Analyzing document structure and performing OCR text recognition...')
+            const docxPages: any[] = []
             const finalParagraphs: string[] = []
-            let fullHtml = ''
 
             for (let i = 0; i < pdfData.pages.length; i++) {
               const p = pdfData.pages[i]
@@ -700,12 +700,15 @@ export default function DocumentConverterTool() {
               }
 
               if (pageText) {
-                if (pdfData.pages.length > 1) {
-                  finalParagraphs.push(`--- Page ${p.pageNumber} ---`)
-                }
                 finalParagraphs.push(pageText)
-                fullHtml += (pageHtml || `<p>${pageText.replace(/\n+/g, '</p><p>')}</p>`) + '\n'
               }
+
+              docxPages.push({
+                text: pageText,
+                html: pageHtml,
+                image: pdfToDocxMode === 'withImages' && pageImages[i] ? pageImages[i].blob : undefined,
+                imageType: 'jpg',
+              })
             }
 
             const fullExtractedText = finalParagraphs.join('\n\n')
@@ -713,9 +716,7 @@ export default function DocumentConverterTool() {
             const docxBlob = await generateDocxFile({
               title: baseName,
               text: fullExtractedText,
-              html: fullHtml,
-              paragraphs: finalParagraphs,
-              images: pdfToDocxMode === 'withImages' ? pageImages.map((img) => ({ data: img.blob, type: 'jpg' })) : undefined,
+              pages: docxPages,
               includeImagePages: pdfToDocxMode === 'withImages',
             })
             res = {
@@ -855,13 +856,14 @@ export default function DocumentConverterTool() {
         else if ((src === 'jpg' || src === 'png') && tgt === 'docx') {
           setConversionProgress('Recognizing text inside image via OCR...')
           const ocrRes = await performOcrOnImageBlob(file)
-          const paragraphs = ocrRes.text.split(/\r?\n\r?\n|\r?\n/).map((l) => l.trim()).filter(Boolean)
           const docxBlob = await generateDocxFile({
             title: baseName,
-            text: ocrRes.text,
-            html: ocrRes.html,
-            paragraphs: paragraphs.length > 0 ? paragraphs : ['No text recognized from image.'],
-            images: pdfToDocxMode === 'withImages' ? [{ data: await file.arrayBuffer(), type: src as 'jpg' | 'png' }] : undefined,
+            pages: [{
+              text: ocrRes.text,
+              html: ocrRes.html,
+              image: pdfToDocxMode === 'withImages' ? file : undefined,
+              imageType: src as 'jpg' | 'png',
+            }],
             includeImagePages: pdfToDocxMode === 'withImages',
           })
           res = {
