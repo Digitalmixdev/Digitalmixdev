@@ -25,7 +25,7 @@ export async function performOcrOnImageBlob(blob: Blob): Promise<{ text: string;
     const formData = new FormData()
     formData.append('image', blob, 'page.jpg')
 
-    const response = await fetch('/app/api/ocr', {
+    const response = await fetch('/api/ocr', {
       method: 'POST',
       body: formData,
     })

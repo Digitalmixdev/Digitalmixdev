@@ -265,12 +265,44 @@ export async function parsePdf(
     for (let i = 1; i <= pageCount; i++) {
       const page = await pdf.getPage(i)
       const textContent = await page.getTextContent()
-      const pageText = textContent.items
-        .map((item: any) => item.str || '')
-        .join(' ')
-        .replace(/\s+/g, ' ')
-        .trim()
+      
+      // Group items by vertical position (Y coordinate) to preserve genuine lines
+      let lastY: number | null = null
+      const lines: string[] = []
+      let currentLine = ''
 
+      for (const item of textContent.items as any[]) {
+        const str = (item.str || '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uFDD0-\uFDEF\uFFFE\uFFFF]/g, '')
+        if (!str && !item.hasEOL) continue
+
+        const y = item.transform ? Math.round(item.transform[5]) : null
+        
+        // If vertical position changed significantly, start a new line
+        if (lastY !== null && y !== null && Math.abs(y - lastY) > 6) {
+          if (currentLine.trim()) {
+            lines.push(currentLine.trim())
+          }
+          currentLine = str
+        } else {
+          currentLine += (currentLine && !currentLine.endsWith(' ') && !str.startsWith(' ') ? ' ' : '') + str
+        }
+
+        if (item.hasEOL) {
+          if (currentLine.trim()) {
+            lines.push(currentLine.trim())
+          }
+          currentLine = ''
+          lastY = null
+        } else {
+          lastY = y
+        }
+      }
+
+      if (currentLine.trim()) {
+        lines.push(currentLine.trim())
+      }
+
+      const pageText = lines.join('\n').trim()
       pages.push({ pageNumber: i, text: pageText })
       fullText += `\n--- Page ${i} ---\n${pageText}\n`
     }
@@ -364,14 +396,15 @@ export function containsRtl(text: string): boolean {
 // Helper to convert HTML / Markdown / Structured text into native Word OpenXML elements
 function renderDocxHeader(text: string, level = 'h2'): string {
   const isRtl = containsRtl(text)
-  const size = level === 'h1' ? '40' : level === 'h2' ? '32' : '28'
+  const size = level === 'h1' ? '44' : level === 'h2' ? '32' : '28'
+  const isCenter = level === 'h1' || text.length < 50
   return `
     <w:p>
       <w:pPr>
-        <w:pStyle w:val="Heading1"/>
-        <w:jc w:val="${isRtl ? 'right' : 'left'}"/>
+        <w:pStyle w:val="${level === 'h1' ? 'Heading1' : 'Heading2'}"/>
+        <w:jc w:val="${isCenter ? 'center' : isRtl ? 'right' : 'left'}"/>
         ${isRtl ? '<w:bidi/>' : ''}
-        <w:spacing w:before="240" w:after="120"/>
+        <w:spacing w:before="360" w:after="160"/>
       </w:pPr>
       <w:r>
         <w:rPr>
@@ -388,14 +421,63 @@ function renderDocxHeader(text: string, level = 'h2'): string {
   `
 }
 
-function renderDocxParagraph(text: string): string {
+function renderDocxSubtitle(text: string): string {
   const isRtl = containsRtl(text)
   return `
     <w:p>
       <w:pPr>
-        <w:jc w:val="${isRtl ? 'right' : 'left'}"/>
+        <w:jc w:val="center"/>
         ${isRtl ? '<w:bidi/>' : ''}
-        <w:spacing w:before="100" w:after="100" w:line="280" w:lineRule="auto"/>
+        <w:spacing w:before="120" w:after="300"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI" w:cs="Traditional Arabic"/>
+          <w:i/>
+          <w:sz w:val="28"/>
+          <w:szCs w:val="28"/>
+          ${isRtl ? '<w:rtl/>' : ''}
+          <w:color w:val="475569"/>
+        </w:rPr>
+        <w:t xml:space="preserve">${escapeXml(text)}</w:t>
+      </w:r>
+    </w:p>
+  `
+}
+
+function renderDocxByline(text: string): string {
+  const isRtl = containsRtl(text)
+  return `
+    <w:p>
+      <w:pPr>
+        <w:jc w:val="center"/>
+        ${isRtl ? '<w:bidi/>' : ''}
+        <w:spacing w:before="720" w:after="240"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI" w:cs="Traditional Arabic"/>
+          <w:b/>
+          <w:sz w:val="24"/>
+          <w:szCs w:val="26"/>
+          ${isRtl ? '<w:rtl/>' : ''}
+          <w:color w:val="2563EB"/>
+        </w:rPr>
+        <w:t xml:space="preserve">${escapeXml(text)}</w:t>
+      </w:r>
+    </w:p>
+  `
+}
+
+function renderDocxParagraph(text: string): string {
+  const isRtl = containsRtl(text)
+  const isCentered = text.length < 40 && !text.endsWith('.') && !text.includes(':')
+  return `
+    <w:p>
+      <w:pPr>
+        <w:jc w:val="${isCentered ? 'center' : isRtl ? 'right' : 'left'}"/>
+        ${isRtl ? '<w:bidi/>' : ''}
+        <w:spacing w:before="120" w:after="120" w:line="280" w:lineRule="auto"/>
       </w:pPr>
       <w:r>
         <w:rPr>
@@ -403,7 +485,7 @@ function renderDocxParagraph(text: string): string {
           <w:sz w:val="24"/>
           <w:szCs w:val="26"/>
           ${isRtl ? '<w:rtl/>' : ''}
-          <w:color w:val="334155"/>
+          <w:color w:val="1E293B"/>
         </w:rPr>
         <w:t xml:space="preserve">${escapeXml(text)}</w:t>
       </w:r>
@@ -549,32 +631,45 @@ function convertStructuredContentToDocxXml(htmlOrText: string): string {
 
       const nodes = Array.from(doc.body.children.length > 0 ? doc.body.children : doc.body.childNodes)
 
-      nodes.forEach((node) => {
+      nodes.forEach((node, idx) => {
         if (node.nodeType === Node.ELEMENT_NODE) {
           const el = node as HTMLElement
           const tagName = el.tagName.toLowerCase()
+          const txt = el.textContent?.trim() || ''
 
           if (tagName === 'table') {
             const rows = Array.from(el.querySelectorAll('tr'))
             const matrix = rows.map((r) => Array.from(r.querySelectorAll('td, th')).map((c) => c.textContent?.trim() || ''))
             xml += renderDocxTableFromMatrix(matrix)
           } else if (tagName === 'h1' || tagName === 'h2' || tagName === 'h3' || tagName === 'h4') {
-            const txt = el.textContent?.trim() || ''
             if (txt) xml += renderDocxHeader(txt, tagName)
           } else if (
             el.classList.contains('photo-frame') ||
             el.classList.contains('photo-box') ||
-            el.textContent?.includes('صورة الطالب') ||
-            el.textContent?.includes('صورة الطالبة')
+            txt.includes('صورة الطالب') ||
+            txt.includes('صورة الطالبة')
           ) {
-            xml += renderDocxPhotoFrame(el.textContent?.trim() || 'صورة الطالب / الطالبة\n6 * 4')
+            xml += renderDocxPhotoFrame(txt || 'صورة الطالب / الطالبة\n6 * 4')
+          } else if (
+            /^(created by|written by|by |author:|إعداد|تأليف|تصميم|بقلم|عمل الطالب|تقديم)/i.test(txt)
+          ) {
+            xml += renderDocxByline(txt)
+          } else if (idx === 0 && txt.length < 60 && !txt.includes('.')) {
+            xml += renderDocxHeader(txt, 'h1')
+          } else if (idx === 1 && txt.length < 100 && !txt.includes('.')) {
+            xml += renderDocxSubtitle(txt)
           } else {
-            const txt = el.textContent?.trim() || ''
             if (txt) xml += renderDocxParagraph(txt)
           }
         } else if (node.nodeType === Node.TEXT_NODE) {
           const txt = node.textContent?.trim() || ''
-          if (txt) xml += renderDocxParagraph(txt)
+          if (txt) {
+            if (/^(created by|written by|by |author:|إعداد|تأليف|تصميم|بقلم|عمل الطالب|تقديم)/i.test(txt)) {
+              xml += renderDocxByline(txt)
+            } else {
+              xml += renderDocxParagraph(txt)
+            }
+          }
         }
       })
 
@@ -619,6 +714,28 @@ function convertStructuredContentToDocxXml(htmlOrText: string): string {
 
     if (line.includes('صورة الطالب') || line.includes('صورة الشخصية') || line.includes('صورة ملونة خلفية بيضاء')) {
       xml += renderDocxPhotoFrame(line)
+      continue
+    }
+
+    // Detect Byline / Author at the bottom or middle
+    if (/^(created by|written by|by |author:|إعداد|تأليف|تصميم|بقلم|عمل الطالب|تقديم)/i.test(line)) {
+      xml += renderDocxByline(line)
+      continue
+    }
+
+    // Detect Title / Subtitle on first lines
+    if (i === 0 && line.length < 60 && !line.endsWith('.') && !line.includes(':')) {
+      xml += renderDocxHeader(line, 'h1')
+      continue
+    }
+
+    if (i === 1 && line.length < 100 && !line.endsWith('.') && !line.includes(':')) {
+      xml += renderDocxSubtitle(line)
+      continue
+    }
+
+    if (/^(chapter|section|unit|part|الفصل|المبحث|المطلب|الوحدة|الباب)\s+\d+/i.test(line)) {
+      xml += renderDocxHeader(line, 'h2')
       continue
     }
 
@@ -718,10 +835,12 @@ export async function generateDocxFile(options: {
   let wordRelsContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable" Target="fontTable.xml"/>
 `
 
   let bodyXml = ''
-  let relIndex = 2
+  let relIndex = 4
   const shouldRenderImages = options.includeImagePages
 
   for (let i = 0; i < pageList.length; i++) {
@@ -741,7 +860,6 @@ export async function generateDocxFile(options: {
       if (isNaN(aspectRatio) || aspectRatio <= 0) aspectRatio = 1.414
 
       // Calculate width & height in EMUs preserving aspect ratio
-      // Standard page content width = 5,486,400 EMUs (6 inches)
       let cx = 5486400
       let cy = Math.round(cx * aspectRatio)
       if (cy > 7772400) {
@@ -757,40 +875,44 @@ export async function generateDocxFile(options: {
           </w:pPr>
           <w:r>
             <w:drawing>
-              <wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="0" behindDoc="1" locked="0" layoutInCell="1" allowOverlap="1" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">
+              <wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="0" behindDoc="1" locked="0" layoutInCell="1" allowOverlap="1">
                 <wp:simplePos x="0" y="0"/>
-                <wp:positionH relativeFrom="margin">
+                <wp:positionH relativeFrom="page">
                   <wp:align>center</wp:align>
                 </wp:positionH>
-                <wp:positionV relativeFrom="top">
+                <wp:positionV relativeFrom="page">
                   <wp:posOffset>0</wp:posOffset>
                 </wp:positionV>
                 <wp:extent cx="${cx}" cy="${cy}"/>
                 <wp:effectExtent l="0" t="0" r="0" b="0"/>
                 <wp:wrapNone/>
-                <wp:docPr id="${i + 1}" name="Page ${i + 1} Background"/>
+                <wp:docPr id="${i + 1}" name="Picture ${i + 1}"/>
                 <wp:cNvGraphicFramePr>
-                  <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noResize="1"/>
+                  <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>
                 </wp:cNvGraphicFramePr>
                 <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
                   <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
                     <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
                       <pic:nvPicPr>
-                        <pic:cNvPr id="${i + 1}" name="Page ${i + 1}"/>
+                        <pic:cNvPr id="${i + 1}" name="Picture ${i + 1}"/>
                         <pic:cNvPicPr>
                           <a:picLocks noChangeAspect="1"/>
                         </pic:cNvPicPr>
                       </pic:nvPicPr>
                       <pic:blipFill>
                         <a:blip r:embed="${relId}"/>
-                        <a:stretch><a:fillRect/></a:stretch>
+                        <a:stretch>
+                          <a:fillRect/>
+                        </a:stretch>
                       </pic:blipFill>
                       <pic:spPr>
                         <a:xfrm>
                           <a:off x="0" y="0"/>
                           <a:ext cx="${cx}" cy="${cy}"/>
                         </a:xfrm>
-                        <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+                        <a:prstGeom prst="rect">
+                          <a:avLst/>
+                        </a:prstGeom>
                       </pic:spPr>
                     </pic:pic>
                   </a:graphicData>
@@ -828,6 +950,7 @@ export async function generateDocxFile(options: {
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
             xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+            xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"
             xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
             xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
             xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
@@ -845,6 +968,8 @@ export async function generateDocxFile(options: {
   <Default Extension="png" ContentType="image/png"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
   <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>
+  <Override PartName="/word/fontTable.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml"/>
 </Types>`
 
   const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -858,19 +983,91 @@ export async function generateDocxFile(options: {
     <w:rPrDefault>
       <w:rPr>
         <w:rFonts w:ascii="Segoe UI" w:eastAsia="Segoe UI" w:hAnsi="Segoe UI" w:cs="Traditional Arabic"/>
-        <w:sz w:val="22"/>
-        <w:szCs w:val="24"/>
+        <w:sz w:val="24"/>
+        <w:szCs w:val="26"/>
         <w:lang w:val="en-US" w:bidi="ar-SA"/>
       </w:rPr>
     </w:rPrDefault>
+    <w:pPrDefault>
+      <w:pPr>
+        <w:spacing w:after="160" w:line="240" w:lineRule="auto"/>
+      </w:pPr>
+    </w:pPrDefault>
   </w:docDefaults>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+    <w:qFormat/>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="Heading1">
+    <w:name w:val="heading 1"/>
+    <w:basedOn w:val="Normal"/>
+    <w:next w:val="Normal"/>
+    <w:qFormat/>
+    <w:pPr>
+      <w:spacing w:before="360" w:after="160"/>
+    </w:pPr>
+    <w:rPr>
+      <w:b/>
+      <w:sz w:val="44"/>
+      <w:szCs w:val="46"/>
+      <w:color w:val="0F172A"/>
+    </w:rPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="Heading2">
+    <w:name w:val="heading 2"/>
+    <w:basedOn w:val="Normal"/>
+    <w:next w:val="Normal"/>
+    <w:qFormat/>
+    <w:pPr>
+      <w:spacing w:before="240" w:after="120"/>
+    </w:pPr>
+    <w:rPr>
+      <w:b/>
+      <w:sz w:val="32"/>
+      <w:szCs w:val="34"/>
+      <w:color w:val="1E293B"/>
+    </w:rPr>
+  </w:style>
 </w:styles>`
+
+  const settingsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:zoom w:percent="100"/>
+  <w:doNotDisplayPageBoundaries/>
+  <w:compat>
+    <w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/>
+  </w:compat>
+</w:settings>`
+
+  const fontTableXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:fonts xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:font w:name="Segoe UI">
+    <w:panose1 w:val="020B0502040204020203"/>
+    <w:charset w:val="00"/>
+    <w:family w:val="swiss"/>
+    <w:pitch w:val="variable"/>
+  </w:font>
+  <w:font w:name="Traditional Arabic">
+    <w:panose1 w:val="02010000000000000000"/>
+    <w:charset w:val="B2"/>
+    <w:family w:val="auto"/>
+    <w:pitch w:val="variable"/>
+  </w:font>
+  <w:font w:name="Calibri">
+    <w:panose1 w:val="020F0502020204030204"/>
+    <w:charset w:val="00"/>
+    <w:family w:val="swiss"/>
+    <w:pitch w:val="variable"/>
+  </w:font>
+</w:fonts>`
 
   zip.file('[Content_Types].xml', contentTypesXml)
   zip.file('_rels/.rels', relsXml)
   zip.file('word/_rels/document.xml.rels', wordRelsContent)
   zip.file('word/document.xml', documentXml)
   zip.file('word/styles.xml', stylesXml)
+  zip.file('word/settings.xml', settingsXml)
+  zip.file('word/fontTable.xml', fontTableXml)
 
   return await zip.generateAsync({
     type: 'blob',
