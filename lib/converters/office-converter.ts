@@ -85,6 +85,200 @@ async function getPdfDocumentSafe(pdfjsLib: any, fileOrBuffer: File | Blob | Arr
 // ----------------------------------------------------
 // 1. PDF Parser -> Normalized Document Model
 // ----------------------------------------------------
+function detectCanvasBackgroundColor(canvas: HTMLCanvasElement): string | undefined {
+  try {
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return undefined
+    const w = canvas.width
+    const h = canvas.height
+    if (w < 20 || h < 20) return undefined
+    const samples = [
+      ctx.getImageData(10, 10, 1, 1).data,
+      ctx.getImageData(w - 10, 10, 1, 1).data,
+      ctx.getImageData(10, h - 10, 1, 1).data,
+      ctx.getImageData(w - 10, h - 10, 1, 1).data,
+    ]
+    const first = samples[0]
+    const isUniform = samples.every(
+      (s) => Math.abs(s[0] - first[0]) < 12 && Math.abs(s[1] - first[1]) < 12 && Math.abs(s[2] - first[2]) < 12
+    )
+    if (isUniform) {
+      const r = first[0].toString(16).padStart(2, '0')
+      const g = first[1].toString(16).padStart(2, '0')
+      const b = first[2].toString(16).padStart(2, '0')
+      const hex = `#${r}${g}${b}`.toUpperCase()
+      if (hex === '#FFFFFF') return undefined
+      return hex
+    }
+  } catch {
+    // ignore
+  }
+  return undefined
+}
+
+async function extractPdfPageImages(
+  pdfjsLib: any,
+  page: any,
+  viewport: any,
+  pageCanvas?: HTMLCanvasElement | null
+): Promise<ImageElement[]> {
+  const images: ImageElement[] = []
+  try {
+    const opList = await page.getOperatorList()
+    const OPS = pdfjsLib.OPS || (pdfjsLib as any).OPS || {}
+
+    let ctm = [1, 0, 0, 1, 0, 0]
+    const stack: number[][] = []
+
+    const multiply = (m1: number[], m2: number[]) => [
+      m1[0] * m2[0] + m1[2] * m2[1],
+      m1[1] * m2[0] + m1[3] * m2[1],
+      m1[0] * m2[2] + m1[2] * m2[3],
+      m1[1] * m2[2] + m1[3] * m2[3],
+      m1[0] * m2[4] + m1[2] * m2[5] + m1[4],
+      m1[1] * m2[4] + m1[3] * m2[5] + m1[5],
+    ]
+
+    for (let j = 0; j < opList.fnArray.length; j++) {
+      const fn = opList.fnArray[j]
+      const args = opList.argsArray[j]
+
+      if (fn === OPS.save) {
+        stack.push([...ctm])
+      } else if (fn === OPS.restore) {
+        if (stack.length > 0) ctm = stack.pop()!
+      } else if (fn === OPS.transform) {
+        if (args && args.length >= 6) {
+          ctm = multiply(ctm, args)
+        }
+      } else if (
+        fn === OPS.paintImageXObject ||
+        fn === OPS.paintInlineImageXObject ||
+        fn === OPS.paintImageMaskXObject
+      ) {
+        const scaleX = Math.abs(ctm[0])
+        const scaleY = Math.abs(ctm[3])
+        const translateX = ctm[4]
+        const translateY = ctm[5]
+
+        const width = Math.round(scaleX)
+        const height = Math.round(scaleY)
+        const x = Math.round(translateX)
+        const y = Math.round(viewport.height - (translateY + scaleY))
+
+        if (width < 12 || height < 12) continue
+        if (width >= viewport.width * 0.96 && height >= viewport.height * 0.96) continue
+
+        const imgName = args ? args[0] : null
+        let extractedBlob: Blob | null = null
+
+        if (imgName && page.objs) {
+          try {
+            const rawImg = await new Promise<any>((resolve) => {
+              try {
+                const res = page.objs.get(imgName, (obj: any) => resolve(obj))
+                if (res !== undefined) resolve(res)
+                else setTimeout(() => resolve(null), 300)
+              } catch {
+                resolve(null)
+              }
+            })
+
+            if (rawImg) {
+              if (rawImg instanceof HTMLCanvasElement || (typeof ImageBitmap !== 'undefined' && rawImg instanceof ImageBitmap)) {
+                const c = document.createElement('canvas')
+                c.width = rawImg.width
+                c.height = rawImg.height
+                const ctx = c.getContext('2d')
+                if (ctx) {
+                  ctx.drawImage(rawImg as any, 0, 0)
+                  extractedBlob = await new Promise<Blob>((res) => c.toBlob((b) => res(b!), 'image/png'))
+                }
+              } else if (rawImg.data && rawImg.width && rawImg.height) {
+                const c = document.createElement('canvas')
+                c.width = rawImg.width
+                c.height = rawImg.height
+                const ctx = c.getContext('2d')
+                if (ctx) {
+                  const imgData = ctx.createImageData(rawImg.width, rawImg.height)
+                  const srcData = rawImg.data
+                  if (srcData.length === rawImg.width * rawImg.height * 4) {
+                    imgData.data.set(srcData)
+                  } else if (srcData.length === rawImg.width * rawImg.height * 3) {
+                    for (let p = 0, q = 0; p < srcData.length; p += 3, q += 4) {
+                      imgData.data[q] = srcData[p]
+                      imgData.data[q + 1] = srcData[p + 1]
+                      imgData.data[q + 2] = srcData[p + 2]
+                      imgData.data[q + 3] = 255
+                    }
+                  } else if (srcData.length === rawImg.width * rawImg.height) {
+                    for (let p = 0, q = 0; p < srcData.length; p++, q += 4) {
+                      const v = srcData[p]
+                      imgData.data[q] = v
+                      imgData.data[q + 1] = v
+                      imgData.data[q + 2] = v
+                      imgData.data[q + 3] = 255
+                    }
+                  }
+                  ctx.putImageData(imgData, 0, 0)
+                  extractedBlob = await new Promise<Blob>((res) => c.toBlob((b) => res(b!), 'image/png'))
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('Native image extraction fallback:', e)
+          }
+        }
+
+        if (!extractedBlob && pageCanvas) {
+          try {
+            const cropCanvas = document.createElement('canvas')
+            const scaleRatio = pageCanvas.width / viewport.width
+            const cropX = Math.max(0, Math.round(x * scaleRatio))
+            const cropY = Math.max(0, Math.round(y * scaleRatio))
+            const cropW = Math.min(pageCanvas.width - cropX, Math.round(width * scaleRatio))
+            const cropH = Math.min(pageCanvas.height - cropY, Math.round(height * scaleRatio))
+
+            if (cropW > 10 && cropH > 10) {
+              cropCanvas.width = cropW
+              cropCanvas.height = cropH
+              const cropCtx = cropCanvas.getContext('2d')
+              if (cropCtx) {
+                cropCtx.drawImage(
+                  pageCanvas,
+                  cropX, cropY, cropW, cropH,
+                  0, 0, cropW, cropH
+                )
+                extractedBlob = await new Promise<Blob>((res) => cropCanvas.toBlob((b) => res(b!), 'image/png'))
+              }
+            }
+          } catch (err) {
+            console.warn('Region crop error:', err)
+          }
+        }
+
+        if (extractedBlob) {
+          const isLogo = y < viewport.height * 0.35 && width < 300 && height < 200
+          images.push({
+            type: 'image',
+            data: extractedBlob,
+            imageType: 'png',
+            x,
+            y,
+            width,
+            height,
+            isLogo,
+          })
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Error extracting PDF page images:', err)
+  }
+
+  return images
+}
+
 export async function parsePdfToNormalizedDocument(
   file: File | Blob,
   options: { ocrHandler?: (imageBlob: Blob) => Promise<{ text: string; html?: string }> } = {}
@@ -98,6 +292,27 @@ export async function parsePdfToNormalizedDocument(
   for (let i = 1; i <= pageCount; i++) {
     const page = await pdf.getPage(i)
     const viewport = page.getViewport({ scale: 1.0 })
+
+    // Render offscreen canvas for background detection and image region cropping
+    let pageCanvas: HTMLCanvasElement | null = null
+    try {
+      pageCanvas = document.createElement('canvas')
+      const rViewport = page.getViewport({ scale: 1.5 })
+      pageCanvas.width = rViewport.width
+      pageCanvas.height = rViewport.height
+      const ctx = pageCanvas.getContext('2d')
+      if (ctx) {
+        ctx.fillStyle = '#FFFFFF'
+        ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height)
+        await page.render({ canvasContext: ctx, viewport: rViewport, canvas: pageCanvas } as any).promise
+      }
+    } catch {
+      // ignore render error
+    }
+
+    const backgroundColor = pageCanvas ? detectCanvasBackgroundColor(pageCanvas) : undefined
+    const extractedImages = await extractPdfPageImages(pdfjsLib, page, viewport, pageCanvas)
+
     const textContent = await page.getTextContent({ normalizeWhitespace: true })
 
     // Group items by vertical position (Y coordinate) to reconstruct lines and layout
@@ -143,7 +358,20 @@ export async function parsePdfToNormalizedDocument(
     })
 
     // Group items into lines
-    const rawLines: { y: number; text: string; maxFontSize: number; isRtl: boolean; items: RawTextItem[] }[] = []
+    interface RawLine {
+      y: number
+      topY: number
+      minX: number
+      maxX: number
+      width: number
+      height: number
+      text: string
+      maxFontSize: number
+      isRtl: boolean
+      items: RawTextItem[]
+    }
+
+    const rawLines: RawLine[] = []
     let currentLineItems: RawTextItem[] = []
     let currentLineY: number | null = null
 
@@ -159,8 +387,16 @@ export async function parsePdfToNormalizedDocument(
           const lineStr = currentLineItems.map((it) => it.str).join(' ').replace(/\s+/g, ' ').trim()
           if (lineStr) {
             const maxFontSize = Math.max(...currentLineItems.map((it) => it.fontSize), 12)
+            const minX = Math.min(...currentLineItems.map((it) => it.x))
+            const maxX = Math.max(...currentLineItems.map((it) => it.x + (it.width || 0)))
+            const topY = Math.max(0, Math.round(viewport.height - currentLineY - maxFontSize))
             rawLines.push({
               y: currentLineY,
+              topY,
+              minX,
+              maxX,
+              width: Math.max(30, maxX - minX),
+              height: Math.max(14, maxFontSize * 1.2),
               text: lineStr,
               maxFontSize,
               isRtl: containsRtl(lineStr),
@@ -177,8 +413,16 @@ export async function parsePdfToNormalizedDocument(
       const lineStr = currentLineItems.map((it) => it.str).join(' ').replace(/\s+/g, ' ').trim()
       if (lineStr) {
         const maxFontSize = Math.max(...currentLineItems.map((it) => it.fontSize), 12)
+        const minX = Math.min(...currentLineItems.map((it) => it.x))
+        const maxX = Math.max(...currentLineItems.map((it) => it.x + (it.width || 0)))
+        const topY = Math.max(0, Math.round(viewport.height - (currentLineY || 0) - maxFontSize))
         rawLines.push({
           y: currentLineY || 0,
+          topY,
+          minX,
+          maxX,
+          width: Math.max(30, maxX - minX),
+          height: Math.max(14, maxFontSize * 1.2),
           text: lineStr,
           maxFontSize,
           isRtl: containsRtl(lineStr),
@@ -235,6 +479,7 @@ export async function parsePdfToNormalizedDocument(
             matrix: [...tableRows],
             headers: tableRows[0],
             isRtl: containsRtl(allText),
+            y: rawLines[0]?.topY ?? 100,
           })
           tableRows = []
         }
@@ -275,6 +520,10 @@ export async function parsePdfToNormalizedDocument(
             type: 'shape',
             shapeType: 'photo-frame',
             label: text,
+            x: line.minX,
+            y: line.topY,
+            width: line.width,
+            height: line.height,
           })
           continue
         }
@@ -287,6 +536,11 @@ export async function parsePdfToNormalizedDocument(
             role: 'byline',
             isRtl: line.isRtl,
             alignment: 'center',
+            x: line.minX,
+            y: line.topY,
+            width: line.width,
+            height: line.height,
+            fontSize: line.maxFontSize,
           })
           continue
         }
@@ -300,6 +554,10 @@ export async function parsePdfToNormalizedDocument(
             fontSize: line.maxFontSize > 16 ? line.maxFontSize : 22,
             isRtl: line.isRtl,
             alignment: 'center',
+            x: line.minX,
+            y: line.topY,
+            width: line.width,
+            height: line.height,
           })
           continue
         }
@@ -312,6 +570,10 @@ export async function parsePdfToNormalizedDocument(
             fontSize: line.maxFontSize > 14 ? line.maxFontSize : 14,
             isRtl: line.isRtl,
             alignment: 'center',
+            x: line.minX,
+            y: line.topY,
+            width: line.width,
+            height: line.height,
           })
           continue
         }
@@ -324,6 +586,10 @@ export async function parsePdfToNormalizedDocument(
             fontSize: line.maxFontSize,
             isRtl: line.isRtl,
             alignment: line.isRtl ? 'right' : 'left',
+            x: line.minX,
+            y: line.topY,
+            width: line.width,
+            height: line.height,
           })
           continue
         }
@@ -336,6 +602,10 @@ export async function parsePdfToNormalizedDocument(
             fontSize: line.maxFontSize,
             isRtl: line.isRtl,
             alignment: line.isRtl ? 'right' : 'left',
+            x: line.minX,
+            y: line.topY,
+            width: line.width,
+            height: line.height,
           })
           continue
         }
@@ -349,6 +619,10 @@ export async function parsePdfToNormalizedDocument(
             fontSize: line.maxFontSize,
             isRtl: line.isRtl,
             alignment: line.isRtl ? 'right' : 'left',
+            x: line.minX,
+            y: line.topY,
+            width: line.width,
+            height: line.height,
           })
           continue
         }
@@ -361,20 +635,28 @@ export async function parsePdfToNormalizedDocument(
           fontSize: line.maxFontSize,
           isRtl: line.isRtl,
           alignment: line.isRtl ? 'right' : 'left',
+          x: line.minX,
+          y: line.topY,
+          width: line.width,
+          height: line.height,
         })
       }
 
       if (inTable) flushTable()
     }
 
+    const sortedPageElements = [...extractedImages, ...elements]
+    sortedPageElements.sort((a, b) => (a.y ?? 0) - (b.y ?? 0))
+
     pages.push({
       pageNumber: i,
       width: viewport.width,
       height: viewport.height,
-      elements,
+      elements: sortedPageElements,
+      backgroundColor,
       isScanned,
       hasNativeText: !isScanned,
-      hasImages: false,
+      hasImages: extractedImages.length > 0,
       hasTables: elements.some((e) => e.type === 'table'),
     })
   }
@@ -1159,6 +1441,11 @@ export async function generateDocxFromNormalizedDoc(
 
   wordRelsContent += `</Relationships>`
 
+  const pageBg = doc.pages[0]?.backgroundColor
+  const docBgXml = pageBg && pageBg.toUpperCase() !== '#FFFFFF'
+    ? `<w:background w:color="${pageBg.replace('#', '')}"/>`
+    : ''
+
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
             xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -1166,6 +1453,7 @@ export async function generateDocxFromNormalizedDoc(
             xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
             xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
             xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+  ${docBgXml}
   <w:body>
     ${bodyXml}
     <w:sectPr>
@@ -1393,131 +1681,174 @@ export async function generatePptxFromNormalizedDoc(
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
 `
 
-    // Extract title, bullets, tables, and images for this slide
-    let slideTitle = `Slide ${slideNum}`
-    const bullets: string[] = []
-    const tables: TableElement[] = []
-    const images: ImageElement[] = []
+    const pageW = page.width || 595
+    const pageH = page.height || 842
+    const slideW = 12192000
+    const slideH = 6858000
 
-    for (const el of page.elements) {
-      if (el.type === 'text') {
-        if (el.role === 'title' || (slideTitle === `Slide ${slideNum}` && el.text.length < 80)) {
-          slideTitle = el.text
-        } else {
-          bullets.push(el.text)
-        }
-      } else if (el.type === 'table') {
-        tables.push(el)
-      } else if (el.type === 'image' && includeImages) {
-        images.push(el)
-      }
-    }
-
-    const isTitleRtl = containsRtl(slideTitle)
-
-    // Render image shapes
-    let picXml = ''
+    let slideShapesXml = ''
+    let shapeIdCounter = 2
     let imgRelIdx = 2
-    for (const img of images) {
-      if (img.data) {
-        const u8 = await toUint8Array(img.data)
-        if (u8.length > 0) {
-          const imgExt = img.imageType || 'jpg'
-          const imgFilename = `media/slide_${slideNum}_img_${imgRelIdx}.${imgExt}`
-          const imgRelId = `rId${imgRelIdx++}`
-          slideRelsContent += `  <Relationship Id="${imgRelId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../${imgFilename}"/>\n`
-          zip.file(`ppt/${imgFilename}`, u8)
 
-          picXml += `
-          <p:pic>
-            <p:nvPicPr>
-              <p:cNvPr id="${imgRelIdx + 10}" name="Image ${slideNum}"/>
-              <p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr>
-              <p:nvPr/>
-            </p:nvPicPr>
-            <p:blipFill>
-              <a:blip r:embed="${imgRelId}"/>
-              <a:stretch><a:fillRect/></a:stretch>
-            </p:blipFill>
-            <p:spPr>
-              <a:xfrm>
-                <a:off x="7500000" y="1600000"/>
-                <a:ext cx="4000000" cy="3000000"/>
-              </a:xfrm>
-              <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
-            </p:spPr>
-          </p:pic>
-          `
+    // Sort elements from top to bottom
+    const elementsToRender = [...page.elements].sort((a, b) => (a.y ?? 0) - (b.y ?? 0))
+
+    for (const el of elementsToRender) {
+      if (el.type === 'image' && includeImages) {
+        if (!el.data) continue
+        const u8 = await toUint8Array(el.data)
+        if (u8.length === 0) continue
+
+        const imgExt = el.imageType || 'jpg'
+        const imgFilename = `media/slide_${slideNum}_img_${imgRelIdx}.${imgExt}`
+        const imgRelId = `rId${imgRelIdx++}`
+        slideRelsContent += `  <Relationship Id="${imgRelId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../${imgFilename}"/>\n`
+        zip.file(`ppt/${imgFilename}`, u8)
+
+        let emuX = 7500000
+        let emuY = 1600000
+        let emuW = 4000000
+        let emuH = 3000000
+
+        if (el.x !== undefined && el.y !== undefined && el.width && el.height) {
+          emuX = Math.round((el.x / pageW) * slideW)
+          emuY = Math.round((el.y / pageH) * slideH)
+          emuW = Math.round((el.width / pageW) * slideW)
+          emuH = Math.round((el.height / pageH) * slideH)
+        } else if (el.isLogo) {
+          emuX = Math.round(slideW * 0.72)
+          emuY = Math.round(slideH * 0.05)
+          emuW = Math.round(slideW * 0.22)
+          emuH = Math.round(slideH * 0.18)
         }
-      }
-    }
 
-    // Render text bullets
-    let bulletsXml = ''
-    for (const b of bullets.slice(0, 10)) {
-      const cleanBullet = cleanPdfText(b)
-      if (!cleanBullet) continue
-      const isBulletRtl = containsRtl(cleanBullet)
-      bulletsXml += `
-        <a:p>
-          <a:pPr lvl="0" algn="${isBulletRtl ? 'r' : 'l'}" ${isBulletRtl ? 'rtl="1"' : ''}/>
-          <a:r>
-            <a:rPr lang="${isBulletRtl ? 'ar-SA' : 'en-US'}" altLang="ar-SA" sz="1800">
-              <a:solidFill><a:srgbClr val="1E293B"/></a:solidFill>
-              <a:latin typeface="Segoe UI"/>
-              <a:cs typeface="Traditional Arabic"/>
-            </a:rPr>
-            <a:t>${escapeXml(cleanBullet)}</a:t>
-          </a:r>
-        </a:p>
-      `
-    }
+        const shapeId = shapeIdCounter++
+        slideShapesXml += `
+        <p:pic>
+          <p:nvPicPr>
+            <p:cNvPr id="${shapeId}" name="Image ${shapeId}"/>
+            <p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr>
+            <p:nvPr/>
+          </p:nvPicPr>
+          <p:blipFill>
+            <a:blip r:embed="${imgRelId}"/>
+            <a:stretch><a:fillRect/></a:stretch>
+          </p:blipFill>
+          <p:spPr>
+            <a:xfrm>
+              <a:off x="${emuX}" y="${emuY}"/>
+              <a:ext cx="${emuW}" cy="${emuH}"/>
+            </a:xfrm>
+            <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          </p:spPr>
+        </p:pic>
+        `
+      } else if (el.type === 'text') {
+        const textStr = cleanPdfText(el.text)
+        if (!textStr) continue
 
-    // Render table shapes
-    let tableXml = ''
-    for (const tbl of tables) {
-      const isTblRtl = tbl.isRtl
-      const rowsXml = tbl.matrix
-        .slice(0, 8)
-        .map((row) => {
-          const cellsXml = row
-            .slice(0, 6)
-            .map((c) => {
-              return `
-                <a:tc>
-                  <a:txBody>
-                    <a:bodyPr/>
-                    <a:lstStyle/>
-                    <a:p>
-                      <a:pPr algn="${isTblRtl ? 'r' : 'l'}" ${isTblRtl ? 'rtl="1"' : ''}/>
-                      <a:r>
-                        <a:rPr sz="1400"><a:solidFill><a:srgbClr val="0F172A"/></a:solidFill></a:rPr>
-                        <a:t>${escapeXml(c)}</a:t>
-                      </a:r>
-                    </a:p>
-                  </a:txBody>
-                  <a:tcPr/>
-                </a:tc>
-              `
-            })
-            .join('')
-          return `<a:tr h="400000">${cellsXml}</a:tr>`
-        })
-        .join('')
+        const isRtl = el.isRtl || containsRtl(textStr)
+        const fontSz = el.fontSize || (el.role === 'title' ? 24 : el.role === 'heading1' ? 20 : 14)
+        const isBold = el.role === 'title' || el.role === 'heading1' || el.role === 'heading2'
 
-      const colCount = Math.max(...tbl.matrix.map((r) => r.length), 1)
-      const gridColsXml = Array(Math.min(colCount, 6)).fill('<a:gridCol w="1500000"/>').join('')
+        let emuX = Math.round(((el.x ?? 40) / pageW) * slideW)
+        let emuY = Math.round(((el.y ?? 40) / pageH) * slideH)
+        let emuW = Math.round(((el.width ?? (pageW * 0.85)) / pageW) * slideW)
+        let emuH = Math.round(((el.height ?? (fontSz * 1.5)) / pageH) * slideH)
 
-      tableXml += `
+        emuW = Math.max(emuW, 2000000)
+        emuH = Math.max(emuH, 350000)
+
+        const alignVal = el.alignment === 'center' ? 'ctr' : isRtl || el.alignment === 'right' ? 'r' : 'l'
+        const shapeId = shapeIdCounter++
+
+        slideShapesXml += `
+        <p:sp>
+          <p:nvSpPr>
+            <p:cNvPr id="${shapeId}" name="Text ${shapeId}"/>
+            <p:cNvSpPr/>
+            <p:nvPr/>
+          </p:nvSpPr>
+          <p:spPr>
+            <a:xfrm>
+              <a:off x="${emuX}" y="${emuY}"/>
+              <a:ext cx="${emuW}" cy="${emuH}"/>
+            </a:xfrm>
+            <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          </p:spPr>
+          <p:txBody>
+            <a:bodyPr lIns="50000" rIns="50000" tIns="30000" bIns="30000" wrap="square"/>
+            <a:lstStyle/>
+            <a:p>
+              <a:pPr algn="${alignVal}" ${isRtl ? 'rtl="1"' : ''}/>
+              <a:r>
+                <a:rPr lang="${isRtl ? 'ar-SA' : 'en-US'}" altLang="ar-SA" b="${isBold ? '1' : '0'}" sz="${Math.round(fontSz * 100)}">
+                  <a:solidFill><a:srgbClr val="0F172A"/></a:solidFill>
+                  <a:latin typeface="Segoe UI"/>
+                  <a:cs typeface="Traditional Arabic"/>
+                </a:rPr>
+                <a:t>${escapeXml(textStr)}</a:t>
+              </a:r>
+            </a:p>
+          </p:txBody>
+        </p:sp>
+        `
+      } else if (el.type === 'table') {
+        const isTblRtl = el.isRtl || el.matrix.some((r) => r.some((c) => containsRtl(c)))
+        const rowsXml = el.matrix
+          .slice(0, 15)
+          .map((row) => {
+            const cellsXml = row
+              .map((c) => {
+                const cellRtl = containsRtl(c)
+                return `
+                  <a:tc>
+                    <a:txBody>
+                      <a:bodyPr lIns="40000" rIns="40000" tIns="30000" bIns="30000"/>
+                      <a:lstStyle/>
+                      <a:p>
+                        <a:pPr algn="${isTblRtl || cellRtl ? 'r' : 'l'}" ${isTblRtl || cellRtl ? 'rtl="1"' : ''}/>
+                        <a:r>
+                          <a:rPr sz="1200" lang="${isTblRtl || cellRtl ? 'ar-SA' : 'en-US'}">
+                            <a:solidFill><a:srgbClr val="0F172A"/></a:solidFill>
+                            <a:latin typeface="Segoe UI"/>
+                            <a:cs typeface="Traditional Arabic"/>
+                          </a:rPr>
+                          <a:t>${escapeXml(c)}</a:t>
+                        </a:r>
+                      </a:p>
+                    </a:txBody>
+                    <a:tcPr/>
+                  </a:tc>
+                `
+              })
+              .join('')
+            return `<a:tr h="350000">${cellsXml}</a:tr>`
+          })
+          .join('')
+
+        const colCount = Math.max(...el.matrix.map((r) => r.length), 1)
+        const gridColsXml = Array(colCount).fill('<a:gridCol w="1500000"/>').join('')
+
+        let emuX = Math.round(((el.x ?? 40) / pageW) * slideW)
+        let emuY = Math.round(((el.y ?? 200) / pageH) * slideH)
+        let emuW = Math.round(((el.width ?? (pageW * 0.9)) / pageW) * slideW)
+        let emuH = Math.round(((el.height ?? (el.matrix.length * 30)) / pageH) * slideH)
+
+        emuW = Math.max(emuW, 3000000)
+        emuH = Math.max(emuH, 1000000)
+        const shapeId = shapeIdCounter++
+
+        slideShapesXml += `
         <p:graphicFrame>
           <p:nvGraphicFramePr>
-            <p:cNvPr id="5" name="Table 1"/>
+            <p:cNvPr id="${shapeId}" name="Table ${shapeId}"/>
             <p:cNvGraphicFramePr/>
             <p:nvPr/>
           </p:nvGraphicFramePr>
           <p:xfrm>
-            <a:off x="838200" y="2000000"/>
-            <a:ext cx="10515600" cy="3500000"/>
+            <a:off x="${emuX}" y="${emuY}"/>
+            <a:ext cx="${emuW}" cy="${emuH}"/>
           </p:xfrm>
           <a:graphic>
             <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">
@@ -1529,17 +1860,23 @@ export async function generatePptxFromNormalizedDoc(
             </a:graphicData>
           </a:graphic>
         </p:graphicFrame>
-      `
+        `
+      }
     }
 
     slideRelsContent += `</Relationships>`
     zip.file(`ppt/slides/_rels/slide${slideNum}.xml.rels`, slideRelsContent)
+
+    const bgXml = page.backgroundColor && page.backgroundColor.toUpperCase() !== '#FFFFFF'
+      ? `<p:bg><p:bgPr><a:solidFill><a:srgbClr val="${page.backgroundColor.replace('#', '')}"/></a:solidFill></p:bgPr></p:bg>`
+      : ''
 
     const slideXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
        xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
        xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
   <p:cSld>
+    ${bgXml}
     <p:spTree>
       <p:nvGrpSpPr>
         <p:cNvPr id="1" name=""/>
@@ -1554,61 +1891,7 @@ export async function generatePptxFromNormalizedDoc(
           <a:chExt cx="0" cy="0"/>
         </a:xfrm>
       </p:grpSpPr>
-      ${picXml}
-      <p:sp>
-        <p:nvSpPr>
-          <p:cNvPr id="2" name="Title 2"/>
-          <p:cNvSpPr/>
-          <p:nvPr/>
-        </p:nvSpPr>
-        <p:spPr>
-          <a:xfrm>
-            <a:off x="838200" y="609600"/>
-            <a:ext cx="10515600" cy="900000"/>
-          </a:xfrm>
-          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
-        </p:spPr>
-        <p:txBody>
-          <a:bodyPr lIns="100000" rIns="100000" tIns="100000" bIns="100000" anchor="ctr"/>
-          <a:lstStyle/>
-          <a:p>
-            <a:pPr algn="${isTitleRtl ? 'r' : 'l'}" ${isTitleRtl ? 'rtl="1"' : ''}/>
-            <a:r>
-              <a:rPr lang="${isTitleRtl ? 'ar-SA' : 'en-US'}" altLang="ar-SA" b="1" sz="2600">
-                <a:solidFill><a:srgbClr val="0F172A"/></a:solidFill>
-                <a:latin typeface="Segoe UI"/>
-                <a:cs typeface="Traditional Arabic"/>
-              </a:rPr>
-              <a:t>${escapeXml(slideTitle)}</a:t>
-            </a:r>
-          </a:p>
-        </p:txBody>
-      </p:sp>
-      ${
-        bulletsXml
-          ? `
-      <p:sp>
-        <p:nvSpPr>
-          <p:cNvPr id="3" name="Content 3"/>
-          <p:cNvSpPr/>
-          <p:nvPr/>
-        </p:nvSpPr>
-        <p:spPr>
-          <a:xfrm>
-            <a:off x="838200" y="1700000"/>
-            <a:ext cx="${images.length > 0 ? '6400000' : '10515600'}" cy="4600000"/>
-          </a:xfrm>
-          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
-        </p:spPr>
-        <p:txBody>
-          <a:bodyPr lIns="100000" rIns="100000" tIns="100000" bIns="100000"/>
-          <a:lstStyle/>
-          ${bulletsXml}
-        </p:txBody>
-      </p:sp>`
-          : ''
-      }
-      ${tableXml}
+      ${slideShapesXml}
     </p:spTree>
   </p:cSld>
 </p:sld>`

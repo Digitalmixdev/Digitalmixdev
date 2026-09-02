@@ -88,6 +88,7 @@ export interface NormalizedPage {
   width: number
   height: number
   elements: DocumentElement[]
+  backgroundColor?: string
   isScanned?: boolean
   hasNativeText?: boolean
   hasImages?: boolean
