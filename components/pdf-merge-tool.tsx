@@ -38,8 +38,11 @@ interface PDFPageItem {
 const toolMeta: ToolMetadata = {
   id: 'pdf-merge',
   name: 'PDF Merger & Page Organizer',
+  name_ar: 'أداة دمج وترتيب ملفات PDF',
   description:
     'Merge multiple PDF documents, reorder individual pages, delete unwanted sheets, and assemble publication-ready PDFs 100% inside your browser.',
+  description_ar:
+    'دمج عدة مستندات PDF، إعادة ترتيب الصفحات، حذف الصفحات غير المرغوبة، وتنظيم الملفات بسهولة وسرعة محلياً داخل متصفحك.',
   category: {
     id: 'files',
     name: 'File Utilities',
@@ -47,6 +50,7 @@ const toolMeta: ToolMetadata = {
   },
   icon: Layers,
   privacyBadge: '100% Client-Side • Zero Document Upload',
+  privacyBadge_ar: '100% معالجة محلياً • بدون رفع المستندات',
   features: [
     {
       icon: ShieldCheck,
@@ -69,6 +73,28 @@ const toolMeta: ToolMetadata = {
       desc: 'Merge large multi-page reports without arbitrary cloud upload constraints.',
     },
   ],
+  features_ar: [
+    {
+      icon: ShieldCheck,
+      title: 'معالجة محلية سرية وآمنة',
+      desc: 'العقود القانونية والكشوفات البنكية والملفات الشخصية تُدمج وتُنظم محلياً في الذاكرة بأمان تام.',
+    },
+    {
+      icon: Layers,
+      title: 'إعادة ترتيب وتدوير الصفحات بصرياً',
+      desc: 'ترتيب، حذف، أو تدوير صفحات محددة من مستندات متعددة مع معاينة مصغرات الصور فورياً.',
+    },
+    {
+      icon: Zap,
+      title: 'دمج عالي الدقة دون فقدان الجودة',
+      desc: 'الحفاظ على الخطوط المتجهة (Vector) ودقة الصور الأصلية وبنية البيانات داخل مستندات PDF.',
+    },
+    {
+      icon: CheckCircle2,
+      title: 'بدون حدود لحجم الملفات',
+      desc: 'دمج التقارير والكتب الكبيرة متعددة الصفحات بدون أي قيود على الحجم أو عدد الصفحات.',
+    },
+  ],
   faqs: [
     {
       q: 'Is it safe to merge confidential PDF documents with this tool?',
@@ -81,6 +107,20 @@ const toolMeta: ToolMetadata = {
     {
       q: 'Will the merged PDF lose original image quality?',
       a: 'No. The underlying pdf-lib engine performs byte-level page vector splicing, keeping all embedded vector paths and high-resolution images uncompressed and crisp.',
+    },
+  ],
+  faqs_ar: [
+    {
+      q: 'هل من الآمن دمج المستندات والملفات السرية بهذه الأداة؟',
+      a: 'نعم بالتأكيد. تتم عمليات الدمج عبر مكتبات WebAssembly محلياً في ذاكرة متصفحك، ولا يتم إرسال أي ملف أو صفحة عبر الإنترنت نهائياً.',
+    },
+    {
+      q: 'هل يمكنني إعادة ترتيب الصفحات بين ملفات PDF مختلفة؟',
+      a: 'نعم! بمجرد اختيار الملفات، تظهر جميع الصفحات في لوحة المعاينة التفاعلية، ويمكنك سحب وتحريك أي صفحة للأمام أو الخلف لإنشاء المستند النهائي.',
+    },
+    {
+      q: 'هل سيفقد ملف الـ PDF المدمج جودته الأصلية؟',
+      a: 'لا. يقوم المحرك بمعالجة الصفحات على مستوى الأكواد الثنائية مباشرة (Byte-Level)، مما يحافظ على دقة النصوص المتجهة والصور العالية كما هي.',
     },
   ],
 }

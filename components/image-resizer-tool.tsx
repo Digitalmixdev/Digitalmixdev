@@ -40,8 +40,11 @@ interface ImageFileItem {
 const toolMeta: ToolMetadata = {
   id: 'image-resizer',
   name: 'Image Resizer & Format Converter',
+  name_ar: 'أداة تغيير أبعاد ومقاسات الصور',
   description:
     'Resize, crop, compress, and convert PNG, JPEG, and WebP images in batch with aspect ratio locking and 100% client-side privacy.',
+  description_ar:
+    'تعديل مقاسات، قص، ضغط، وتحويل صيغ صور PNG و JPEG و WebP دفعة واحدة مع قفل نسبة الأبعاد ومعالجة محلية 100%.',
   category: {
     id: 'files',
     name: 'File Utilities',
@@ -49,6 +52,7 @@ const toolMeta: ToolMetadata = {
   },
   icon: Maximize2,
   privacyBadge: '100% Client-Side • Canvas Hardware Accelerated',
+  privacyBadge_ar: '100% معالجة محلياً • تسريع عبر كارت الشاشة Canvas',
   features: [
     {
       icon: Zap,
@@ -71,6 +75,28 @@ const toolMeta: ToolMetadata = {
       desc: 'Seamlessly convert between WebP, PNG, and JPEG with configurable compression quality.',
     },
   ],
+  features_ar: [
+    {
+      icon: Zap,
+      title: 'معالجة الصور الجماعية',
+      desc: 'تغيير مقاسات عشرات الصور عالية الدقة في نفس الوقت بأبعاد مخصصة.',
+    },
+    {
+      icon: Sliders,
+      title: 'قفل نسبة الأبعاد (Aspect Ratio)',
+      desc: 'الحفاظ على تناسق العرض والارتفاع تلقائياً مع إمكانية التعديل الحر.',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'تسريع المعالجة المحلي',
+      desc: 'تُعتمد معالجة الرسم بالكامل على متصفحك وCanvas محلياً دون رفع الملفات للسيرفر.',
+    },
+    {
+      icon: Sparkles,
+      title: 'التصدير بصيغ متعددة',
+      desc: 'التحويل بين WebP و PNG و JPEG مع إمكانية التحكم بنسبة الضغط والجودة.',
+    },
+  ],
   faqs: [
     {
       q: 'Will resizing images reduce their quality?',
@@ -83,6 +109,20 @@ const toolMeta: ToolMetadata = {
     {
       q: 'Can I convert JPEG images to WebP format?',
       a: 'Yes. Select WebP from the output format selector to convert images into modern high-efficiency WebP files.',
+    },
+  ],
+  faqs_ar: [
+    {
+      q: 'هل تغيير مقاسات الصورة يقلل من جودتها؟',
+      a: 'تغيير الأبعاد يعيد توزيع البكسلات. باستخدام خوارزمية التنعيم العالية التي نوفرها وتصدير WebP، تحصل على صور ناصعة وبحجم مخصص ومثالي.',
+    },
+    {
+      q: 'هل هناك حدود لحجم الملفات أو عدد الصور؟',
+      a: 'نظراً لأن جميع العمليات تنفذ داخل ذاكرة جهازك، يمكنك معالجة أي عدد من الصور العالية الدقة بقدر ما تتحمله ذاكرة جهازك (RAM).',
+    },
+    {
+      q: 'هل يمكنني تحويل صور JPEG إلى صيغة WebP الحديثة؟',
+      a: 'نعم! اختر WebP من قائمة صيغ التصدير لتحويل الصور إلى صيغة WebP الخفيفة وعالية الجودة.',
     },
   ],
 }

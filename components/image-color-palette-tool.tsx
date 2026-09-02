@@ -47,8 +47,11 @@ import {
 const toolMeta: ToolMetadata = {
   id: 'image-color-palette',
   name: 'Image Color Palette Extractor',
+  name_ar: 'مستخرج لوحة ألوان الصور',
   description:
     'Extract dominant color palettes, HEX/RGB swatches, and color harmonies from any image instantly in your browser with zero server uploads.',
+  description_ar:
+    'استخرج الألوان السائدة وأكواد HEX/RGB وتناغمات الألوان من أي صورة فورياً داخل متصفحك دون رفع الملفات.',
   category: {
     id: 'files',
     name: 'File Utilities',
@@ -56,6 +59,7 @@ const toolMeta: ToolMetadata = {
   },
   icon: Palette,
   privacyBadge: '100% Client-Side • Canvas Hardware Accelerated',
+  privacyBadge_ar: '100% معالجة محلياً • تسريع معالجة البكسلات Canvas',
   features: [
     {
       icon: Palette,
@@ -78,6 +82,28 @@ const toolMeta: ToolMetadata = {
       desc: 'Instant AA/AAA contrast ratios against light and dark backgrounds for every extracted color.',
     },
   ],
+  features_ar: [
+    {
+      icon: Palette,
+      title: 'تجميع الألوان الذكي',
+      desc: 'استخراج الألوان الأساسية، الزاهية، الهادئة، الباستيل، والداكنة مع حساب نسب انتشارها.',
+    },
+    {
+      icon: Pipette,
+      title: 'عدسة مكبرة تفاعلية 4x',
+      desc: 'مرر المؤشر فوق أي جزء في الصورة مع عدسة التكبير لالتقاط لون أي بكسل بدقة متناهية.',
+    },
+    {
+      icon: FileCode,
+      title: 'حزمة تصدير للمطورين',
+      desc: 'تصدير الألوان كمتغيرات CSS أو إعدادات Tailwind أو كود JSON أو بطاقة PNG أنيقة.',
+    },
+    {
+      icon: Contrast,
+      title: 'فحص إمكانية الوصول WCAG',
+      desc: 'حساب نسبة التباين AA/AAA الفورية مقابل الخلفيات الفاتحة والداكنة لكل لون مستخرج.',
+    },
+  ],
   faqs: [
     {
       q: 'Are my uploaded images stored or sent to a server?',
@@ -90,6 +116,20 @@ const toolMeta: ToolMetadata = {
     {
       q: 'How does the eyedropper magnifier work?',
       a: 'Simply hover your cursor over the image preview to zoom into individual pixels, and click to add any custom color to your palette.',
+    },
+  ],
+  faqs_ar: [
+    {
+      q: 'هل يتم حفظ الصور المرفوعة أو إرسالها إلى خادم؟',
+      a: 'لا! جميع عمليات استخراج الألوان وتحليل بكسلات Canvas تنفذ 100% محلياً داخل ذاكرة متصفحك.',
+    },
+    {
+      q: 'هل يمكنني نسخ الألوان بصيغ مختلفة مثل RGB أو HSL؟',
+      a: 'نعم. اضغط على أي شريحة لون لنسخ قيمة HEX أو RGB أو HSL أو CMYK أو فتح فاحص التفاصيل.',
+    },
+    {
+      q: 'كيف تعمل العدسة المكبرة التقاط الألوان؟',
+      a: 'فقط حرك المؤشر فوق الصورة لمعاينة البكسلات المكبرة واضغط لالتقاط أي لون مخصص وإضافته للوحة الألوان.',
     },
   ],
 }

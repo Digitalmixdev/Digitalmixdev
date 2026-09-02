@@ -261,6 +261,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     'tool.qr_barcode_scanner_desc': 'Scan QR codes, UPC, EAN, and 1D/2D barcodes in real time using webcam, files, or clipboard.',
     'tool.image_resizer': 'Image Resizer',
     'tool.image_resizer_desc': 'Resize, crop, and convert your images with custom dimensions and aspect ratios.',
+    'tool.image_color_palette': 'Image Color Palette Extractor',
+    'tool.image_color_palette_desc': 'Extract dominant color palettes, HEX/RGB swatches, and color harmonies from any image instantly in your browser.',
 
     // Extra specifics
     'tool.merge_all_pdf': 'Merge All into 1 PDF',
@@ -579,6 +581,8 @@ export const translations: Record<Language, TranslationDictionary> = {
     'tool.qr_barcode_scanner_desc': 'قراءة وفحص أكواد QR والباركود مباشرة عبر الكاميرا أو رفع الصور أو اللصق.',
     'tool.image_resizer': 'أداة تغيير أبعاد ومقاسات الصور',
     'tool.image_resizer_desc': 'تعديل أبعاد وقص وتغيير مقاسات الصور مع الحفاظ على تناسق الأبعاد ونقاء الصورة.',
+    'tool.image_color_palette': 'مستخرج لوحة ألوان الصور',
+    'tool.image_color_palette_desc': 'استخراج الألوان السائدة وأكواد HEX/RGB وتناغمات الألوان من أي صورة فورياً داخل متصفحك دون رفع الملفات.',
 
     // Extra specifics
     'tool.merge_all_pdf': 'دمج جميع الصور في ملف PDF واحد',

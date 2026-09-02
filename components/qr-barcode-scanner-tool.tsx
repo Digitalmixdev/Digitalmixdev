@@ -56,8 +56,11 @@ import { useLanguage } from '@/lib/i18n/context'
 const toolMeta: ToolMetadata = {
   id: 'qr-barcode-scanner',
   name: 'QR & Barcode Scanner',
+  name_ar: 'قارئ وماسح رموز QR والباركود',
   description:
     'Scan QR codes, UPC, EAN, and 1D/2D barcodes in real time using your live webcam/camera, image file uploads, or clipboard paste.',
+  description_ar:
+    'قراءة وفحص أكواد QR والباركود 1D/2D في الوقت الفعلي عبر كاميرا البث المباشر، رفع الصور، أو اللصق المباشر من الحافظة.',
   category: {
     id: 'files',
     name: 'File Utilities',
@@ -65,6 +68,7 @@ const toolMeta: ToolMetadata = {
   },
   icon: ScanLine,
   privacyBadge: '100% Client-Side • In-Browser Camera & File Processing',
+  privacyBadge_ar: '100% معالجة داخل متصفحك • فحص الكاميرا والملفات محلياً',
   features: [
     {
       icon: Camera,
@@ -87,6 +91,28 @@ const toolMeta: ToolMetadata = {
       desc: 'Camera video frames and uploaded images are processed entirely in local browser memory with zero server uploads.',
     },
   ],
+  features_ar: [
+    {
+      icon: Camera,
+      title: 'التحكم في الكاميرا المباشرة والإضاءة',
+      desc: 'بث عالي السرعة مع التبديل بين الكاميرات وتشغيل الفلاش والفحص المستمر.',
+    },
+    {
+      icon: Layers,
+      title: 'دعم شامل لأكواد 1D و 2D',
+      desc: 'قراءة رموز QR Code, Aztec, Data Matrix, PDF417, EAN-13, EAN-8, UPC-A, Code 128, Code 39, ITF.',
+    },
+    {
+      icon: Sparkles,
+      title: 'تحليل البيانات الذكي',
+      desc: 'تعرف فوري على الروابط وشبكات الواي فاي وبطاقات الاتصال والرسائل وأكواد المنتجات التجاري.',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'آمن ويحمي الخصوصية',
+      desc: 'إطارات الفيديو من الكاميرا والصور المرفوعة تُعالج بالكامل في الذاكرة دون رفعها للسيرفر.',
+    },
+  ],
   faqs: [
     {
       q: 'Are images or camera video frames sent to your server?',
@@ -103,6 +129,24 @@ const toolMeta: ToolMetadata = {
     {
       q: 'Can I scan WiFi QR codes and connect easily?',
       a: 'Yes! WiFi QR codes are automatically parsed into the Network SSID, Security Type (WPA/WPA2/WEP), and Password, with a one-click password copy button.',
+    },
+  ],
+  faqs_ar: [
+    {
+      q: 'هل يتم إرسال صور الكاميرا أو الملفات المرفوعة إلى خوادمكم؟',
+      a: 'لا نهائياً! يعمل محرك التفكيك بالكامل داخل متصفحك محلياً عبر تقنيات WebAssembly و Canvas، وتظل بيانات الكاميرا والملفات داخل جهازك فقط.',
+    },
+    {
+      q: 'ما هي صيغ الرمز والباركود المدعومة؟',
+      a: 'ندعم جميع الأكواد ثنائية الأبعاد (QR Code, Data Matrix, Aztec, PDF417) وأكواد التجزئة والشحن 1D (EAN-13, EAN-8, UPC-A, UPC-E, Code 128, Code 39, Code 93, ITF).',
+    },
+    {
+      q: 'هل يمكنني فحص لقطات الشاشة المنسوخة في الحافظة؟',
+      a: 'نعم! فقط اضغط Ctrl+V / Cmd+V في أي مكان على الصفحة أو اضغط "لصق صورة" ليتم تحليل وفحص الكود فورياً.',
+    },
+    {
+      q: 'هل يمكنني قراءة رموز QR الخاصة بالواي فاي والاتصال بالشبكة؟',
+      a: 'نعم! يتم تحليل رموز الواي فاي تلقائياً وتوضيح اسم الشبكة SSID ونوع التشفير وكلمة المرور مع زر نسخ كلمة المرور بنقرة واحدة.',
     },
   ],
   relatedTools: [

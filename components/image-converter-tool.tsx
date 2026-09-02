@@ -67,8 +67,11 @@ interface ImageItem {
 const toolMeta: ToolMetadata = {
   id: 'image-converter',
   name: 'Universal Image Converter',
+  name_ar: 'محول ومعدل صيغ الصور الشامل',
   description:
     'Convert between 14 professional image formats: AVIF, BMP, EPS, GIF, ICNS, ICO, JPG, ODD, PNG, PS, PSD, TIFF, WEBP, and XPS with 100% in-browser privacy.',
+  description_ar:
+    'تحويل فوري بين 14 صيغة صور تشمل AVIF, BMP, EPS, GIF, ICNS, ICO, JPG, ODD, PNG, PS, PSD, TIFF, WEBP, و XPS بأعلى دقة ومعالجة محلية 100%.',
   category: {
     id: 'files',
     name: 'File Utilities',
@@ -76,6 +79,7 @@ const toolMeta: ToolMetadata = {
   },
   icon: ImageIcon,
   privacyBadge: '100% Client-Side • In-Memory Processing • Zero Server Uploads',
+  privacyBadge_ar: '100% معالجة محلياً • بدون رفع أي صور • معالجة في الذاكرة',
   features: [
     {
       icon: ImageIcon,
@@ -98,6 +102,28 @@ const toolMeta: ToolMetadata = {
       desc: 'All graphic transformations run on HTML5 Canvas and native binary parsers in local browser memory without server uploads.',
     },
   ],
+  features_ar: [
+    {
+      icon: ImageIcon,
+      title: '14 صيغة صور أساسية',
+      desc: 'تحويل مباشر ومتبادل بين AVIF, BMP, EPS, GIF, ICNS, ICO, JPG, ODD, PNG, PS, PSD, TIFF, WEBP, و XPS.',
+    },
+    {
+      icon: Eye,
+      title: 'معاينة فورية عالية الدقة',
+      desc: 'فحص الصور المحولة فورياً بدقة عالية، ومقارنة قبل وبعد جنب إلى جنب والتأكد من الجودة قبل التحميل.',
+    },
+    {
+      icon: Sliders,
+      title: 'خيارات الضغط وتغيير الأبعاد',
+      desc: 'ضبط نسبة الجودة، وتعبئة خلفية الشفافية بلون مخصص، وإعادة ضبط المقاسات بديناميكية.',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'خصوصية محلية صارمة',
+      desc: 'تتم كافة عمليات المعالجة عبر HTML5 Canvas ومفككات الأكواد المحلية دون رفع أي صورة لخادم خارجي.',
+    },
+  ],
   faqs: [
     {
       q: 'Which image formats are supported?',
@@ -114,6 +140,24 @@ const toolMeta: ToolMetadata = {
     {
       q: 'Are transparent backgrounds preserved?',
       a: 'When converting between transparent formats like PNG, WEBP, AVIF, ICO, ICNS, and PSD, alpha channel transparency is preserved. For opaque formats (JPG, BMP, EPS), transparent areas are cleanly filled with your selected background color.',
+    },
+  ],
+  faqs_ar: [
+    {
+      q: 'ما هي صيغ الصور المدعومة في الأداة؟',
+      a: 'يمكنك التحويل متبادلاً بين 14 صيغة: AVIF, BMP, EPS, GIF, ICNS, ICO, JPG, ODD, PNG, PS, PSD, TIFF, WEBP, و XPS.',
+    },
+    {
+      q: 'كيف يمكنني تحويل الصور إلى ملف PDF أو دمجها؟',
+      a: 'يمكنك استخدام أداة "محول المستندات والأوفيس" لتحويل عدة صور إلى ملف PDF عالي الجودة مع التحكم في مقاسات A4 والتنسيقات.',
+    },
+    {
+      q: 'هل يمكن تحويل ملفات Photoshop PSD و macOS ICNS مباشرة في المتصفح؟',
+      a: 'نعم! تقوم أداتنا بفك تشفير طبقات PSD وحزم أيقونات ICNS محلياً وتحويلها إلى صيغ الويب القياسية أو العكس.',
+    },
+    {
+      q: 'هل يتم الحفاظ على خلفيات الصور الشفافة؟',
+      a: 'نعم، عند التحويل بين الصيغ الشفافة مثل PNG, WEBP, AVIF, ICO, ICNS, و PSD يتم الحفاظ على الشفافية بالكامل. أما للصيغ المعتمة مثل JPG يتم تعبئة خلفية الشفافية باللون الذي تختاره.',
     },
   ],
 }

@@ -18,6 +18,7 @@ export type ToolId =
   | 'image-and-file-compressor'
   | 'document-converter'
   | 'image-converter'
+  | 'image-color-palette'
 
 export type CategoryId = 'database' | 'developer' | 'calculators' | 'files'
 
@@ -282,6 +283,17 @@ export const ALL_TOOLS: ToolDefinition[] = [
     icon: 'Maximize2',
     active: true,
     keywords: ['resize', 'image', 'crop', 'convert', 'scale', 'photo', 'png', 'jpg'],
+  },
+  {
+    id: 'image-color-palette',
+    name: 'Image Color Palette Extractor',
+    slug: 'image-color-palette',
+    href: '/tools/image-color-palette',
+    description: 'Extract dominant color palettes, HEX/RGB swatches, and color harmonies from any image instantly in your browser.',
+    categoryId: 'files',
+    icon: 'Palette',
+    active: true,
+    keywords: ['color', 'palette', 'extractor', 'hex', 'rgb', 'eyedropper', 'swatch', 'image', 'colors'],
   },
 ]
 

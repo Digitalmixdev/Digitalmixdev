@@ -63,8 +63,11 @@ function formatBytes(bytes: number, decimals = 2): string {
 const toolMeta: ToolMetadata = {
   id: 'image-and-file-compressor',
   name: 'Image & File Compressor',
+  name_ar: 'ضاغط الصور والملفات والأرشيف',
   description:
     'Compress JPG, PNG, and WebP images and package documents into optimized ZIP archives with real-time compression ratios and 100% private browser processing.',
+  description_ar:
+    'ضغط وتصغير حجم صور JPG و PNG و WebP وتجميع المستندات في أرشيف ZIP مضغوط مع حساب نسبة الضغط اللحظية ومعالجة محلية آمنة.',
   category: {
     id: 'files',
     name: 'File Utilities',
@@ -72,6 +75,7 @@ const toolMeta: ToolMetadata = {
   },
   icon: FileArchive,
   privacyBadge: '100% Client-Side • Zero Server Uploads • Encrypted in Memory',
+  privacyBadge_ar: '100% معالجة داخل متصفحك • بدون رفع للسيرفر • مشفر بالذاكرة',
   features: [
     {
       icon: Zap,
@@ -94,6 +98,28 @@ const toolMeta: ToolMetadata = {
       desc: 'All operations execute directly in your browser memory with zero server uploads or tracking.',
     },
   ],
+  features_ar: [
+    {
+      icon: Zap,
+      title: 'إعادة تقليل حجم الصور الذكي',
+      desc: 'تقليل حجم الصور بنوعيه (مع الحفاظ على الجودة أو بضغط متكيف)، تحويل لـ WebP وتحديد الأبعاد.',
+    },
+    {
+      icon: FileArchive,
+      title: 'ضغط ملفات ZIP عالي الكفاءة',
+      desc: 'تجميع المستندات والأكواد وPDF والبيانات في أرشيف ZIP مضغوط بخوارزمية DEFLATE القياسية.',
+    },
+    {
+      icon: Layers,
+      title: 'الضغط الجماعي والتصدير',
+      desc: 'معالجة عشرات الملفات والصور دفعة واحدة وتنزيلها فرادى أو في ملف مضغوط واحد.',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'خصوصية كاملة داخل الجهاز',
+      desc: 'تنفذ كافة العمليات في ذاكرة متصفحك مباشرة دون الحاجة لرفع أي ملف إلى سيرفرات خارجية.',
+    },
+  ],
   faqs: [
     {
       q: 'What is Deflate level?',
@@ -110,6 +136,24 @@ const toolMeta: ToolMetadata = {
     {
       q: 'Can I compress multiple files and download them as a single archive?',
       a: 'Yes! You can add images and files together, process them in batch, and click "Download All as ZIP" to get a clean packaged archive.',
+    },
+  ],
+  faqs_ar: [
+    {
+      q: 'ما هو مستوى الضغط Deflate Level؟',
+      a: 'يحدد مستوى الضغط (من 1 إلى 9) التوازن بين سرعة الضغط ونسبة تقليل حجم الملف. المستوى 1 يوفر أسرع ضغط، بينما المستوى 6 هو الخيار المتوازن القياسي، والمستوى 9 يمنح أقصى تقليل لحجم الملفات.',
+    },
+    {
+      q: 'هل يؤثر ضغط الصور على جودتها ووضوحها؟',
+      a: 'يمكنك ضبط شريط الجودة وفقاً لاحتياجك. خيار التمييز الذكي يقلل الحجم بنسبة تصل إلى 70% مع الحفاظ على وضوح الصورة للعين دون تشوه.',
+    },
+    {
+      q: 'هل يتم رفع ملفاتي أو مستنداتي لأي سيرفر؟',
+      a: 'لا نهائياً! يتم ضغط ومعالجة كافة الملفات محلياً داخل جهازك عبر متصفحك فقط دون نقل أي بيانات عبر الإنترنت.',
+    },
+    {
+      q: 'هل يمكنني ضغط عدة ملفات وتحميلها في أرشيف واحد؟',
+      a: 'نعم! يمكنك اختيار عدة صور ومستندات وضغطها دفعة واحدة ثم تنزيلها في ملف ZIP مضغوط بنقرة واحدة.',
     },
   ],
 }

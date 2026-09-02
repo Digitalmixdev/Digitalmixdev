@@ -209,8 +209,11 @@ export interface DocumentQueueItem {
 const toolMeta: ToolMetadata = {
   id: 'document-converter',
   name: 'Document & Office Converter',
+  name_ar: 'محول المستندات والأوفيس والصور لـ PDF',
   description:
     'Convert images (PNG, JPG, WEBP) and office documents (Word, Excel, PowerPoint, HTML, PDF) to PDF and other formats with custom page layout, live preview, and individual or merged downloads.',
+  description_ar:
+    'تحويل عدة صور (JPG, PNG) وملفات الأوفيس (Word, Excel, PPTX, HTML) إلى PDF وباقي الصيغ مع إمكانية تعديل تخطيط الصفحة والمعاينة المباشرة وتنزيل الملفات فردياً أو مضغوطة ZIP.',
   category: {
     id: 'files',
     name: 'File Utilities',
@@ -218,6 +221,7 @@ const toolMeta: ToolMetadata = {
   },
   icon: RefreshCw,
   privacyBadge: '100% Client-Side • Zero File Uploads • In-Memory Processing',
+  privacyBadge_ar: '100% معالجة داخل متصفحك • بدون رفع أي ملفات • معالجة في الذاكرة',
   features: [
     {
       icon: ImageIcon,
@@ -240,6 +244,28 @@ const toolMeta: ToolMetadata = {
       desc: 'All file parsing and PDF generation happen directly inside your browser memory using WebAssembly with zero server uploads.',
     },
   ],
+  features_ar: [
+    {
+      icon: ImageIcon,
+      title: 'محرك تحويل متعدد الصور لـ PDF',
+      desc: 'حدد مجموعة صور PNG أو JPG أو WEBP واجمعها في مستند PDF متعدد الصفحات أو ملفات PDF فردية مع معاينة فورية.',
+    },
+    {
+      icon: Layout,
+      title: 'خيارات التخطيط وأبعاد الصفحة',
+      desc: 'تخصيص أبعاد الصفحة (A4 عمودي، A4 أفقي، ملاءمة للصورة، US Letter)، ومقياس الصورة (Contain, Cover)، والهوامش.',
+    },
+    {
+      icon: Eye,
+      title: 'معاينة بصرية مباشرة للصفحات',
+      desc: 'معاينة وفحص دقيق لنسب الإطارات والهوامش في كل صفحة PDF قبل التصدير مع التصفح التفاعلي.',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'ضمان الخصوصية المحلية 100%',
+      desc: 'يتم تحليل وتوليد مستندات PDF محلياً داخل ذاكرة متصفحك دون إرسال أي بيانات لخوادم خارجية.',
+    },
+  ],
   faqs: [
     {
       q: 'How do I convert multiple images to PDF at once?',
@@ -260,6 +286,28 @@ const toolMeta: ToolMetadata = {
     {
       q: 'What other document types can I convert?',
       a: 'You can convert Microsoft Word (.docx), PowerPoint (.pptx), Excel (.xlsx), HTML, Plain Text, and PDF back and forth.',
+    },
+  ],
+  faqs_ar: [
+    {
+      q: 'كيف يمكنني تحويل صور متعددة إلى ملف PDF واحد؟',
+      a: 'اضغط على "اختر الملفات" أو اسحب وأفلت صور JPG أو PNG أو WEBP. يمكنك اختيار دمج جميع الصور في مستند PDF واحد أو تصدير كل صورة كملف PDF مستقل.',
+    },
+    {
+      q: 'هل يمكنني تخصيص قياسات الصفحة والهوامش (A4، ملائمة للصورة، إلخ)؟',
+      a: 'نعم! في إعدادات تخطيط الصفحة، يمكنك اختيار A4 عمودي أو أفقي أو ملائمة مقاس الصورة أو US Letter وتحديد حجم الهوامش بكل سهولة.',
+    },
+    {
+      q: 'هل يمكنني معاينة صفحات الـ PDF قبل التحميل؟',
+      a: 'نعم! تتيح لك شاشة المعاينة التفاعلية رؤية شكل ورسومات الصفحات بأبعادها وهيئتها النهائية بدقة عالية قبل الحفظ.',
+    },
+    {
+      q: 'هل يمكنني تحميل الملفات المحولة فرادى أو كملف ZIP؟',
+      a: 'نعم، يمكنك تنزيل كل صفحة محولة بنقرة واحدة، أو تنزيل جميع الملفات في أرشيف ZIP مضغوط، أو تنزيل ملف الـ PDF المجمع.',
+    },
+    {
+      q: 'ما هي أنواع المستندات الأخرى التي يمكنني تحويلها؟',
+      a: 'يمكنك تحويل ملفات Word (.docx)، وPowerPoint (.pptx)، وExcel (.xlsx)، وHTML، والنصوص العادية، وPDF متبادلاً بكل سلاسة.',
     },
   ],
 }
@@ -673,6 +721,28 @@ export default function DocumentConverterTool() {
               blob: pptxBlob,
               filename: `${baseName}.pptx`,
               mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+              previewText: pdfData.text,
+              pageCount: pdfData.pageCount,
+            }
+          } else if (tgt === 'xlsx') {
+            const rows: any[][] = [['Page', 'Line Number', 'Extracted Content']]
+            pdfData.pages.forEach((p) => {
+              const lines = p.text.split('\n').filter((l) => l.trim().length > 0)
+              lines.forEach((l, idx) => {
+                if (l.includes('\t')) {
+                  rows.push([p.pageNumber, idx + 1, ...l.split('\t').map((c) => c.trim())])
+                } else if (/\s{2,}/.test(l)) {
+                  rows.push([p.pageNumber, idx + 1, ...l.split(/\s{2,}/).map((c) => c.trim())])
+                } else {
+                  rows.push([p.pageNumber, idx + 1, l.trim()])
+                }
+              })
+            })
+            const xlsxBlob = generateXlsxFromData({ sheetName: baseName, rows })
+            res = {
+              blob: xlsxBlob,
+              filename: `${baseName}.xlsx`,
+              mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
               previewText: pdfData.text,
               pageCount: pdfData.pageCount,
             }

@@ -445,10 +445,12 @@ export async function generateDocxFile(options: {
                 <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
                   <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
                     <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
-                      <pic:nvPr>
+                      <pic:nvPicPr>
                         <pic:cNvPr id="${i + 1}" name="Page ${i + 1}"/>
-                        <pic:cNvPicPr/>
-                      </pic:nvPr>
+                        <pic:cNvPicPr>
+                          <a:picLocks noChangeAspect="1"/>
+                        </pic:cNvPicPr>
+                      </pic:nvPicPr>
                       <pic:blipFill>
                         <a:blip r:embed="${relId}"/>
                         <a:stretch><a:fillRect/></a:stretch>
@@ -470,9 +472,33 @@ export async function generateDocxFile(options: {
         ${i < processedImages.length - 1 ? '<w:p><w:r><w:br w:type="page"/></w:r></w:p>' : ''}
       `
     }
-  } else {
-    // MODE B: Flowing text document with native Arabic/RTL & English typography
-    if (titleText) {
+  }
+
+  // Append extracted editable text paragraphs (with native RTL / Arabic & English typography)
+  if (paragraphsList.length > 0) {
+    if (processedImages.length > 0) {
+      bodyXml += `
+        <w:p><w:r><w:br w:type="page"/></w:r></w:p>
+        <w:p>
+          <w:pPr>
+            <w:jc w:val="right"/>
+            <w:bidi/>
+            <w:spacing w:before="360" w:after="180"/>
+          </w:pPr>
+          <w:r>
+            <w:rPr>
+              <w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI" w:cs="Traditional Arabic"/>
+              <w:b/>
+              <w:sz w:val="28"/>
+              <w:szCs w:val="30"/>
+              <w:rtl/>
+              <w:color w:val="0F172A"/>
+            </w:rPr>
+            <w:t xml:space="preserve">النص المستخرج القابل للتعديل (Editable Text Content):</w:t>
+          </w:r>
+        </w:p>
+      `
+    } else if (titleText) {
       const isTitleRtl = containsRtl(titleText)
       bodyXml += `
         <w:p>
@@ -498,7 +524,7 @@ export async function generateDocxFile(options: {
     }
 
     for (const para of paragraphsList) {
-      if (para === titleText && paragraphsList.length > 1) continue
+      if (!processedImages.length && para === titleText && paragraphsList.length > 1) continue
       const isParaRtl = containsRtl(para)
       bodyXml += `
         <w:p>
@@ -727,18 +753,18 @@ export async function generatePptxFile(options: {
         </a:xfrm>
       </p:grpSpPr>
       ${picXml}
-      ${!hasImageForSlide ? `
       <p:sp>
         <p:nvSpPr>
-          <p:cNvPr id="2" name="Title"/>
-          <p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr>
-          <p:nvPr><p:ph type="title"/></p:nvPr>
+          <p:cNvPr id="2" name="Title 2"/>
+          <p:cNvSpPr/>
+          <p:nvPr/>
         </p:nvSpPr>
         <p:spPr>
           <a:xfrm>
-            <a:off x="838200" y="609600"/>
-            <a:ext cx="10515600" cy="1325563"/>
+            <a:off x="838200" y="${hasImageForSlide ? '5400000' : '609600'}"/>
+            <a:ext cx="10515600" cy="1000000"/>
           </a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
         </p:spPr>
         <p:txBody>
           <a:bodyPr/>
@@ -746,7 +772,7 @@ export async function generatePptxFile(options: {
           <a:p>
             <a:pPr algn="${isTitleRtl ? 'r' : 'l'}" ${isTitleRtl ? 'rtl="1"' : ''}/>
             <a:r>
-              <a:rPr lang="${isTitleRtl ? 'ar-SA' : 'en-US'}" altLang="ar-SA" b="1" sz="3200">
+              <a:rPr lang="${isTitleRtl ? 'ar-SA' : 'en-US'}" altLang="ar-SA" b="1" sz="2800">
                 <a:solidFill><a:srgbClr val="0F172A"/></a:solidFill>
                 <a:latin typeface="Segoe UI"/>
                 <a:cs typeface="Traditional Arabic"/>
@@ -759,15 +785,16 @@ export async function generatePptxFile(options: {
       ${bulletsXml ? `
       <p:sp>
         <p:nvSpPr>
-          <p:cNvPr id="3" name="Content"/>
-          <p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr>
-          <p:nvPr><p:ph idx="1"/></p:nvPr>
+          <p:cNvPr id="3" name="Content 3"/>
+          <p:cNvSpPr/>
+          <p:nvPr/>
         </p:nvSpPr>
         <p:spPr>
           <a:xfrm>
-            <a:off x="838200" y="2100000"/>
-            <a:ext cx="10515600" cy="4500000"/>
+            <a:off x="838200" y="${hasImageForSlide ? '6200000' : '1800000'}"/>
+            <a:ext cx="10515600" cy="3800000"/>
           </a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
         </p:spPr>
         <p:txBody>
           <a:bodyPr/>
@@ -775,7 +802,6 @@ export async function generatePptxFile(options: {
           ${bulletsXml}
         </p:txBody>
       </p:sp>` : ''}
-      ` : ''}
     </p:spTree>
   </p:cSld>
 </p:sld>`

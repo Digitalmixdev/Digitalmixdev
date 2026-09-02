@@ -183,8 +183,11 @@ export interface QrHistoryItem {
 const toolMeta: ToolMetadata = {
   id: 'qr-code-generator',
   name: 'QR Code Generator & Designer',
+  name_ar: 'مولد ومصمم رموز QR Code',
   description:
     'Create customized, high-resolution QR codes for websites, WiFi networks, vCards, SMS, and plain text with vector SVG and PNG downloads.',
+  description_ar:
+    'إنشاء وتصميم رموز QR عالية الدقة ومخصصة للمواقع والواي فاي بطاقات vCard والنصوص والرسائل مع إمكانية التصدير بصيغ SVG و PNG.',
   category: {
     id: 'files',
     name: 'File Utilities',
@@ -192,6 +195,7 @@ const toolMeta: ToolMetadata = {
   },
   icon: QrCode,
   privacyBadge: '100% Client-Side • Vector SVG & PNG Export',
+  privacyBadge_ar: '100% معالجة محلياً • تصدير SVG متجه و PNG',
   features: [
     {
       icon: Zap,
@@ -214,6 +218,28 @@ const toolMeta: ToolMetadata = {
       desc: 'WiFi passwords, contact info, and confidential strings are rendered locally without logging.',
     },
   ],
+  features_ar: [
+    {
+      icon: Zap,
+      title: 'قوالب متعددة الأنماط',
+      desc: 'قوالب بنقرة واحدة لبيانات WiFi، بطاقات vCard الشخصية، الرسائل النصية، والروابط.',
+    },
+    {
+      icon: Palette,
+      title: 'تخصيص الألوان والمظهر',
+      desc: 'تخصيص لون النمط والخلفية بدقة مع معاينة لحظية بصيغة SVG متجهة.',
+    },
+    {
+      icon: Lock,
+      title: 'مستويات تصحيح الأخطاء',
+      desc: 'مستويات قابلة للتعديل (L, M, Q, H) لضمان سهولة قراءة الكود حتى في حال تلف جزء منه.',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'خصوصية تامة ودون حفظ',
+      desc: 'كلمات مرور الواي فاي وبيانات الاتصال والنصوص المعالجة لا تُحفظ أو تُسجل نهائياً.',
+    },
+  ],
   faqs: [
     {
       q: 'Do generated QR codes expire?',
@@ -226,6 +252,20 @@ const toolMeta: ToolMetadata = {
     {
       q: 'Can I download vector SVG format?',
       a: 'Yes. You can download either high-resolution raster PNG or scalable vector SVG for print and design work.',
+    },
+  ],
+  faqs_ar: [
+    {
+      q: 'هل تنتهي صلاحية رموز QR المولدّة؟',
+      a: 'لا! هذه الرموز ثابتة (Static QR Codes) تحتوي البيانات مباشرة، وتعمل للابد دون الحاجة لسيرفرات توجيه خارجية.',
+    },
+    {
+      q: 'ما هو مستوى تصحيح الأخطاء (Error Correction Level) الأنسب؟',
+      a: 'المستوى المتوسط (M - 15%) هو القياسي للاستخدام العام. أما المستوى العالي (H - 30%) فيُفضل للمطبوعات والبطاقات التي قد تتعرض للخدش.',
+    },
+    {
+      q: 'هل يمكنني تحميل الكود بصيغة متجه Vector SVG؟',
+      a: 'نعم! يمكنك تحميل الكود بصورة PNG عالية الدقة أو كملف SVG متجه قابل للتكبير والطباعة الاحترافية.',
     },
   ],
 }
