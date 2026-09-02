@@ -671,9 +671,9 @@ export async function generateDocxFile(options: {
 
   let bodyXml = ''
 
-  const shouldRenderImages = processedImages.length > 0 && (options.includeImagePages || paragraphsList.length === 0)
+  const shouldRenderImages = processedImages.length > 0 && options.includeImagePages
 
-  // MODE A: Only render background page images if explicitly requested or if no text was found
+  // MODE A: Render full-page background image behind text (behindDoc="1")
   if (shouldRenderImages) {
     let relIndex = 2
     for (let i = 0; i < processedImages.length; i++) {
@@ -688,15 +688,22 @@ export async function generateDocxFile(options: {
       bodyXml += `
         <w:p>
           <w:pPr>
-            <w:jc w:val="center"/>
             <w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/>
           </w:pPr>
           <w:r>
             <w:drawing>
-              <wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">
-                <wp:extent cx="5486400" cy="7772400"/>
+              <wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="0" behindDoc="1" locked="0" layoutInCell="1" allowOverlap="1" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">
+                <wp:simplePos x="0" y="0"/>
+                <wp:positionH relativeFrom="page">
+                  <wp:align>center</wp:align>
+                </wp:positionH>
+                <wp:positionV relativeFrom="page">
+                  <wp:align>top</wp:align>
+                </wp:positionV>
+                <wp:extent cx="7560060" cy="10691630"/>
                 <wp:effectExtent l="0" t="0" r="0" b="0"/>
-                <wp:docPr id="${i + 1}" name="Page ${i + 1}"/>
+                <wp:wrapNone/>
+                <wp:docPr id="${i + 1}" name="Page ${i + 1} Background"/>
                 <wp:cNvGraphicFramePr>
                   <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noResize="1"/>
                 </wp:cNvGraphicFramePr>
@@ -706,7 +713,7 @@ export async function generateDocxFile(options: {
                       <pic:nvPicPr>
                         <pic:cNvPr id="${i + 1}" name="Page ${i + 1}"/>
                         <pic:cNvPicPr>
-                          <a:picLocks noChangeAspect="1"/>
+                          <a:picLocks noChangeAspect="0"/>
                         </pic:cNvPicPr>
                       </pic:nvPicPr>
                       <pic:blipFill>
@@ -716,29 +723,24 @@ export async function generateDocxFile(options: {
                       <pic:spPr>
                         <a:xfrm>
                           <a:off x="0" y="0"/>
-                          <a:ext cx="5486400" cy="7772400"/>
+                          <a:ext cx="7560060" cy="10691630"/>
                         </a:xfrm>
                         <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
                       </pic:spPr>
                     </pic:pic>
                   </a:graphicData>
                 </a:graphic>
-              </wp:inline>
+              </wp:anchor>
             </w:drawing>
           </w:r>
         </w:p>
-        ${i < processedImages.length - 1 ? '<w:p><w:r><w:br w:type="page"/></w:r></w:p>' : ''}
       `
     }
   }
 
-  // MODE B: Render extracted editable structured document content directly on Page 1 (with native Word tables, boxes, RTL typography)
+  // MODE B: Render extracted editable structured document content directly on top of the page
   const structuredSource = options.html || options.text || paragraphsList.join('\n')
   if (structuredSource && structuredSource.trim().length > 0) {
-    if (shouldRenderImages) {
-      bodyXml += `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`
-    }
-
     bodyXml += convertStructuredContentToDocxXml(structuredSource)
   }
 

@@ -47,6 +47,7 @@ import {
 import { toast } from 'sonner'
 import JSZip from 'jszip'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
+import { useLanguage } from '@/lib/i18n/context'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
 import { logToolActivity } from '@/lib/history-service'
@@ -341,6 +342,7 @@ function isImageFile(file: File): boolean {
 }
 
 export default function DocumentConverterTool() {
+  const { language } = useLanguage()
   const [sourceFormat, setSourceFormat] = useState<FormatKey>('auto')
   const [targetFormat, setTargetFormat] = useState<FormatKey>('pdf')
   const [items, setItems] = useState<DocumentQueueItem[]>([])
@@ -359,7 +361,7 @@ export default function DocumentConverterTool() {
   const [margin, setMargin] = useState<number>(30) // 0, 15, 30, 50
   const [backgroundColor, setBackgroundColor] = useState<string>('#FFFFFF')
   const [exportMode, setExportMode] = useState<'merged' | 'individual'>('merged')
-  const [pdfToDocxMode, setPdfToDocxMode] = useState<'editableText' | 'withImages'>('editableText')
+  const [pdfToDocxMode, setPdfToDocxMode] = useState<'editableText' | 'withImages'>('withImages')
 
   // Check if current queue is primarily images
   const hasImages = items.some((it) => it.isImage)
@@ -1132,38 +1134,22 @@ export default function DocumentConverterTool() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <FileText className="w-4 h-4 text-primary" />
-                <span>خيارات تحويل Word (Word Conversion Options)</span>
+                <span>{language === 'ar' ? 'خيارات تحويل Word' : 'Word Conversion Options'}</span>
               </div>
               <span className="text-xs text-muted-foreground bg-background/80 px-2.5 py-1 rounded-full border border-border">
-                {pdfToDocxMode === 'editableText' ? '⚡ نص قابل للتعديل المباشر' : '🖼️ مع صور الخلفية'}
+                {pdfToDocxMode === 'withImages'
+                  ? (language === 'ar' ? '🖼️ مع صور الخلفية' : '🖼️ With Background Image')
+                  : (language === 'ar' ? '⚡ نص قابل للتعديل فقط' : '⚡ Editable Text Only')}
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <button
                 type="button"
-                onClick={() => setPdfToDocxMode('editableText')}
-                className={`p-3.5 rounded-xl border text-right transition-all flex flex-col justify-between cursor-pointer ${
-                  pdfToDocxMode === 'editableText'
-                    ? 'border-primary bg-background shadow-xs text-primary font-medium'
-                    : 'border-border/60 bg-background/50 hover:bg-background text-muted-foreground'
-                }`}
-              >
-                <div className="flex items-center justify-between w-full mb-1.5">
-                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-primary" /> نص Word قابل للتعديل (موصى به)
-                  </span>
-                  {pdfToDocxMode === 'editableText' && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  يحلل المستند ويستخرج النصوص (بما فيها النص داخل الصور بالمسح الضوئي OCR) ويضعها مباشرة في ملف Word لتعديلها بسهولة بدون صور خلفية أو صفحات إضافية.
-                </p>
-              </button>
-
-              <button
-                type="button"
                 onClick={() => setPdfToDocxMode('withImages')}
-                className={`p-3.5 rounded-xl border text-right transition-all flex flex-col justify-between cursor-pointer ${
+                className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between cursor-pointer ${
+                  language === 'ar' ? 'text-right' : 'text-left'
+                } ${
                   pdfToDocxMode === 'withImages'
                     ? 'border-primary bg-background shadow-xs text-primary font-medium'
                     : 'border-border/60 bg-background/50 hover:bg-background text-muted-foreground'
@@ -1171,12 +1157,44 @@ export default function DocumentConverterTool() {
               >
                 <div className="flex items-center justify-between w-full mb-1.5">
                   <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                    <ImageIcon className="w-3.5 h-3.5 text-primary" /> تضمين صور الخلفية مع النص
+                    <ImageIcon className="w-3.5 h-3.5 text-primary" />
+                    {language === 'ar'
+                      ? 'تضمين صورة الخلفية مع النص (موصى به)'
+                      : 'Include Background Image with Text (Recommended)'}
                   </span>
                   {pdfToDocxMode === 'withImages' && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  يتضمن صور الصفحة الأصلية بالإضافة إلى النصوص لاستعراض الصورة مع النص.
+                  {language === 'ar'
+                    ? 'يتضمن صور الصفحة الأصلية في الخلفية مع وضع النص بالكامل فوقها بشكل قابل للتعديل والتحرير المباشر.'
+                    : 'Includes original page background images while keeping all extracted text fully editable on top.'}
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPdfToDocxMode('editableText')}
+                className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between cursor-pointer ${
+                  language === 'ar' ? 'text-right' : 'text-left'
+                } ${
+                  pdfToDocxMode === 'editableText'
+                    ? 'border-primary bg-background shadow-xs text-primary font-medium'
+                    : 'border-border/60 bg-background/50 hover:bg-background text-muted-foreground'
+                }`}
+              >
+                <div className="flex items-center justify-between w-full mb-1.5">
+                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                    {language === 'ar'
+                      ? 'نص Word قابل للتعديل فقط'
+                      : 'Editable Text Only'}
+                  </span>
+                  {pdfToDocxMode === 'editableText' && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  {language === 'ar'
+                    ? 'يستخرج النصوص والبيانات (بما فيها النص داخل الصور بالمسح الضوئي OCR) ويضعها مباشرة في ملف Word بدون صور خلفية.'
+                    : 'Extracts document text (including OCR for scanned images) directly into Word without background images.'}
                 </p>
               </button>
             </div>
