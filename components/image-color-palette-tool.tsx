@@ -19,9 +19,21 @@ import {
   Image as ImageIcon,
   RotateCcw,
   Maximize2,
-  ExternalLink,
+  ZoomIn,
+  ZoomOut,
+  RefreshCw,
+  Lock,
+  Unlock,
   Contrast,
   CheckCircle2,
+  XCircle,
+  Layout,
+  Sun,
+  Moon,
+  Sparkle,
+  Crop,
+  SlidersHorizontal,
+  Share2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -34,14 +46,20 @@ import { toast } from 'sonner'
 import {
   type ColorData,
   type PaletteResult,
+  type ExtractionAlgorithm,
+  type ExtractionOptions,
   extractPaletteFromImage,
   getColorHarmonies,
+  simulateColorblindness,
   generateCssVariables,
   generateTailwindConfig,
+  generateScssVariables,
   generateJsonPalette,
+  generateHexList,
   generatePaletteCardPng,
   createColorData,
   rgbToHex,
+  hexToRgb,
 } from '@/lib/color-extractor'
 
 const toolMeta: ToolMetadata = {
@@ -49,7 +67,7 @@ const toolMeta: ToolMetadata = {
   name: 'Image Color Palette Extractor',
   name_ar: 'مستخرج لوحة ألوان الصور',
   description:
-    'Extract dominant color palettes, HEX/RGB swatches, and color harmonies from any image instantly in your browser with zero server uploads.',
+    'Extract dominant color palettes, HEX/RGB/HSL swatches, and color harmonies from any image instantly in your browser with zero server uploads.',
   description_ar:
     'استخرج الألوان السائدة وأكواد HEX/RGB وتناغمات الألوان من أي صورة فورياً داخل متصفحك دون رفع الملفات.',
   category: {
@@ -63,45 +81,45 @@ const toolMeta: ToolMetadata = {
   features: [
     {
       icon: Palette,
-      title: 'Smart Color Clustering',
-      desc: 'Extracts dominant, vibrant, muted, pastel, and dark swatches with percentage frequencies.',
+      title: 'Multi-Algorithm Clustering',
+      desc: 'K-Means, Median Cut, and Histogram quantization to isolate vibrant, muted, pastel, and dark shades.',
     },
     {
       icon: Pipette,
-      title: 'Interactive 4x Loupe Eyedropper',
-      desc: 'Hover anywhere across your image with a high-precision magnifier to pick exact pixel colors.',
+      title: 'Precision Eyedropper & Canvas Pins',
+      desc: 'Hover over pixels with a 4x magnified loupe and drop interactive pin markers directly on your image.',
+    },
+    {
+      icon: Layout,
+      title: 'Live UI Theme Mockup Previewer',
+      desc: 'See how extracted color palettes look applied to real-world app landing cards, buttons, and charts.',
     },
     {
       icon: FileCode,
       title: 'Developer Export Suite',
-      desc: 'Export swatches as CSS Variables, Tailwind theme config, JSON objects, or aesthetic PNG cards.',
-    },
-    {
-      icon: Contrast,
-      title: 'WCAG Accessibility Checker',
-      desc: 'Instant AA/AAA contrast ratios against light and dark backgrounds for every extracted color.',
+      desc: 'Export swatches as CSS Variables, Tailwind v3/v4 theme config, SCSS, JSON, or high-res PNG posters.',
     },
   ],
   features_ar: [
     {
       icon: Palette,
-      title: 'تجميع الألوان الذكي',
-      desc: 'استخراج الألوان الأساسية، الزاهية، الهادئة، الباستيل، والداكنة مع حساب نسب انتشارها.',
+      title: 'خوارزميات تجميع متعددة',
+      desc: 'استخدام K-Means وMedian Cut لعزل الألوان الزاهية والداكنة والباستيل مع نسب الانتشار.',
     },
     {
       icon: Pipette,
-      title: 'عدسة مكبرة تفاعلية 4x',
-      desc: 'مرر المؤشر فوق أي جزء في الصورة مع عدسة التكبير لالتقاط لون أي بكسل بدقة متناهية.',
+      title: 'عدسة مكبرة ودبابيس تفاعلية',
+      desc: 'تكبير البكسلات 4x وإسقاط دبابيس ألوان تفاعلية مباشرة فوق عناصر الصورة.',
+    },
+    {
+      icon: Layout,
+      title: 'معاينة حية على واجهات المستخدم',
+      desc: 'اختبار لوحة الألوان مباشرة على نماذج واجهات تطبيقات وأزرار ورسوم بيانية.',
     },
     {
       icon: FileCode,
-      title: 'حزمة تصدير للمطورين',
-      desc: 'تصدير الألوان كمتغيرات CSS أو إعدادات Tailwind أو كود JSON أو بطاقة PNG أنيقة.',
-    },
-    {
-      icon: Contrast,
-      title: 'فحص إمكانية الوصول WCAG',
-      desc: 'حساب نسبة التباين AA/AAA الفورية مقابل الخلفيات الفاتحة والداكنة لكل لون مستخرج.',
+      title: 'حزمة تصدير المطورين',
+      desc: 'تصدير الألوان كمتغيرات CSS، إعدادات Tailwind v3/v4، SCSS، JSON، أو بطاقات PNG عالية الدقة.',
     },
   ],
   faqs: [
@@ -110,12 +128,12 @@ const toolMeta: ToolMetadata = {
       a: 'No! All color extraction and canvas pixel analyses happen 100% locally in your browser memory. Your pictures never leave your device.',
     },
     {
-      q: 'Can I copy colors in different formats like RGB or HSL?',
-      a: 'Yes. Click on any color swatch to copy its HEX, RGB, HSL, or CMYK values, or open the detailed color inspector.',
+      q: 'Can I select a specific region of an image to extract colors from?',
+      a: 'Yes! Enable Region Selection mode to crop a specific area on your image and extract palette swatches only from that box.',
     },
     {
-      q: 'How does the eyedropper magnifier work?',
-      a: 'Simply hover your cursor over the image preview to zoom into individual pixels, and click to add any custom color to your palette.',
+      q: 'How does the UI Theme Mockup preview work?',
+      a: 'Switch to the UI Preview tab to see your extracted palette automatically mapped to primary buttons, hero text, card backgrounds, and chart accents in real time.',
     },
   ],
   faqs_ar: [
@@ -124,36 +142,36 @@ const toolMeta: ToolMetadata = {
       a: 'لا! جميع عمليات استخراج الألوان وتحليل بكسلات Canvas تنفذ 100% محلياً داخل ذاكرة متصفحك.',
     },
     {
-      q: 'هل يمكنني نسخ الألوان بصيغ مختلفة مثل RGB أو HSL؟',
-      a: 'نعم. اضغط على أي شريحة لون لنسخ قيمة HEX أو RGB أو HSL أو CMYK أو فتح فاحص التفاصيل.',
+      q: 'هل يمكنني تحديد منطقة معينة من الصورة لاستخراج الألوان منها؟',
+      a: 'نعم! افعل وضع تحديد المنطقة لقص جزء معين من الصورة واستخراج الألوان من هذا الجزء فقط.',
     },
     {
-      q: 'كيف تعمل العدسة المكبرة التقاط الألوان؟',
-      a: 'فقط حرك المؤشر فوق الصورة لمعاينة البكسلات المكبرة واضغط لالتقاط أي لون مخصص وإضافته للوحة الألوان.',
+      q: 'كيف تعمل معاينة واجهة المستخدم الحية؟',
+      a: 'انتقل إلى تبويب معاينة الواجهة لرؤية ألوانك المستخرجة وهي تطبق تلقائياً على البطاقات والأزرار والرسوم البيانية.',
     },
   ],
 }
 
-// Curated preset sample images (SVG/Data URLs for instant zero-latency loading)
+// Preset sample images
 const SAMPLE_PALETTES = [
   {
     name: 'Sunset Horizon',
-    url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&auto=format&fit=crop&q=80',
+    url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80',
     category: 'Nature',
   },
   {
     name: 'Neon Cyberpunk',
-    url: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&auto=format&fit=crop&q=80',
+    url: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&auto=format&fit=crop&q=80',
     category: 'Vibrant',
   },
   {
     name: 'Emerald Forest',
-    url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=600&auto=format&fit=crop&q=80',
+    url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop&q=80',
     category: 'Nature',
   },
   {
     name: 'Pastel Architecture',
-    url: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=600&auto=format&fit=crop&q=80',
+    url: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&auto=format&fit=crop&q=80',
     category: 'Minimal',
   },
 ]
@@ -163,14 +181,34 @@ export default function ImageColorPaletteTool() {
   const isRtl = language === 'ar'
 
   const [imageSrc, setImageSrc] = useState<string | null>(null)
-  const [imageName, setImageName] = useState<string>('sample-image')
+  const [imageName, setImageName] = useState<string>('Sunset Horizon')
   const [isProcessing, setIsProcessing] = useState<boolean>(false)
   const [paletteResult, setPaletteResult] = useState<PaletteResult | null>(null)
+
+  // Extraction Settings
   const [colorCount, setColorCount] = useState<number>(8)
-  const [activeTab, setActiveTab] = useState<'dominant' | 'vibrant' | 'muted' | 'light' | 'dark' | 'picked'>('dominant')
+  const [algorithm, setAlgorithm] = useState<ExtractionAlgorithm>('kmeans')
+  const [ignoreWhite, setIgnoreWhite] = useState<boolean>(false)
+  const [ignoreBlack, setIgnoreBlack] = useState<boolean>(false)
+
+  // Tab Navigation
+  const [activeTab, setActiveTab] = useState<'dominant' | 'vibrant' | 'muted' | 'light' | 'dark' | 'picked' | 'uiPreview' | 'accessibility'>('dominant')
   const [sortMode, setSortMode] = useState<'dominance' | 'hue' | 'brightness' | 'saturation'>('dominance')
+
+  // Custom Picked / Pinned Colors
   const [customPicked, setCustomPicked] = useState<ColorData[]>([])
-  
+  const [lockedHexes, setLockedHexes] = useState<Set<string>>(new Set())
+
+  // Zoom & Pan
+  const [zoomLevel, setZoomLevel] = useState<number>(1)
+
+  // Image Adjustment Sliders
+  const [adjustments, setAdjustments] = useState({
+    brightness: 100,
+    contrast: 100,
+    saturation: 100,
+  })
+
   // Eyedropper Magnifier State
   const [magnifier, setMagnifier] = useState<{
     x: number
@@ -192,6 +230,9 @@ export default function ImageColorPaletteTool() {
   const [inspectedColor, setInspectedColor] = useState<ColorData | null>(null)
   const [copiedFormat, setCopiedFormat] = useState<string | null>(null)
 
+  // Colorblindness Filter Simulation State
+  const [colorblindFilter, setColorblindFilter] = useState<'normal' | 'protanopia' | 'deuteranopia' | 'tritanopia' | 'achromatopsia'>('normal')
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const imageRef = useRef<HTMLImageElement | null>(null)
@@ -201,7 +242,7 @@ export default function ImageColorPaletteTool() {
     loadImageFromUrl(SAMPLE_PALETTES[0].url, SAMPLE_PALETTES[0].name)
   }, [])
 
-  // Clipboard Paste Support
+  // Clipboard Paste Listener
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       const items = e.clipboardData?.items
@@ -222,41 +263,61 @@ export default function ImageColorPaletteTool() {
     async (imgElement: HTMLImageElement, name: string) => {
       setIsProcessing(true)
       try {
-        const result = await extractPaletteFromImage(imgElement, colorCount)
-        setPaletteResult(result)
-        setImageName(name)
-        imageRef.current = imgElement
+        const options: ExtractionOptions = {
+          count: colorCount,
+          algorithm,
+          ignoreWhite,
+          ignoreBlack,
+          ignoreTransparent: true,
+        }
 
-        // Draw image onto interactive canvas
+        // Draw image onto canvas with adjustments
         const canvas = canvasRef.current
         if (canvas) {
-          const maxWidth = 800
-          let w = imgElement.naturalWidth || imgElement.width
-          let h = imgElement.naturalHeight || imgElement.height
+          const maxWidth = 900
+          let w = imgElement.naturalWidth || imgElement.width || 800
+          let h = imgElement.naturalHeight || imgElement.height || 600
           if (w > maxWidth) {
             h = Math.round((h * maxWidth) / w)
             w = maxWidth
           }
-          canvas.width = w
-          canvas.height = h
+          canvas.width = Math.max(1, w)
+          canvas.height = Math.max(1, h)
+
           const ctx = canvas.getContext('2d', { willReadFrequently: true })
           if (ctx) {
+            ctx.filter = `brightness(${adjustments.brightness}%) contrast(${adjustments.contrast}%) saturate(${adjustments.saturation}%)`
             ctx.drawImage(imgElement, 0, 0, w, h)
+            ctx.filter = 'none'
           }
-        }
 
-        // Log to user history
-        logToolActivity({
-          toolId: 'image-color-palette',
-          toolName: 'Image Color Palette Extractor',
-          category: 'files',
-          actionTitle: 'Extracted Color Palette',
-          details: `Analyzed "${name}" (${result.dominant.length} swatches extracted)`,
-          inputSnippet: name,
-          outputSnippet: `Dominant: ${result.dominant.map((c) => c.hex).slice(0, 4).join(', ')}`,
-        })
-        incrementToolUsage()
-        markToolUsed('image-color-palette')
+          // Extract palette using adjusted canvas
+          const result = await extractPaletteFromImage(canvas, options)
+
+          // Preserve locked colors
+          if (lockedHexes.size > 0 && paletteResult) {
+            const preserved = paletteResult.dominant.filter((c) => lockedHexes.has(c.hex))
+            const newDominant = [...preserved, ...result.dominant.filter((c) => !lockedHexes.has(c.hex))].slice(0, colorCount)
+            result.dominant = newDominant
+          }
+
+          setPaletteResult(result)
+          setImageName(name)
+          imageRef.current = imgElement
+
+          // Log tool activity
+          logToolActivity({
+            toolId: 'image-color-palette',
+            toolName: 'Image Color Palette Extractor',
+            category: 'files',
+            actionTitle: 'Extracted Color Palette',
+            details: `Analyzed "${name}" (${result.dominant.length} swatches extracted via ${algorithm.toUpperCase()})`,
+            inputSnippet: name,
+            outputSnippet: `Dominant: ${result.dominant.map((c) => c.hex).slice(0, 4).join(', ')}`,
+          })
+          incrementToolUsage()
+          markToolUsed('image-color-palette')
+        }
       } catch (err) {
         console.error('Failed to extract color palette:', err)
         toast.error('Failed to analyze image colors')
@@ -264,7 +325,7 @@ export default function ImageColorPaletteTool() {
         setIsProcessing(false)
       }
     },
-    [colorCount]
+    [colorCount, algorithm, ignoreWhite, ignoreBlack, adjustments, lockedHexes]
   )
 
   const handleFile = (file: File) => {
@@ -289,7 +350,7 @@ export default function ImageColorPaletteTool() {
       processImage(img, name)
     }
     img.onerror = () => {
-      toast.error('Could not load image')
+      toast.error('Could not load image from URL')
     }
   }
 
@@ -318,7 +379,7 @@ export default function ImageColorPaletteTool() {
     const hex = rgbToHex(pixel[0], pixel[1], pixel[2])
     const rgbStr = `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`
 
-    // Generate Zoomed Loupe Canvas Snapshot (9x9 pixels around cursor)
+    // Generate Zoomed Loupe Canvas Snapshot (11x11 pixels around cursor)
     const loupeSize = 11
     const half = Math.floor(loupeSize / 2)
     const srcX = Math.max(0, Math.min(canvas.width - loupeSize, canvasX - half))
@@ -331,10 +392,15 @@ export default function ImageColorPaletteTool() {
     if (lCtx) {
       lCtx.imageSmoothingEnabled = false
       lCtx.drawImage(canvas, srcX, srcY, loupeSize, loupeSize, 0, 0, 110, 110)
-      // Crosshair
+
+      // Crosshair center
       lCtx.strokeStyle = '#FFFFFF'
-      lCtx.lineWidth = 1.5
+      lCtx.lineWidth = 2
       lCtx.strokeRect(45, 45, 20, 20)
+
+      lCtx.strokeStyle = '#000000'
+      lCtx.lineWidth = 1
+      lCtx.strokeRect(44, 44, 22, 22)
     }
 
     setMagnifier({
@@ -363,27 +429,43 @@ export default function ImageColorPaletteTool() {
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return
     const pixel = ctx.getImageData(canvasX, canvasY, 1, 1).data
-    const newColor = createColorData(pixel[0], pixel[1], pixel[2])
+
+    const relX = (canvasX / canvas.width) * 100
+    const relY = (canvasY / canvas.height) * 100
+
+    const newColor = createColorData(pixel[0], pixel[1], pixel[2], 0, relX, relY)
 
     setCustomPicked((prev) => {
       if (prev.some((c) => c.hex === newColor.hex)) return prev
       return [newColor, ...prev]
     })
     setActiveTab('picked')
-    toast.success(`Picked color ${newColor.hex} (${newColor.name})`)
+    toast.success(`Picked ${newColor.hex} (${newColor.name})`)
   }
 
-  // Active Displayed Colors based on selected Tab & Sorting
+  // Toggle Color Lock
+  const toggleLockColor = (hex: string) => {
+    setLockedHexes((prev) => {
+      const next = new Set(prev)
+      if (next.has(hex)) next.delete(hex)
+      else next.add(hex)
+      return next
+    })
+  }
+
+  // Active Displayed Colors based on selected Tab, Sorting, & Colorblindness Simulation
   const displayedColors = useMemo(() => {
     if (!paletteResult) return []
     let list: ColorData[] = []
     if (activeTab === 'picked') {
       list = customPicked.length > 0 ? customPicked : paletteResult.dominant
+    } else if (activeTab === 'uiPreview' || activeTab === 'accessibility') {
+      list = paletteResult.dominant
     } else {
       list = paletteResult[activeTab] || paletteResult.dominant
     }
 
-    const sorted = [...list]
+    let sorted = [...list]
     if (sortMode === 'hue') {
       sorted.sort((a, b) => a.hsl.h - b.hsl.h)
     } else if (sortMode === 'brightness') {
@@ -391,10 +473,15 @@ export default function ImageColorPaletteTool() {
     } else if (sortMode === 'saturation') {
       sorted.sort((a, b) => b.hsl.s - a.hsl.s)
     }
-    return sorted
-  }, [paletteResult, activeTab, customPicked, sortMode])
 
-  // Copy Helpers
+    if (colorblindFilter !== 'normal') {
+      sorted = sorted.map((c) => simulateColorblindness(c, colorblindFilter))
+    }
+
+    return sorted
+  }, [paletteResult, activeTab, customPicked, sortMode, colorblindFilter])
+
+  // Copy Helper
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text)
     setCopiedFormat(label)
@@ -412,7 +499,7 @@ export default function ImageColorPaletteTool() {
       a.download = `palette-${imageName.replace(/\.[^/.]+$/, '')}.png`
       a.click()
       URL.revokeObjectURL(url)
-      toast.success('Palette poster image downloaded!')
+      toast.success('Palette poster PNG downloaded!')
     } catch (err) {
       toast.error('Failed to generate PNG poster')
     }
@@ -421,7 +508,7 @@ export default function ImageColorPaletteTool() {
   return (
     <ToolLayout metadata={toolMeta}>
       <div className="space-y-8" id="color-palette-extractor-app">
-        {/* Top Control Header */}
+        {/* Header Studio Bar */}
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-5 rounded-2xl border border-border bg-card shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -440,16 +527,20 @@ export default function ImageColorPaletteTool() {
             </div>
           </div>
 
-          {/* Preset Sample Images Buttons */}
+          {/* Preset Sample Image Selector */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-semibold text-muted-foreground mr-1">
-              {t('palette.samples', 'Try Presets:')}
+              {t('palette.samples', 'Preset Samples:')}
             </span>
             {SAMPLE_PALETTES.map((sample) => (
               <button
                 key={sample.name}
                 onClick={() => loadImageFromUrl(sample.url, sample.name)}
-                className="text-xs px-3 py-1.5 rounded-lg border border-border bg-secondary/50 hover:bg-secondary text-foreground font-medium transition-colors"
+                className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${
+                  imageName === sample.name
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border bg-secondary/50 hover:bg-secondary text-foreground'
+                }`}
               >
                 {sample.name}
               </button>
@@ -457,9 +548,9 @@ export default function ImageColorPaletteTool() {
           </div>
         </div>
 
-        {/* Main 2-Column Studio Grid */}
+        {/* Main 2-Column Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left Column: Image Canvas & Eyedropper (5 cols) */}
+          {/* Left Column: Interactive Image Stage & Eyedropper (5 cols) */}
           <div className="lg:col-span-5 space-y-4">
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
@@ -467,9 +558,23 @@ export default function ImageColorPaletteTool() {
                   <Pipette className="h-4 w-4 text-primary" />
                   {t('palette.image_inspector', 'Interactive Image & Eyedropper')}
                 </h3>
-                <span className="text-xs text-muted-foreground">
-                  {t('palette.click_to_pick', 'Click image to pick color')}
-                </span>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <button
+                    onClick={() => setZoomLevel((z) => Math.max(1, z - 0.5))}
+                    className="p-1 hover:bg-secondary rounded"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="font-mono text-[11px] font-semibold">{zoomLevel}x</span>
+                  <button
+                    onClick={() => setZoomLevel((z) => Math.min(4, z + 0.5))}
+                    className="p-1 hover:bg-secondary rounded"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
 
               {/* Upload Dropzone */}
@@ -480,7 +585,7 @@ export default function ImageColorPaletteTool() {
                   e.preventDefault()
                   if (e.dataTransfer.files?.[0]) handleFile(e.dataTransfer.files[0])
                 }}
-                className="relative group cursor-pointer border-2 border-dashed border-border hover:border-primary/60 bg-secondary/20 hover:bg-secondary/40 transition-all rounded-xl p-4 text-center"
+                className="relative group cursor-pointer border-2 border-dashed border-border hover:border-primary/60 bg-secondary/20 hover:bg-secondary/40 transition-all rounded-xl p-3.5 text-center"
               >
                 <input
                   ref={fileInputRef}
@@ -489,25 +594,55 @@ export default function ImageColorPaletteTool() {
                   onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
                   className="hidden"
                 />
-                <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground group-hover:text-foreground">
-                  <UploadCloud className="h-5 w-5 text-primary" />
+                <div className="flex items-center justify-center gap-2.5 text-xs text-muted-foreground group-hover:text-foreground">
+                  <UploadCloud className="h-4 w-4 text-primary" />
                   <span className="font-semibold">{t('palette.upload_prompt', 'Upload picture')}</span>
                   <span>•</span>
                   <span>{t('palette.paste_hint', 'or paste with Ctrl+V')}</span>
                 </div>
               </div>
 
-              {/* Canvas Preview with Live Magnifier Loupe */}
-              <div className="relative rounded-xl overflow-hidden border border-border bg-muted/20 flex items-center justify-center min-h-[260px]">
-                <canvas
-                  ref={canvasRef}
-                  onMouseMove={handleCanvasMouseMove}
-                  onMouseLeave={handleCanvasMouseLeave}
-                  onClick={handleCanvasClick}
-                  className="w-full h-auto object-contain cursor-crosshair max-h-[380px]"
-                />
+              {/* Canvas Preview Container */}
+              <div className="relative rounded-xl overflow-hidden border border-border bg-muted/20 flex items-center justify-center min-h-[280px]">
+                <div
+                  className="w-full flex items-center justify-center transition-transform duration-200"
+                  style={{ transform: `scale(${zoomLevel})` }}
+                >
+                  <canvas
+                    ref={canvasRef}
+                    onMouseMove={handleCanvasMouseMove}
+                    onMouseLeave={handleCanvasMouseLeave}
+                    onClick={handleCanvasClick}
+                    className="w-full h-auto object-contain cursor-crosshair max-h-[400px]"
+                  />
+                </div>
 
-                {/* Floating Precision Magnifier Loupe */}
+                {/* Pin Markers Over Image */}
+                {displayedColors.map(
+                  (col, idx) =>
+                    col.x !== undefined &&
+                    col.y !== undefined && (
+                      <div
+                        key={col.hex + idx}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setInspectedColor(col)
+                        }}
+                        style={{ left: `${col.x}%`, top: `${col.y}%` }}
+                        className="absolute -translate-x-1/2 -translate-y-1/2 group cursor-pointer z-10"
+                        title={`${col.name} (${col.hex}) - Click to inspect`}
+                      >
+                        <div
+                          className="h-5 w-5 rounded-full border-2 border-white shadow-lg transition-transform group-hover:scale-125 flex items-center justify-center"
+                          style={{ backgroundColor: col.hex }}
+                        >
+                          <span className="text-[9px] font-bold text-white drop-shadow">{idx + 1}</span>
+                        </div>
+                      </div>
+                    )
+                )}
+
+                {/* Precision Loupe Magnifier */}
                 {magnifier.visible && (
                   <div
                     className="absolute pointer-events-none rounded-full shadow-2xl border-2 border-white overflow-hidden z-20 flex flex-col items-center justify-center bg-black/80 text-white"
@@ -515,7 +650,7 @@ export default function ImageColorPaletteTool() {
                       width: 100,
                       height: 100,
                       left: Math.min(Math.max(magnifier.x - 50, 10), 300),
-                      top: Math.min(Math.max(magnifier.y - 120, 10), 260),
+                      top: Math.min(Math.max(magnifier.y - 120, 10), 280),
                     }}
                   >
                     {magnifier.loupeCanvasDataUrl && (
@@ -525,14 +660,14 @@ export default function ImageColorPaletteTool() {
                         className="w-full h-full object-cover"
                       />
                     )}
-                    <div className="absolute bottom-1 bg-black/80 px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider">
+                    <div className="absolute bottom-1 bg-black/90 px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider">
                       {magnifier.color}
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Eyedropper Live Status Bar */}
+              {/* Live Hover Status */}
               <div className="flex items-center justify-between p-3 rounded-xl bg-secondary/40 border border-border/50 text-xs">
                 <div className="flex items-center gap-2.5">
                   <div
@@ -554,13 +689,87 @@ export default function ImageColorPaletteTool() {
                   {t('action.copy', 'Copy')}
                 </Button>
               </div>
+
+              {/* Image Fine-Tuning Filters */}
+              <div className="space-y-3 pt-2 border-t border-border">
+                <div className="flex items-center justify-between text-xs font-bold text-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+                    {t('palette.image_adjustments', 'Image Pre-Filters')}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setAdjustments({ brightness: 100, contrast: 100, saturation: 100 })
+                      if (imageRef.current) processImage(imageRef.current, imageName)
+                    }}
+                    className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Reset
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2.5 text-[11px]">
+                  <div>
+                    <label className="text-muted-foreground font-medium block mb-1">
+                      Brightness ({adjustments.brightness}%)
+                    </label>
+                    <input
+                      type="range"
+                      min="50"
+                      max="150"
+                      value={adjustments.brightness}
+                      onChange={(e) => {
+                        const val = Number(e.target.value)
+                        setAdjustments((p) => ({ ...p, brightness: val }))
+                        if (imageRef.current) processImage(imageRef.current, imageName)
+                      }}
+                      className="w-full h-1 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-muted-foreground font-medium block mb-1">
+                      Contrast ({adjustments.contrast}%)
+                    </label>
+                    <input
+                      type="range"
+                      min="50"
+                      max="150"
+                      value={adjustments.contrast}
+                      onChange={(e) => {
+                        const val = Number(e.target.value)
+                        setAdjustments((p) => ({ ...p, contrast: val }))
+                        if (imageRef.current) processImage(imageRef.current, imageName)
+                      }}
+                      className="w-full h-1 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-muted-foreground font-medium block mb-1">
+                      Saturate ({adjustments.saturation}%)
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="200"
+                      value={adjustments.saturation}
+                      onChange={(e) => {
+                        const val = Number(e.target.value)
+                        setAdjustments((p) => ({ ...p, saturation: val }))
+                        if (imageRef.current) processImage(imageRef.current, imageName)
+                      }}
+                      className="w-full h-1 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Right Column: Extracted Palette & Controls (7 cols) */}
+          {/* Right Column: Extracted Swatches & Interactive Studio (7 cols) */}
           <div className="lg:col-span-7 space-y-6">
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm space-y-6">
-              {/* Palette Filter Tabs & Count Controls */}
+              {/* Top Controls: Algorithm & Swatch Count */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
                 {/* Mode Tabs */}
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
@@ -572,6 +781,8 @@ export default function ImageColorPaletteTool() {
                       { id: 'light', label: 'Pastel' },
                       { id: 'dark', label: 'Dark' },
                       { id: 'picked', label: `Picked (${customPicked.length})` },
+                      { id: 'uiPreview', label: 'UI Mockup' },
+                      { id: 'accessibility', label: 'WCAG Test' },
                     ] as const
                   ).map((tab) => (
                     <button
@@ -589,8 +800,8 @@ export default function ImageColorPaletteTool() {
                 </div>
 
                 {/* Swatch Count Selector */}
-                <div className="flex items-center gap-3 text-xs">
-                  <span className="text-muted-foreground font-medium">{t('palette.colors', 'Colors:')}</span>
+                <div className="flex items-center gap-2.5 text-xs">
+                  <span className="text-muted-foreground font-medium">{t('palette.colors', 'Swatches:')}</span>
                   <div className="flex items-center gap-1 bg-secondary rounded-lg p-0.5 border border-border">
                     {[4, 6, 8, 12, 16].map((count) => (
                       <button
@@ -612,17 +823,46 @@ export default function ImageColorPaletteTool() {
                 </div>
               </div>
 
-              {/* Sorting Bar */}
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">
-                  {displayedColors.length} {t('palette.swatches_found', 'Swatches Extracted')}
-                </span>
+              {/* Algorithm & Filtering Sub-bar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground bg-secondary/30 p-3 rounded-xl border border-border">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-foreground">Algorithm:</span>
+                    <select
+                      value={algorithm}
+                      onChange={(e) => {
+                        const algo = e.target.value as ExtractionAlgorithm
+                        setAlgorithm(algo)
+                        if (imageRef.current) processImage(imageRef.current, imageName)
+                      }}
+                      className="bg-card text-foreground text-xs rounded-md border border-border px-2 py-1 font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="kmeans">K-Means Centroids</option>
+                      <option value="mediancut">Median Cut Quantization</option>
+                      <option value="histogram">Histogram Frequency</option>
+                    </select>
+                  </div>
+
+                  <label className="flex items-center gap-1.5 cursor-pointer font-medium hover:text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={ignoreWhite}
+                      onChange={(e) => {
+                        setIgnoreWhite(e.target.checked)
+                        if (imageRef.current) processImage(imageRef.current, imageName)
+                      }}
+                      className="rounded border-border text-primary focus:ring-primary"
+                    />
+                    Ignore White
+                  </label>
+                </div>
+
                 <div className="flex items-center gap-2">
-                  <span>{t('palette.sort_by', 'Sort by:')}</span>
+                  <span>{t('palette.sort_by', 'Sort:')}</span>
                   <select
                     value={sortMode}
                     onChange={(e) => setSortMode(e.target.value as any)}
-                    className="bg-secondary text-foreground text-xs rounded-md border border-border px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="bg-card text-foreground text-xs rounded-md border border-border px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary font-medium"
                   >
                     <option value="dominance">Dominance %</option>
                     <option value="hue">Hue Spectrum</option>
@@ -632,93 +872,303 @@ export default function ImageColorPaletteTool() {
                 </div>
               </div>
 
-              {/* Swatches Visual Strip Banner */}
-              <div className="h-14 w-full rounded-xl overflow-hidden flex shadow-inner border border-border">
-                {displayedColors.map((color, i) => (
-                  <div
-                    key={color.hex + i}
-                    onClick={() => setInspectedColor(color)}
-                    style={{ backgroundColor: color.hex, width: `${100 / displayedColors.length}%` }}
-                    className="h-full relative group cursor-pointer transition-transform hover:scale-105 hover:z-10"
-                    title={`${color.name} (${color.hex}) - Click to inspect`}
-                  >
-                    <span className="opacity-0 group-hover:opacity-100 absolute inset-0 flex items-center justify-center text-[10px] font-mono font-bold text-white drop-shadow-md transition-opacity">
-                      {color.hex}
+              {/* Colorblindness Simulator Selector */}
+              <div className="flex items-center justify-between text-xs p-2.5 rounded-lg bg-card border border-border">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  <Eye className="h-3.5 w-3.5 text-primary" />
+                  Colorblindness Simulation:
+                </span>
+                <div className="flex items-center gap-1 flex-wrap">
+                  {(
+                    [
+                      { id: 'normal', label: 'Normal' },
+                      { id: 'protanopia', label: 'Protanopia (Red-Blind)' },
+                      { id: 'deuteranopia', label: 'Deuteranopia (Green-Blind)' },
+                      { id: 'tritanopia', label: 'Tritanopia (Blue-Blind)' },
+                      { id: 'achromatopsia', label: 'Achromatopsia (Monochrome)' },
+                    ] as const
+                  ).map((filter) => (
+                    <button
+                      key={filter.id}
+                      onClick={() => setColorblindFilter(filter.id)}
+                      className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${
+                        colorblindFilter === filter.id
+                          ? 'bg-primary text-primary-foreground font-bold'
+                          : 'bg-secondary/60 text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Main Tab Views */}
+              {activeTab === 'uiPreview' ? (
+                /* LIVE UI MOCKUP PREVIEWER */
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-foreground flex items-center gap-1.5">
+                      <Layout className="h-4 w-4 text-primary" />
+                      Live UI Theme Mapping
+                    </span>
+                    <span className="text-muted-foreground">
+                      Extracted palette mapped to interactive UI elements
                     </span>
                   </div>
-                ))}
-              </div>
 
-              {/* Detailed Swatch Cards Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
-                {displayedColors.map((color, index) => (
-                  <div
-                    key={color.hex + index}
-                    className="group relative rounded-xl border border-border bg-card p-3 hover:border-primary/50 transition-all hover:shadow-md space-y-2.5"
-                  >
-                    {/* Color Preview Block */}
-                    <div
-                      onClick={() => setInspectedColor(color)}
-                      className="h-20 w-full rounded-lg relative cursor-pointer overflow-hidden border border-black/5 flex items-end p-2 transition-transform group-hover:scale-[1.02]"
-                      style={{ backgroundColor: color.hex }}
-                    >
-                      {/* Dominance Badge if available */}
-                      {color.percentage > 0 && (
-                        <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm ${
-                            color.isDark ? 'bg-black/60 text-white' : 'bg-white/80 text-black'
-                          }`}
+                  {(() => {
+                    const primary = displayedColors[0]?.hex || '#3B82F6'
+                    const secondary = displayedColors[1]?.hex || '#10B981'
+                    const accent = displayedColors[2]?.hex || '#F59E0B'
+                    const darkBg = displayedColors.find((c) => c.isDark)?.hex || '#0F172A'
+                    const lightBg = displayedColors.find((c) => !c.isDark)?.hex || '#F8FAFC'
+
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Light Card Mockup */}
+                        <div
+                          className="p-5 rounded-2xl shadow-md border space-y-4"
+                          style={{ backgroundColor: lightBg, borderColor: secondary + '40', color: darkBg }}
                         >
-                          {color.percentage}%
-                        </span>
-                      )}
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold uppercase tracking-wider opacity-80">
+                              Light UI Component
+                            </span>
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-sm"
+                              style={{ backgroundColor: secondary }}
+                            >
+                              Active
+                            </span>
+                          </div>
+                          <h4 className="text-lg font-extrabold" style={{ color: darkBg }}>
+                            {imageName} Dashboard
+                          </h4>
+                          <p className="text-xs opacity-80 leading-relaxed">
+                            This live preview demonstrates how your extracted palette automatically styles headlines, primary buttons, and accent pills.
+                          </p>
+                          <div className="flex items-center gap-2 pt-2">
+                            <button
+                              className="px-4 py-2 rounded-xl text-xs font-bold text-white shadow transition-transform hover:scale-105"
+                              style={{ backgroundColor: primary }}
+                            >
+                              Primary CTA
+                            </button>
+                            <button
+                              className="px-4 py-2 rounded-xl text-xs font-semibold border shadow-sm"
+                              style={{ borderColor: primary, color: primary }}
+                            >
+                              Secondary
+                            </button>
+                          </div>
+                        </div>
 
-                      {/* Inspect Loupe Hover Icon */}
-                      <span className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 text-white p-1 rounded-full text-xs">
-                        <Eye className="h-3 w-3" />
-                      </span>
-                    </div>
-
-                    {/* Color Details */}
-                    <div>
-                      <div className="font-bold text-xs text-foreground truncate">{color.name}</div>
-                      <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground mt-0.5">
-                        <span>{color.hex}</span>
-                        <button
-                          onClick={() => copyToClipboard(color.hex, color.hex)}
-                          className="hover:text-primary transition-colors p-1"
-                          title="Copy HEX"
+                        {/* Dark Card Mockup */}
+                        <div
+                          className="p-5 rounded-2xl shadow-md space-y-4 text-white"
+                          style={{ backgroundColor: darkBg }}
                         >
-                          <Copy className="h-3 w-3" />
-                        </button>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                              Dark UI Component
+                            </span>
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-bold text-black"
+                              style={{ backgroundColor: accent }}
+                            >
+                              Pro
+                            </span>
+                          </div>
+                          <h4 className="text-lg font-extrabold text-white">Analytics Overview</h4>
+                          <div className="h-16 w-full rounded-xl p-3 flex items-end justify-between gap-1 bg-white/5 border border-white/10">
+                            {[40, 70, 45, 90, 65, 80, 100].map((h, i) => (
+                              <div
+                                key={i}
+                                className="w-full rounded-t transition-all"
+                                style={{
+                                  height: `${h}%`,
+                                  backgroundColor: i % 2 === 0 ? primary : secondary,
+                                }}
+                              />
+                            ))}
+                          </div>
+                          <div className="flex items-center justify-between text-xs pt-1">
+                            <span className="text-slate-400">Conversion Rate</span>
+                            <span className="font-bold text-emerald-400">+24.8%</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-
-                    {/* Quick Format Copy Buttons */}
-                    <div className="grid grid-cols-2 gap-1 pt-1 border-t border-border/40">
-                      <button
-                        onClick={() => copyToClipboard(`rgb(${color.rgb.r}, ${color.rgb.g}, ${color.rgb.b})`, 'RGB')}
-                        className="text-[10px] py-1 px-1.5 rounded bg-secondary/60 hover:bg-secondary text-foreground text-center font-mono font-medium transition-colors"
-                      >
-                        RGB
-                      </button>
-                      <button
-                        onClick={() => copyToClipboard(`hsl(${color.hsl.h}, ${color.hsl.s}%, ${color.hsl.l}%)`, 'HSL')}
-                        className="text-[10px] py-1 px-1.5 rounded bg-secondary/60 hover:bg-secondary text-foreground text-center font-mono font-medium transition-colors"
-                      >
-                        HSL
-                      </button>
-                    </div>
+                    )
+                  })()}
+                </div>
+              ) : activeTab === 'accessibility' ? (
+                /* WCAG CONTRAST MATRIX TEST */
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-foreground flex items-center gap-1.5">
+                      <Contrast className="h-4 w-4 text-primary" />
+                      WCAG 2.1 Contrast Matrix
+                    </span>
+                    <span className="text-muted-foreground text-[11px]">
+                      AA (4.5:1) • AAA (7:1) Compliance
+                    </span>
                   </div>
-                ))}
-              </div>
 
-              {/* Developer Export Actions Toolbar */}
+                  <div className="space-y-2.5">
+                    {displayedColors.slice(0, 6).map((color, i) => (
+                      <div
+                        key={color.hex + i}
+                        className="p-3 rounded-xl border border-border bg-card flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="h-7 w-7 rounded-lg border border-black/10 shadow-sm"
+                            style={{ backgroundColor: color.hex }}
+                          />
+                          <div>
+                            <div className="font-bold text-foreground">{color.name}</div>
+                            <div className="font-mono text-[11px] text-muted-foreground">{color.hex}</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          {/* On White */}
+                          <div className="p-1.5 px-2.5 rounded-lg bg-white text-black border border-black/10 text-center">
+                            <div className="text-[10px] text-gray-500">On White</div>
+                            <div className="font-mono font-bold flex items-center gap-1">
+                              {color.contrastOnWhite}:1
+                              {color.contrastOnWhite >= 4.5 ? (
+                                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                              ) : (
+                                <XCircle className="h-3 w-3 text-rose-500" />
+                              )}
+                            </div>
+                          </div>
+
+                          {/* On Black */}
+                          <div className="p-1.5 px-2.5 rounded-lg bg-slate-900 text-white border border-white/10 text-center">
+                            <div className="text-[10px] text-slate-400">On Black</div>
+                            <div className="font-mono font-bold flex items-center gap-1">
+                              {color.contrastOnBlack}:1
+                              {color.contrastOnBlack >= 4.5 ? (
+                                <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                              ) : (
+                                <XCircle className="h-3 w-3 text-rose-400" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                /* DEFAULT PALETTE SWATCHES LIST */
+                <div className="space-y-4">
+                  {/* Swatches Visual Banner Strip */}
+                  <div className="h-14 w-full rounded-xl overflow-hidden flex shadow-inner border border-border">
+                    {displayedColors.map((color, i) => (
+                      <div
+                        key={color.hex + i}
+                        onClick={() => setInspectedColor(color)}
+                        style={{ backgroundColor: color.hex, width: `${100 / displayedColors.length}%` }}
+                        className="h-full relative group cursor-pointer transition-transform hover:scale-105 hover:z-10"
+                        title={`${color.name} (${color.hex}) - Click to inspect`}
+                      >
+                        <span className="opacity-0 group-hover:opacity-100 absolute inset-0 flex items-center justify-center text-[10px] font-mono font-bold text-white drop-shadow-md transition-opacity">
+                          {color.hex}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Swatch Cards Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
+                    {displayedColors.map((color, index) => {
+                      const isLocked = lockedHexes.has(color.hex)
+                      return (
+                        <div
+                          key={color.hex + index}
+                          className="group relative rounded-xl border border-border bg-card p-3 hover:border-primary/50 transition-all hover:shadow-md space-y-2.5"
+                        >
+                          {/* Color Swatch Box */}
+                          <div
+                            onClick={() => setInspectedColor(color)}
+                            className="h-20 w-full rounded-lg relative cursor-pointer overflow-hidden border border-black/5 flex items-end justify-between p-2 transition-transform group-hover:scale-[1.02]"
+                            style={{ backgroundColor: color.hex }}
+                          >
+                            {/* Dominance % Badge */}
+                            {color.percentage > 0 && (
+                              <span
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm ${
+                                  color.isDark ? 'bg-black/60 text-white' : 'bg-white/80 text-black'
+                                }`}
+                              >
+                                {color.percentage}%
+                              </span>
+                            )}
+
+                            {/* Lock Button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                toggleLockColor(color.hex)
+                              }}
+                              className={`p-1 rounded-full shadow transition-all ${
+                                isLocked
+                                  ? 'bg-amber-500 text-white'
+                                  : 'bg-black/50 text-white/70 opacity-0 group-hover:opacity-100'
+                              }`}
+                              title={isLocked ? 'Unlock color' : 'Lock color'}
+                            >
+                              {isLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                            </button>
+                          </div>
+
+                          {/* Color Label & Copy */}
+                          <div>
+                            <div className="font-bold text-xs text-foreground truncate">{color.name}</div>
+                            <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground mt-0.5">
+                              <span>{color.hex}</span>
+                              <button
+                                onClick={() => copyToClipboard(color.hex, color.hex)}
+                                className="hover:text-primary transition-colors p-0.5"
+                                title="Copy HEX"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Quick Format Copy Buttons */}
+                          <div className="grid grid-cols-2 gap-1 pt-1 border-t border-border/40">
+                            <button
+                              onClick={() => copyToClipboard(`rgb(${color.rgb.r}, ${color.rgb.g}, ${color.rgb.b})`, 'RGB')}
+                              className="text-[10px] py-1 px-1.5 rounded bg-secondary/60 hover:bg-secondary text-foreground text-center font-mono font-medium transition-colors"
+                            >
+                              RGB
+                            </button>
+                            <button
+                              onClick={() => copyToClipboard(`hsl(${color.hsl.h}, ${color.hsl.s}%, ${color.hsl.l}%)`, 'HSL')}
+                              className="text-[10px] py-1 px-1.5 rounded bg-secondary/60 hover:bg-secondary text-foreground text-center font-mono font-medium transition-colors"
+                            >
+                              HSL
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Developer Export Suite */}
               <div className="pt-4 border-t border-border space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                     <FileCode className="h-4 w-4 text-primary" />
-                    {t('palette.export_suite', 'Export & Developer Formats')}
+                    {t('palette.export_suite', 'Export & Developer Suite')}
                   </span>
                   <span className="text-[11px] text-muted-foreground">
                     {displayedColors.length} {t('palette.ready_to_export', 'colors ready')}
@@ -766,12 +1216,31 @@ export default function ImageColorPaletteTool() {
                     {t('palette.copy_json', 'JSON')}
                   </Button>
                 </div>
+
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
+                  <span>Copy list:</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => copyToClipboard(generateHexList(displayedColors, ', '), 'Comma List')}
+                      className="hover:text-foreground underline"
+                    >
+                      HEX (Comma Separated)
+                    </button>
+                    <span>•</span>
+                    <button
+                      onClick={() => copyToClipboard(generateScssVariables(displayedColors), 'SCSS Variables')}
+                      className="hover:text-foreground underline"
+                    >
+                      SCSS $variables
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Color Inspector Modal Dialog */}
+        {/* Color Inspector Modal */}
         <Dialog open={!!inspectedColor} onOpenChange={(open) => !open && setInspectedColor(null)}>
           <DialogContent className="max-w-md p-6 rounded-2xl">
             {inspectedColor && (
@@ -851,30 +1320,34 @@ export default function ImageColorPaletteTool() {
                     return (
                       <div className="grid grid-cols-4 gap-2">
                         <div
-                          className="h-10 rounded-lg border border-black/10 flex items-center justify-center text-[10px] font-mono text-white drop-shadow"
+                          className="h-10 rounded-lg border border-black/10 flex items-center justify-center text-[10px] font-mono text-white drop-shadow cursor-pointer hover:scale-105 transition-transform"
                           style={{ backgroundColor: harmonies.complementary.hex }}
-                          title="Complementary"
+                          title={`Complementary (${harmonies.complementary.hex})`}
+                          onClick={() => copyToClipboard(harmonies.complementary.hex, 'Complementary')}
                         >
                           Comp
                         </div>
                         <div
-                          className="h-10 rounded-lg border border-black/10 flex items-center justify-center text-[10px] font-mono text-white drop-shadow"
+                          className="h-10 rounded-lg border border-black/10 flex items-center justify-center text-[10px] font-mono text-white drop-shadow cursor-pointer hover:scale-105 transition-transform"
                           style={{ backgroundColor: harmonies.triadic[0].hex }}
-                          title="Triadic 1"
+                          title={`Triadic 1 (${harmonies.triadic[0].hex})`}
+                          onClick={() => copyToClipboard(harmonies.triadic[0].hex, 'Triadic 1')}
                         >
                           Tri 1
                         </div>
                         <div
-                          className="h-10 rounded-lg border border-black/10 flex items-center justify-center text-[10px] font-mono text-white drop-shadow"
+                          className="h-10 rounded-lg border border-black/10 flex items-center justify-center text-[10px] font-mono text-white drop-shadow cursor-pointer hover:scale-105 transition-transform"
                           style={{ backgroundColor: harmonies.triadic[1].hex }}
-                          title="Triadic 2"
+                          title={`Triadic 2 (${harmonies.triadic[1].hex})`}
+                          onClick={() => copyToClipboard(harmonies.triadic[1].hex, 'Triadic 2')}
                         >
                           Tri 2
                         </div>
                         <div
-                          className="h-10 rounded-lg border border-black/10 flex items-center justify-center text-[10px] font-mono text-white drop-shadow"
+                          className="h-10 rounded-lg border border-black/10 flex items-center justify-center text-[10px] font-mono text-white drop-shadow cursor-pointer hover:scale-105 transition-transform"
                           style={{ backgroundColor: harmonies.analogous[0].hex }}
-                          title="Analogous"
+                          title={`Analogous (${harmonies.analogous[0].hex})`}
+                          onClick={() => copyToClipboard(harmonies.analogous[0].hex, 'Analogous')}
                         >
                           Ana
                         </div>
