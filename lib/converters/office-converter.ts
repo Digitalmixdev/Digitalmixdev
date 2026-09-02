@@ -1,6 +1,24 @@
 import JSZip from 'jszip'
 import * as XLSX from 'xlsx'
 import { PDFDocument, rgb, StandardFonts, PageSizes } from 'pdf-lib'
+import {
+  NormalizedDocument,
+  NormalizedPage,
+  DocumentElement,
+  TextElement,
+  ImageElement,
+  TableElement,
+  ShapeElement,
+  containsRtl,
+  cleanPdfText,
+  escapeXml,
+  escapeHtml,
+  toUint8Array,
+  parseHtmlToElements,
+  parseTextToElements,
+} from './intermediate-document'
+
+export * from './intermediate-document'
 
 export interface ParsedSlide {
   slideNumber: number
@@ -29,16 +47,424 @@ export interface ConversionResult {
 }
 
 // ----------------------------------------------------
-// 1. DOCX Parsing (via mammoth & JSZip)
+// Helper: Safe PDF.js Loading & Worker Setup
 // ----------------------------------------------------
-export async function parseDocx(file: File | Blob): Promise<{ html: string; text: string; images?: { filename: string; blob: Blob }[] }> {
+function configurePdfWorker(pdfjsLib: any) {
+  if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
+    try {
+      const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : ''
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `${origin}/pdf.worker.min.mjs`
+    } catch {
+      // Ignore if workerSrc setting fails
+    }
+  }
+}
+
+async function getPdfDocumentSafe(pdfjsLib: any, fileOrBuffer: File | Blob | ArrayBuffer) {
+  configurePdfWorker(pdfjsLib)
+  const arrayBuffer = fileOrBuffer instanceof ArrayBuffer ? fileOrBuffer : await fileOrBuffer.arrayBuffer()
+  try {
+    const loadingTask = pdfjsLib.getDocument({
+      data: new Uint8Array(arrayBuffer.slice(0)),
+      cMapUrl: '/cmaps/',
+      cMapPacked: true,
+    })
+    return await loadingTask.promise
+  } catch (workerErr) {
+    console.warn('PDF worker load failed, falling back to main-thread PDF parsing:', workerErr)
+    const fallbackTask = pdfjsLib.getDocument({
+      data: new Uint8Array(arrayBuffer.slice(0)),
+      cMapUrl: '/cmaps/',
+      cMapPacked: true,
+      disableWorker: true,
+    } as any)
+    return await fallbackTask.promise
+  }
+}
+
+// ----------------------------------------------------
+// 1. PDF Parser -> Normalized Document Model
+// ----------------------------------------------------
+export async function parsePdfToNormalizedDocument(
+  file: File | Blob,
+  options: { ocrHandler?: (imageBlob: Blob) => Promise<{ text: string; html?: string }> } = {}
+): Promise<NormalizedDocument> {
+  const pdfjsLib = await import('pdfjs-dist')
+  const pdf = await getPdfDocumentSafe(pdfjsLib, file)
+  const pageCount = pdf.numPages
+  const pages: NormalizedPage[] = []
+  let fullDocText = ''
+
+  for (let i = 1; i <= pageCount; i++) {
+    const page = await pdf.getPage(i)
+    const viewport = page.getViewport({ scale: 1.0 })
+    const textContent = await page.getTextContent({ normalizeWhitespace: true })
+
+    // Group items by vertical position (Y coordinate) to reconstruct lines and layout
+    interface RawTextItem {
+      str: string
+      x: number
+      y: number
+      width: number
+      height: number
+      fontSize: number
+      hasEOL: boolean
+      dir: string
+    }
+
+    const items: RawTextItem[] = []
+    for (const item of textContent.items as any[]) {
+      const str = cleanPdfText(item.str || '')
+      if (!str && !item.hasEOL) continue
+
+      const tx = item.transform || [12, 0, 0, 12, 0, 0]
+      const fontSize = Math.round(Math.hypot(tx[0], tx[1]) || 12)
+      const x = Math.round(tx[4])
+      const y = Math.round(tx[5])
+
+      items.push({
+        str,
+        x,
+        y,
+        width: Math.round(item.width || 0),
+        height: Math.round(item.height || fontSize),
+        fontSize,
+        hasEOL: !!item.hasEOL,
+        dir: item.dir || 'ltr',
+      })
+    }
+
+    // Sort items vertically (top to bottom: in PDF Y=0 is bottom, so descending Y)
+    // Then horizontally (ascending X for LTR, or natural order)
+    items.sort((a, b) => {
+      const dy = b.y - a.y
+      if (Math.abs(dy) > 5) return dy
+      return a.x - b.x
+    })
+
+    // Group items into lines
+    const rawLines: { y: number; text: string; maxFontSize: number; isRtl: boolean; items: RawTextItem[] }[] = []
+    let currentLineItems: RawTextItem[] = []
+    let currentLineY: number | null = null
+
+    for (const item of items) {
+      if (currentLineY === null) {
+        currentLineY = item.y
+        currentLineItems.push(item)
+      } else if (Math.abs(item.y - currentLineY) <= 6) {
+        currentLineItems.push(item)
+      } else {
+        // Finalize line
+        if (currentLineItems.length > 0) {
+          const lineStr = currentLineItems.map((it) => it.str).join(' ').replace(/\s+/g, ' ').trim()
+          if (lineStr) {
+            const maxFontSize = Math.max(...currentLineItems.map((it) => it.fontSize), 12)
+            rawLines.push({
+              y: currentLineY,
+              text: lineStr,
+              maxFontSize,
+              isRtl: containsRtl(lineStr),
+              items: currentLineItems,
+            })
+          }
+        }
+        currentLineY = item.y
+        currentLineItems = [item]
+      }
+    }
+
+    if (currentLineItems.length > 0) {
+      const lineStr = currentLineItems.map((it) => it.str).join(' ').replace(/\s+/g, ' ').trim()
+      if (lineStr) {
+        const maxFontSize = Math.max(...currentLineItems.map((it) => it.fontSize), 12)
+        rawLines.push({
+          y: currentLineY || 0,
+          text: lineStr,
+          maxFontSize,
+          isRtl: containsRtl(lineStr),
+          items: currentLineItems,
+        })
+      }
+    }
+
+    const pageRawText = rawLines.map((l) => l.text).join('\n')
+    fullDocText += `\n--- Page ${i} ---\n${pageRawText}\n`
+
+    const elements: DocumentElement[] = []
+    const isScanned = pageRawText.length < 30
+
+    if (isScanned && options.ocrHandler) {
+      // Perform OCR for scanned pages
+      try {
+        const pageCanvas = document.createElement('canvas')
+        const renderScale = 1.8
+        const rViewport = page.getViewport({ scale: renderScale })
+        pageCanvas.width = rViewport.width
+        pageCanvas.height = rViewport.height
+        const ctx = pageCanvas.getContext('2d')
+        if (ctx) {
+          ctx.fillStyle = '#FFFFFF'
+          ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height)
+          await page.render({ canvasContext: ctx, viewport: rViewport, canvas: pageCanvas } as any).promise
+          const blob = await new Promise<Blob>((resolve) => pageCanvas.toBlob((b) => resolve(b || new Blob([])), 'image/jpeg', 0.92))
+          const ocrRes = await options.ocrHandler(blob)
+
+          if (ocrRes.html) {
+            const ocrElements = parseHtmlToElements(ocrRes.html)
+            elements.push(...ocrElements)
+          } else if (ocrRes.text) {
+            const ocrElements = parseTextToElements(ocrRes.text)
+            elements.push(...ocrElements)
+          }
+        }
+      } catch (err) {
+        console.warn(`OCR error on page ${i}:`, err)
+      }
+    }
+
+    if (elements.length === 0) {
+      // Build elements from native text lines
+      let inTable = false
+      let tableRows: string[][] = []
+
+      const flushTable = () => {
+        if (tableRows.length > 0) {
+          const allText = tableRows.flat().join(' ')
+          elements.push({
+            type: 'table',
+            matrix: [...tableRows],
+            headers: tableRows[0],
+            isRtl: containsRtl(allText),
+          })
+          tableRows = []
+        }
+        inTable = false
+      }
+
+      for (let lineIdx = 0; lineIdx < rawLines.length; lineIdx++) {
+        const line = rawLines[lineIdx]
+        const text = line.text
+
+        // Table Detection: check if line has table separators or tab gaps
+        if (text.includes('|') && text.startsWith('|')) {
+          if (/^\|?[\s\-:|]+\|?$/.test(text)) {
+            inTable = true
+            continue
+          }
+          const cells = text
+            .split('|')
+            .map((c) => c.trim())
+            .filter((c, idx, arr) => idx > 0 && idx < arr.length - 1)
+          if (cells.length > 0) {
+            tableRows.push(cells)
+            inTable = true
+            continue
+          }
+        } else if (line.items.length >= 3 && hasColumnAlignments(line.items)) {
+          // Multi-column row detection
+          tableRows.push(line.items.map((it) => it.str.trim()).filter(Boolean))
+          inTable = true
+          continue
+        } else if (inTable) {
+          flushTable()
+        }
+
+        // Special photo frame / placeholder detection
+        if (text.includes('صورة الطالب') || text.includes('صورة الشخصية') || text.includes('صورة ملونة خلفية بيضاء')) {
+          elements.push({
+            type: 'shape',
+            shapeType: 'photo-frame',
+            label: text,
+          })
+          continue
+        }
+
+        // Author / Byline
+        if (/^(created by|written by|by |author:|إعداد|تأليف|تصميم|بقلم|عمل الطالب|تقديم)/i.test(text)) {
+          elements.push({
+            type: 'text',
+            text,
+            role: 'byline',
+            isRtl: line.isRtl,
+            alignment: 'center',
+          })
+          continue
+        }
+
+        // Title / Heading
+        if (lineIdx === 0 && text.length < 80 && !text.endsWith('.') && !text.includes(':')) {
+          elements.push({
+            type: 'text',
+            text,
+            role: 'title',
+            fontSize: line.maxFontSize > 16 ? line.maxFontSize : 22,
+            isRtl: line.isRtl,
+            alignment: 'center',
+          })
+          continue
+        }
+
+        if (lineIdx === 1 && text.length < 120 && !text.endsWith('.') && !text.includes(':')) {
+          elements.push({
+            type: 'text',
+            text,
+            role: 'subtitle',
+            fontSize: line.maxFontSize > 14 ? line.maxFontSize : 14,
+            isRtl: line.isRtl,
+            alignment: 'center',
+          })
+          continue
+        }
+
+        if (/^(chapter|section|unit|part|الفصل|المبحث|المطلب|الوحدة|الباب)\s+\d+/i.test(text) || line.maxFontSize >= 18) {
+          elements.push({
+            type: 'text',
+            text,
+            role: 'heading1',
+            fontSize: line.maxFontSize,
+            isRtl: line.isRtl,
+            alignment: line.isRtl ? 'right' : 'left',
+          })
+          continue
+        }
+
+        if (line.maxFontSize >= 15 || (/^[0-9]+[\.\)]\s+/.test(text) && text.length < 60)) {
+          elements.push({
+            type: 'text',
+            text,
+            role: 'heading2',
+            fontSize: line.maxFontSize,
+            isRtl: line.isRtl,
+            alignment: line.isRtl ? 'right' : 'left',
+          })
+          continue
+        }
+
+        // Bullet item
+        if (/^[•\-\*⁃◦‣▪▫]\s+/.test(text)) {
+          elements.push({
+            type: 'text',
+            text: text.replace(/^[•\-\*⁃◦‣▪▫]\s+/, ''),
+            role: 'bullet',
+            fontSize: line.maxFontSize,
+            isRtl: line.isRtl,
+            alignment: line.isRtl ? 'right' : 'left',
+          })
+          continue
+        }
+
+        // Regular Paragraph
+        elements.push({
+          type: 'text',
+          text,
+          role: 'paragraph',
+          fontSize: line.maxFontSize,
+          isRtl: line.isRtl,
+          alignment: line.isRtl ? 'right' : 'left',
+        })
+      }
+
+      if (inTable) flushTable()
+    }
+
+    pages.push({
+      pageNumber: i,
+      width: viewport.width,
+      height: viewport.height,
+      elements,
+      isScanned,
+      hasNativeText: !isScanned,
+      hasImages: false,
+      hasTables: elements.some((e) => e.type === 'table'),
+    })
+  }
+
+  const baseTitle = file instanceof File ? file.name.replace(/\.[^/.]+$/, '') : 'PDF Document'
+
+  return {
+    title: baseTitle,
+    sourceType: 'pdf',
+    pageCount,
+    pages,
+    rawText: fullDocText.trim(),
+  }
+}
+
+function hasColumnAlignments(items: { x: number; str: string }[]): boolean {
+  if (items.length < 3) return false
+  const gaps = []
+  for (let i = 1; i < items.length; i++) {
+    gaps.push(items[i].x - items[i - 1].x)
+  }
+  return gaps.some((g) => g > 60)
+}
+
+// ----------------------------------------------------
+// 2. Render PDF Pages to Images (JPG / PNG)
+// ----------------------------------------------------
+export async function renderPdfToImages(
+  file: File | Blob,
+  format: 'jpg' | 'png' = 'jpg',
+  quality: number = 0.92,
+  scale: number = 1.8
+): Promise<{ pageNumber: number; blob: Blob; dataUrl: string; width: number; height: number }[]> {
+  const pdfjsLib = await import('pdfjs-dist')
+  const pdf = await getPdfDocumentSafe(pdfjsLib, file)
+
+  const results: { pageNumber: number; blob: Blob; dataUrl: string; width: number; height: number }[] = []
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i)
+    const viewport = page.getViewport({ scale })
+
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx) continue
+
+    canvas.width = viewport.width
+    canvas.height = viewport.height
+
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.imageSmoothingEnabled = true
+
+    await page.render({
+      canvasContext: ctx,
+      viewport,
+      canvas,
+    } as any).promise
+
+    const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png'
+    const dataUrl = canvas.toDataURL(mimeType, quality)
+
+    const blob = await new Promise<Blob>((resolve) => {
+      canvas.toBlob((b) => resolve(b || new Blob([], { type: mimeType })), mimeType, quality)
+    })
+
+    results.push({
+      pageNumber: i,
+      blob,
+      dataUrl,
+      width: viewport.width,
+      height: viewport.height,
+    })
+  }
+
+  return results
+}
+
+// ----------------------------------------------------
+// 3. DOCX Parser -> Normalized Document Model
+// ----------------------------------------------------
+export async function parseDocx(
+  file: File | Blob
+): Promise<{ html: string; text: string; images?: { filename: string; blob: Blob }[] }> {
   try {
     const arrayBuffer = await file.arrayBuffer()
     const zip = await JSZip.loadAsync(arrayBuffer)
-    
-    // Extract images from word/media/
+
     const images: { filename: string; blob: Blob }[] = []
-    const mediaFiles = Object.keys(zip.files).filter(name => /^word\/media\/.+/i.test(name))
+    const mediaFiles = Object.keys(zip.files).filter((name) => /^word\/media\/.+/i.test(name))
     for (const path of mediaFiles) {
       const fileData = await zip.files[path].async('blob')
       images.push({ filename: path.split('/').pop() || 'image.jpg', blob: fileData })
@@ -47,7 +473,7 @@ export async function parseDocx(file: File | Blob): Promise<{ html: string; text
     const mammoth = (await import('mammoth')).default || (await import('mammoth'))
     const htmlResult = await mammoth.convertToHtml({ arrayBuffer })
     const textResult = await mammoth.extractRawText({ arrayBuffer })
-    
+
     let html = htmlResult.value || '<p>No readable content found</p>'
     if (images.length > 0) {
       html += `<div class="mt-4 space-y-4">${images.map((img) => `<img src="${URL.createObjectURL(img.blob)}" class="max-w-full h-auto rounded shadow" />`).join('')}</div>`
@@ -63,7 +489,7 @@ export async function parseDocx(file: File | Blob): Promise<{ html: string; text
     try {
       const zip = await JSZip.loadAsync(file)
       const images: { filename: string; blob: Blob }[] = []
-      const mediaFiles = Object.keys(zip.files).filter(name => /^word\/media\/.+/i.test(name))
+      const mediaFiles = Object.keys(zip.files).filter((name) => /^word\/media\/.+/i.test(name))
       for (const path of mediaFiles) {
         const fileData = await zip.files[path].async('blob')
         images.push({ filename: path.split('/').pop() || 'image.jpg', blob: fileData })
@@ -82,10 +508,47 @@ export async function parseDocx(file: File | Blob): Promise<{ html: string; text
   }
 }
 
+export async function parseDocxToNormalizedDocument(file: File | Blob): Promise<NormalizedDocument> {
+  const { html, text, images } = await parseDocx(file)
+  const elements = parseHtmlToElements(html)
+  const baseTitle = file instanceof File ? file.name.replace(/\.[^/.]+$/, '') : 'Word Document'
+
+  if (images && images.length > 0) {
+    for (const img of images) {
+      const imgType = img.filename.toLowerCase().endsWith('png') ? 'png' : 'jpg'
+      elements.unshift({
+        type: 'image',
+        data: img.blob,
+        imageType: imgType,
+      })
+    }
+  }
+
+  return {
+    title: baseTitle,
+    sourceType: 'docx',
+    pageCount: 1,
+    pages: [
+      {
+        pageNumber: 1,
+        width: 595,
+        height: 842,
+        elements,
+        hasNativeText: true,
+        hasImages: !!images && images.length > 0,
+        hasTables: elements.some((e) => e.type === 'table'),
+      },
+    ],
+    rawText: text,
+  }
+}
+
 // ----------------------------------------------------
-// 2. PPTX Parsing (via JSZip)
+// 4. PPTX Parser -> Normalized Document Model
 // ----------------------------------------------------
-export async function parsePptx(file: File | Blob): Promise<{ slides: ParsedSlide[]; text: string; html: string }> {
+export async function parsePptx(
+  file: File | Blob
+): Promise<{ slides: ParsedSlide[]; text: string; html: string }> {
   try {
     const zip = await JSZip.loadAsync(file)
     const slideFiles = Object.keys(zip.files)
@@ -108,7 +571,6 @@ export async function parsePptx(file: File | Blob): Promise<{ slides: ParsedSlid
       const slidePath = slideFiles[i]
       const xml = await zip.files[slidePath].async('string')
 
-      // Simple regex parser for slide text elements <a:t>...</a:t> and paragraphs <a:p>...</a:p>
       const paragraphs: string[] = []
       const pMatches = xml.match(/<a:p[\s\S]*?<\/a:p>/g) || []
 
@@ -161,10 +623,55 @@ export async function parsePptx(file: File | Blob): Promise<{ slides: ParsedSlid
   }
 }
 
+export async function parsePptxToNormalizedDocument(file: File | Blob): Promise<NormalizedDocument> {
+  const { slides, text } = await parsePptx(file)
+  const baseTitle = file instanceof File ? file.name.replace(/\.[^/.]+$/, '') : 'PowerPoint Presentation'
+
+  const pages: NormalizedPage[] = slides.map((s) => {
+    const elements: DocumentElement[] = [
+      {
+        type: 'text',
+        text: s.title,
+        role: 'title',
+        isRtl: containsRtl(s.title),
+        alignment: containsRtl(s.title) ? 'right' : 'left',
+      },
+    ]
+
+    for (const b of s.bullets) {
+      elements.push({
+        type: 'text',
+        text: b,
+        role: 'bullet',
+        isRtl: containsRtl(b),
+        alignment: containsRtl(b) ? 'right' : 'left',
+      })
+    }
+
+    return {
+      pageNumber: s.slideNumber,
+      width: 960,
+      height: 540,
+      elements,
+      hasNativeText: true,
+    }
+  })
+
+  return {
+    title: baseTitle,
+    sourceType: 'pptx',
+    pageCount: slides.length,
+    pages,
+    rawText: text,
+  }
+}
+
 // ----------------------------------------------------
-// 3. XLSX Parsing (via SheetJS)
+// 5. XLSX Parser -> Normalized Document Model
 // ----------------------------------------------------
-export async function parseXlsx(file: File | Blob): Promise<{ sheets: ParsedSheet[]; html: string; text: string }> {
+export async function parseXlsx(
+  file: File | Blob
+): Promise<{ sheets: ParsedSheet[]; html: string; text: string }> {
   try {
     const arrayBuffer = await file.arrayBuffer()
     const workbook = XLSX.read(arrayBuffer, { type: 'array' })
@@ -214,194 +721,89 @@ export async function parseXlsx(file: File | Blob): Promise<{ sheets: ParsedShee
   }
 }
 
-// Helper to configure matching pdfjs worker version with graceful main-thread fallback
-function configurePdfWorker(pdfjsLib: any) {
-  if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
-    try {
-      const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : ''
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `${origin}/pdf.worker.min.mjs`
-    } catch {
-      // Ignore if workerSrc setting fails
-    }
-  }
-}
+export async function parseXlsxToNormalizedDocument(file: File | Blob): Promise<NormalizedDocument> {
+  const { sheets, text } = await parseXlsx(file)
+  const baseTitle = file instanceof File ? file.name.replace(/\.[^/.]+$/, '') : 'Excel Spreadsheet'
 
-async function getPdfDocumentSafe(pdfjsLib: any, fileOrBuffer: File | Blob | ArrayBuffer) {
-  configurePdfWorker(pdfjsLib)
-  const arrayBuffer = fileOrBuffer instanceof ArrayBuffer ? fileOrBuffer : await fileOrBuffer.arrayBuffer()
-  try {
-    const loadingTask = pdfjsLib.getDocument({
-      data: new Uint8Array(arrayBuffer.slice(0)),
-      cMapUrl: '/cmaps/',
-      cMapPacked: true,
-    })
-    return await loadingTask.promise
-  } catch (workerErr) {
-    console.warn('PDF worker load failed, falling back to main-thread PDF parsing:', workerErr)
-    const fallbackTask = pdfjsLib.getDocument({
-      data: new Uint8Array(arrayBuffer.slice(0)),
-      cMapUrl: '/cmaps/',
-      cMapPacked: true,
-      disableWorker: true,
-    } as any)
-    return await fallbackTask.promise
+  const pages: NormalizedPage[] = sheets.map((sheet, idx) => {
+    const rawRows = sheet.csv
+      .split('\n')
+      .map((r) => r.split(',').map((c) => c.replace(/^"(.*)"$/, '$1').trim()))
+      .filter((r) => r.some((c) => c.length > 0))
+
+    const elements: DocumentElement[] = [
+      {
+        type: 'text',
+        text: sheet.name,
+        role: 'title',
+        isRtl: containsRtl(sheet.name),
+      },
+      {
+        type: 'table',
+        matrix: rawRows,
+        headers: rawRows[0],
+        isRtl: containsRtl(sheet.csv),
+      },
+    ]
+
+    return {
+      pageNumber: idx + 1,
+      width: 800,
+      height: 600,
+      elements,
+      hasNativeText: true,
+      hasTables: true,
+    }
+  })
+
+  return {
+    title: baseTitle,
+    sourceType: 'xlsx',
+    pageCount: sheets.length,
+    pages,
+    rawText: text,
   }
 }
 
 // ----------------------------------------------------
-// 4. PDF Parsing & Page Extraction (via pdfjs-dist)
+// 6. Generic PDF Parsing wrapper
 // ----------------------------------------------------
 export async function parsePdf(
   file: File | Blob
 ): Promise<{ text: string; pageCount: number; pages: { pageNumber: number; text: string }[] }> {
-  try {
-    const pdfjsLib = await import('pdfjs-dist')
-    const pdf = await getPdfDocumentSafe(pdfjsLib, file)
-
-    const pageCount = pdf.numPages
-    const pages: { pageNumber: number; text: string }[] = []
-    let fullText = ''
-
-    for (let i = 1; i <= pageCount; i++) {
-      const page = await pdf.getPage(i)
-      const textContent = await page.getTextContent()
-      
-      // Group items by vertical position (Y coordinate) to preserve genuine lines
-      let lastY: number | null = null
-      const lines: string[] = []
-      let currentLine = ''
-
-      for (const item of textContent.items as any[]) {
-        const str = (item.str || '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uFDD0-\uFDEF\uFFFE\uFFFF]/g, '')
-        if (!str && !item.hasEOL) continue
-
-        const y = item.transform ? Math.round(item.transform[5]) : null
-        
-        // If vertical position changed significantly, start a new line
-        if (lastY !== null && y !== null && Math.abs(y - lastY) > 6) {
-          if (currentLine.trim()) {
-            lines.push(currentLine.trim())
-          }
-          currentLine = str
-        } else {
-          currentLine += (currentLine && !currentLine.endsWith(' ') && !str.startsWith(' ') ? ' ' : '') + str
-        }
-
-        if (item.hasEOL) {
-          if (currentLine.trim()) {
-            lines.push(currentLine.trim())
-          }
-          currentLine = ''
-          lastY = null
-        } else {
-          lastY = y
-        }
-      }
-
-      if (currentLine.trim()) {
-        lines.push(currentLine.trim())
-      }
-
-      const pageText = lines.join('\n').trim()
-      pages.push({ pageNumber: i, text: pageText })
-      fullText += `\n--- Page ${i} ---\n${pageText}\n`
-    }
-
-    return { text: fullText.trim(), pageCount, pages }
-  } catch (err: any) {
-    throw new Error(`Failed to read PDF document: ${err?.message || 'Invalid or encrypted PDF'}`)
+  const normDoc = await parsePdfToNormalizedDocument(file)
+  return {
+    text: normDoc.rawText || '',
+    pageCount: normDoc.pageCount,
+    pages: normDoc.pages.map((p) => ({
+      pageNumber: p.pageNumber,
+      text: p.elements
+        .filter((e) => e.type === 'text' || e.type === 'table')
+        .map((e) => (e.type === 'text' ? e.text : e.matrix.map((r) => r.join(' | ')).join('\n')))
+        .join('\n'),
+    })),
   }
 }
 
 // ----------------------------------------------------
-// 5. Render PDF Pages to Images (JPG / PNG)
+// 7. DOCX Generation (OpenXML via JSZip)
 // ----------------------------------------------------
-export async function renderPdfToImages(
-  file: File | Blob,
-  format: 'jpg' | 'png' = 'jpg',
-  quality: number = 0.92,
-  scale: number = 1.8
-): Promise<{ pageNumber: number; blob: Blob; dataUrl: string; width: number; height: number }[]> {
-  const pdfjsLib = await import('pdfjs-dist')
-  const pdf = await getPdfDocumentSafe(pdfjsLib, file)
-
-  const results: { pageNumber: number; blob: Blob; dataUrl: string; width: number; height: number }[] = []
-
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i)
-    const viewport = page.getViewport({ scale })
-
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-    if (!ctx) continue
-
-    canvas.width = viewport.width
-    canvas.height = viewport.height
-
-    // Fill white background for JPG or transparent-friendly canvas
-    ctx.fillStyle = '#FFFFFF'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    ctx.imageSmoothingEnabled = true
-
-    await page.render({
-      canvasContext: ctx,
-      viewport,
-      canvas,
-    } as any).promise
-
-    const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png'
-    const dataUrl = canvas.toDataURL(mimeType, quality)
-
-    const blob = await new Promise<Blob>((resolve) => {
-      canvas.toBlob((b) => resolve(b || new Blob([], { type: mimeType })), mimeType, quality)
-    })
-
-    results.push({
-      pageNumber: i,
-      blob,
-      dataUrl,
-      width: canvas.width,
-      height: canvas.height,
-    })
-  }
-
-  return results
+export interface DocxPageOption {
+  text?: string
+  html?: string
+  image?: Blob | ArrayBuffer | Uint8Array
+  imageType?: 'jpg' | 'png'
 }
 
-// Helper to safely convert Blob/ArrayBuffer/Uint8Array to Uint8Array for JSZip
-async function toUint8Array(data: Blob | ArrayBuffer | Uint8Array): Promise<Uint8Array> {
-  if (data instanceof Uint8Array) return data
-  if (data instanceof ArrayBuffer) return new Uint8Array(data)
-  if (typeof Blob !== 'undefined' && data instanceof Blob) {
-    const buf = await data.arrayBuffer()
-    return new Uint8Array(buf)
-  }
-  return new Uint8Array()
-}
-
-function cleanPdfText(str: string): string {
-  if (!str) return ''
-  return str
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uFDD0-\uFDEF\uFFFE\uFFFF]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-// Helper to check if text contains Arabic/Hebrew (RTL) characters
-export function containsRtl(text: string): boolean {
-  if (!text) return false
-  return /[\u0590-\u083F\u08A0-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFC]/.test(text)
-}
-
-// Helper to convert HTML / Markdown / Structured text into native Word OpenXML elements
 function renderDocxHeader(text: string, level = 'h2'): string {
   const isRtl = containsRtl(text)
-  const size = level === 'h1' ? '44' : level === 'h2' ? '32' : '28'
-  const isCenter = level === 'h1' || text.length < 50
+  const isH1 = level === 'h1'
+  const size = isH1 ? '44' : level === 'h2' ? '32' : '28'
+  const isCenter = isH1 || text.length < 50
   return `
     <w:p>
       <w:pPr>
-        <w:pStyle w:val="${level === 'h1' ? 'Heading1' : 'Heading2'}"/>
+        <w:pStyle w:val="${isH1 ? 'Heading1' : 'Heading2'}"/>
         <w:jc w:val="${isCenter ? 'center' : isRtl ? 'right' : 'left'}"/>
         ${isRtl ? '<w:bidi/>' : ''}
         <w:spacing w:before="360" w:after="160"/>
@@ -413,7 +815,7 @@ function renderDocxHeader(text: string, level = 'h2'): string {
           <w:sz w:val="${size}"/>
           <w:szCs w:val="${size}"/>
           ${isRtl ? '<w:rtl/>' : ''}
-          <w:color w:val="0F172A"/>
+          <w:color w:val="${isH1 ? '0F172A' : '1E293B'}"/>
         </w:rPr>
         <w:t xml:space="preserve">${escapeXml(text)}</w:t>
       </w:r>
@@ -469,6 +871,34 @@ function renderDocxByline(text: string): string {
   `
 }
 
+function renderDocxBullet(text: string): string {
+  const isRtl = containsRtl(text)
+  return `
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListParagraph"/>
+        <w:numPr>
+          <w:ilvl w:val="0"/>
+          <w:numId w:val="1"/>
+        </w:numPr>
+        <w:jc w:val="${isRtl ? 'right' : 'left'}"/>
+        ${isRtl ? '<w:bidi/>' : ''}
+        <w:spacing w:before="80" w:after="80" w:line="260" w:lineRule="auto"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI" w:cs="Traditional Arabic"/>
+          <w:sz w:val="24"/>
+          <w:szCs w:val="26"/>
+          ${isRtl ? '<w:rtl/>' : ''}
+          <w:color w:val="1E293B"/>
+        </w:rPr>
+        <w:t xml:space="preserve">${isRtl ? '• ' : '• '}${escapeXml(text)}</w:t>
+      </w:r>
+    </w:p>
+  `
+}
+
 function renderDocxParagraph(text: string): string {
   const isRtl = containsRtl(text)
   const isCentered = text.length < 40 && !text.endsWith('.') && !text.includes(':')
@@ -493,82 +923,70 @@ function renderDocxParagraph(text: string): string {
   `
 }
 
-function renderDocxPhotoFrame(text: string): string {
-  const isRtl = containsRtl(text)
-  const lines = text.split(/\r?\n|\/|\\/).map((l) => l.trim()).filter(Boolean)
-
-  let innerXml = ''
-  lines.forEach((l) => {
-    innerXml += `
-      <w:p>
-        <w:pPr>
-          <w:jc w:val="center"/>
-          ${isRtl ? '<w:bidi/>' : ''}
-          <w:spacing w:before="40" w:after="40"/>
-        </w:pPr>
-        <w:r>
-          <w:rPr>
-            <w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI" w:cs="Traditional Arabic"/>
-            <w:b/>
-            <w:sz w:val="20"/>
-            <w:szCs w:val="22"/>
-            ${isRtl ? '<w:rtl/>' : ''}
-            <w:color w:val="1E293B"/>
-          </w:rPr>
-          <w:t xml:space="preserve">${escapeXml(l)}</w:t>
-        </w:r>
-      </w:p>
-    `
-  })
-
+function renderDocxPhotoFrame(label: string): string {
   return `
     <w:tbl>
       <w:tblPr>
-        <w:tblW w:w="3000" w:type="dxa"/>
-        <w:jc w:val="right"/>
+        <w:tblW w:w="1800" w:type="dxa"/>
+        <w:jc w:val="center"/>
         <w:tblBorders>
-          <w:top w:val="single" w:sz="12" w:space="0" w:color="2563EB"/>
-          <w:left w:val="single" w:sz="12" w:space="0" w:color="2563EB"/>
-          <w:bottom w:val="single" w:sz="12" w:space="0" w:color="2563EB"/>
-          <w:right w:val="single" w:sz="12" w:space="0" w:color="2563EB"/>
+          <w:top w:val="dashed" w:sz="12" w:space="0" w:color="3B82F6"/>
+          <w:left w:val="dashed" w:sz="12" w:space="0" w:color="3B82F6"/>
+          <w:bottom w:val="dashed" w:sz="12" w:space="0" w:color="3B82F6"/>
+          <w:right w:val="dashed" w:sz="12" w:space="0" w:color="3B82F6"/>
         </w:tblBorders>
-        <w:tblCellMar>
-          <w:top w:w="180" w:type="dxa"/>
-          <w:left w:w="180" w:type="dxa"/>
-          <w:bottom w:w="180" w:type="dxa"/>
-          <w:right w:w="180" w:type="dxa"/>
-        </w:tblCellMar>
-        <w:bidi/>
       </w:tblPr>
       <w:tr>
         <w:tc>
           <w:tcPr>
-            <w:tcW w:w="3000" w:type="dxa"/>
+            <w:tcW w:w="1800" w:type="dxa"/>
             <w:shd w:val="clear" w:color="auto" w:fill="F8FAFC"/>
+            <w:tcMar>
+              <w:top w:w="240" w:type="dxa"/>
+              <w:left w:w="160" w:type="dxa"/>
+              <w:bottom w:w="240" w:type="dxa"/>
+              <w:right w:w="160" w:type="dxa"/>
+            </w:tcMar>
           </w:tcPr>
-          ${innerXml}
+          <w:p>
+            <w:pPr>
+              <w:jc w:val="center"/>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rFonts w:ascii="Segoe UI" w:hAnsi="Segoe UI" w:cs="Traditional Arabic"/>
+                <w:sz w:val="20"/>
+                <w:szCs w:val="20"/>
+                <w:color w:val="64748B"/>
+              </w:rPr>
+              <w:t xml:space="preserve">${escapeXml(label)}</w:t>
+            </w:r>
+          </w:p>
         </w:tc>
       </w:tr>
     </w:tbl>
-    <w:p><w:pPr><w:spacing w:before="100" w:after="100"/></w:pPr></w:p>
   `
 }
 
 function renderDocxTableFromMatrix(matrix: string[][]): string {
-  if (matrix.length === 0) return ''
+  if (!matrix || matrix.length === 0) return ''
+
+  const colCount = Math.max(...matrix.map((r) => r.length), 1)
+  const isRtl = matrix.some((r) => r.some((c) => containsRtl(c)))
 
   let tblXml = `
     <w:tbl>
       <w:tblPr>
-        <w:tblW w:w="0" w:type="auto"/>
+        <w:tblW w:w="5000" w:type="pct"/>
         <w:jc w:val="center"/>
+        ${isRtl ? '<w:bidiVisual/>' : ''}
         <w:tblBorders>
-          <w:top w:val="single" w:sz="6" w:space="0" w:color="475569"/>
-          <w:left w:val="single" w:sz="6" w:space="0" w:color="475569"/>
-          <w:bottom w:val="single" w:sz="6" w:space="0" w:color="475569"/>
-          <w:right w:val="single" w:sz="6" w:space="0" w:color="475569"/>
-          <w:insideH w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
-          <w:insideV w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+          <w:top w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+          <w:left w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+          <w:bottom w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+          <w:right w:val="single" w:sz="6" w:space="0" w:color="CBD5E1"/>
+          <w:insideH w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/>
+          <w:insideV w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/>
         </w:tblBorders>
         <w:tblCellMar>
           <w:top w:w="120" w:type="dxa"/>
@@ -576,20 +994,19 @@ function renderDocxTableFromMatrix(matrix: string[][]): string {
           <w:bottom w:w="120" w:type="dxa"/>
           <w:right w:w="160" w:type="dxa"/>
         </w:tblCellMar>
-        <w:bidi/>
       </w:tblPr>
+      <w:tblGrid>
+        ${Array(colCount).fill('<w:gridCol/>').join('')}
+      </w:tblGrid>
   `
 
-  matrix.forEach((row, rowIdx) => {
-    tblXml += `<w:tr>`
+  matrix.forEach((row, rIdx) => {
+    const isHeader = rIdx === 0
+    tblXml += `<w:tr>${isHeader ? '<w:trPr><w:tblHeader/></w:trPr>' : ''}`
     row.forEach((cellText) => {
-      const isRtl = containsRtl(cellText)
-      const isHeader = rowIdx === 0
-
       tblXml += `
         <w:tc>
           <w:tcPr>
-            <w:tcW w:w="0" w:type="auto"/>
             ${isHeader ? '<w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/>' : ''}
           </w:tcPr>
           <w:p>
@@ -620,217 +1037,40 @@ function renderDocxTableFromMatrix(matrix: string[][]): string {
   return tblXml
 }
 
-function convertStructuredContentToDocxXml(htmlOrText: string): string {
-  if (!htmlOrText || !htmlOrText.trim()) return ''
-
-  if (typeof window !== 'undefined' && /<[a-z][\s\S]*>/i.test(htmlOrText)) {
-    try {
-      const parser = new DOMParser()
-      const doc = parser.parseFromString(htmlOrText, 'text/html')
-      let xml = ''
-
-      const nodes = Array.from(doc.body.children.length > 0 ? doc.body.children : doc.body.childNodes)
-
-      nodes.forEach((node, idx) => {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          const el = node as HTMLElement
-          const tagName = el.tagName.toLowerCase()
-          const txt = el.textContent?.trim() || ''
-
-          if (tagName === 'table') {
-            const rows = Array.from(el.querySelectorAll('tr'))
-            const matrix = rows.map((r) => Array.from(r.querySelectorAll('td, th')).map((c) => c.textContent?.trim() || ''))
-            xml += renderDocxTableFromMatrix(matrix)
-          } else if (tagName === 'h1' || tagName === 'h2' || tagName === 'h3' || tagName === 'h4') {
-            if (txt) xml += renderDocxHeader(txt, tagName)
-          } else if (
-            el.classList.contains('photo-frame') ||
-            el.classList.contains('photo-box') ||
-            txt.includes('صورة الطالب') ||
-            txt.includes('صورة الطالبة')
-          ) {
-            xml += renderDocxPhotoFrame(txt || 'صورة الطالب / الطالبة\n6 * 4')
-          } else if (
-            /^(created by|written by|by |author:|إعداد|تأليف|تصميم|بقلم|عمل الطالب|تقديم)/i.test(txt)
-          ) {
-            xml += renderDocxByline(txt)
-          } else if (idx === 0 && txt.length < 60 && !txt.includes('.')) {
-            xml += renderDocxHeader(txt, 'h1')
-          } else if (idx === 1 && txt.length < 100 && !txt.includes('.')) {
-            xml += renderDocxSubtitle(txt)
-          } else {
-            if (txt) xml += renderDocxParagraph(txt)
-          }
-        } else if (node.nodeType === Node.TEXT_NODE) {
-          const txt = node.textContent?.trim() || ''
-          if (txt) {
-            if (/^(created by|written by|by |author:|إعداد|تأليف|تصميم|بقلم|عمل الطالب|تقديم)/i.test(txt)) {
-              xml += renderDocxByline(txt)
-            } else {
-              xml += renderDocxParagraph(txt)
-            }
-          }
-        }
-      })
-
-      if (xml.trim().length > 0) return xml
-    } catch (err) {
-      console.warn('DOMParser failed, fallback to plain text parsing:', err)
+function renderDocxElement(element: DocumentElement): string {
+  if (element.type === 'table') {
+    return renderDocxTableFromMatrix(element.matrix)
+  }
+  if (element.type === 'shape') {
+    return renderDocxPhotoFrame(element.label || 'صورة الشخصية')
+  }
+  if (element.type === 'text') {
+    switch (element.role) {
+      case 'title':
+        return renderDocxHeader(element.text, 'h1')
+      case 'subtitle':
+        return renderDocxSubtitle(element.text)
+      case 'heading1':
+        return renderDocxHeader(element.text, 'h1')
+      case 'heading2':
+        return renderDocxHeader(element.text, 'h2')
+      case 'byline':
+        return renderDocxByline(element.text)
+      case 'bullet':
+        return renderDocxBullet(element.text)
+      default:
+        return renderDocxParagraph(element.text)
     }
   }
-
-  // Fallback / Plain text line by line
-  const lines = htmlOrText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
-  let xml = ''
-  let inTable = false
-  let tableRows: string[][] = []
-
-  const flushTable = () => {
-    if (tableRows.length > 0) {
-      xml += renderDocxTableFromMatrix(tableRows)
-      tableRows = []
-    }
-    inTable = false
-  }
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-
-    if (line.includes('|') && line.startsWith('|')) {
-      inTable = true
-      if (/^\|[\s\-:|]+\|$/.test(line)) continue
-
-      const cells = line
-        .split('|')
-        .map((c) => c.trim())
-        .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
-      if (cells.length > 0) {
-        tableRows.push(cells)
-      }
-      continue
-    } else if (inTable) {
-      flushTable()
-    }
-
-    if (line.includes('صورة الطالب') || line.includes('صورة الشخصية') || line.includes('صورة ملونة خلفية بيضاء')) {
-      xml += renderDocxPhotoFrame(line)
-      continue
-    }
-
-    // Detect Byline / Author at the bottom or middle
-    if (/^(created by|written by|by |author:|إعداد|تأليف|تصميم|بقلم|عمل الطالب|تقديم)/i.test(line)) {
-      xml += renderDocxByline(line)
-      continue
-    }
-
-    // Detect Title / Subtitle on first lines
-    if (i === 0 && line.length < 60 && !line.endsWith('.') && !line.includes(':')) {
-      xml += renderDocxHeader(line, 'h1')
-      continue
-    }
-
-    if (i === 1 && line.length < 100 && !line.endsWith('.') && !line.includes(':')) {
-      xml += renderDocxSubtitle(line)
-      continue
-    }
-
-    if (/^(chapter|section|unit|part|الفصل|المبحث|المطلب|الوحدة|الباب)\s+\d+/i.test(line)) {
-      xml += renderDocxHeader(line, 'h2')
-      continue
-    }
-
-    xml += renderDocxParagraph(line)
-  }
-
-  if (inTable) flushTable()
-
-  return xml
+  return ''
 }
 
-export interface DocxPageOption {
-  text?: string
-  html?: string
-  image?: Blob | ArrayBuffer | Uint8Array
-  imageType?: 'jpg' | 'png'
-}
-
-async function getImageDimensions(u8: Uint8Array, type: string): Promise<{ width: number; height: number }> {
-  if (typeof window === 'undefined') return { width: 800, height: 1131 }
-  try {
-    const blob = new Blob([u8 as unknown as BlobPart], { type: type === 'png' ? 'image/png' : 'image/jpeg' })
-    if (typeof createImageBitmap !== 'undefined') {
-      const bitmap = await createImageBitmap(blob)
-      return { width: bitmap.width, height: bitmap.height }
-    }
-  } catch {
-    // ignore
-  }
-  return { width: 800, height: 1131 }
-}
-
-// ----------------------------------------------------
-// 6. DOCX Generation (OpenXML via JSZip)
-// ----------------------------------------------------
-export async function generateDocxFile(options: {
-  title?: string
-  text?: string
-  html?: string
-  paragraphs?: string[]
-  images?: { data: Blob | ArrayBuffer | Uint8Array; type?: 'jpg' | 'png' }[]
-  pages?: DocxPageOption[]
-  includeImagePages?: boolean
-}): Promise<Blob> {
+export async function generateDocxFromNormalizedDoc(
+  doc: NormalizedDocument,
+  options: { includeImages?: boolean } = {}
+): Promise<Blob> {
   const zip = new JSZip()
-
-  // Build unified page array
-  const pageList: {
-    text?: string
-    html?: string
-    imageData?: Uint8Array
-    imageType: string
-  }[] = []
-
-  if (options.pages && options.pages.length > 0) {
-    for (const p of options.pages) {
-      let u8: Uint8Array | undefined
-      if (p.image) {
-        u8 = await toUint8Array(p.image)
-      }
-      pageList.push({
-        text: p.text,
-        html: p.html,
-        imageData: u8 && u8.length > 0 ? u8 : undefined,
-        imageType: p.imageType || 'jpg',
-      })
-    }
-  } else {
-    // Single page or legacy format
-    const paragraphsList: string[] = []
-    if (options.paragraphs && options.paragraphs.length > 0) {
-      paragraphsList.push(...options.paragraphs.map((p) => cleanPdfText(p)).filter(Boolean))
-    } else if (options.text) {
-      const lines = options.text.split(/\r?\n\r?\n|\r?\n/).map((l) => cleanPdfText(l)).filter(Boolean)
-      paragraphsList.push(...lines)
-    }
-
-    if (options.images && options.images.length > 0) {
-      for (let i = 0; i < options.images.length; i++) {
-        const img = options.images[i]
-        const u8 = await toUint8Array(img.data)
-        pageList.push({
-          text: i === 0 ? (options.html || options.text || paragraphsList.join('\n')) : undefined,
-          imageData: u8.length > 0 ? u8 : undefined,
-          imageType: img.type || 'jpg',
-        })
-      }
-    } else {
-      pageList.push({
-        text: options.text || paragraphsList.join('\n'),
-        html: options.html,
-        imageType: 'jpg',
-      })
-    }
-  }
+  const includeImages = options.includeImages !== false
 
   let wordRelsContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
@@ -841,111 +1081,83 @@ export async function generateDocxFile(options: {
 
   let bodyXml = ''
   let relIndex = 4
-  const shouldRenderImages = options.includeImagePages
 
-  for (let i = 0; i < pageList.length; i++) {
-    const page = pageList[i]
+  for (let pageIdx = 0; pageIdx < doc.pages.length; pageIdx++) {
+    const page = doc.pages[pageIdx]
 
-    // 1. Render page image if requested and available
-    if (shouldRenderImages && page.imageData) {
-      const imgExt = page.imageType || 'jpg'
-      const imgFilename = `media/image${i + 1}.${imgExt}`
-      const relId = `rId${relIndex++}`
+    // Page break between multiple pages
+    if (pageIdx > 0) {
+      bodyXml += `<w:p><w:r><w:br w:type="page"/></w:r></w:p>\n`
+    }
 
-      wordRelsContent += `  <Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="${imgFilename}"/>\n`
-      zip.file(`word/${imgFilename}`, page.imageData)
+    // Process page elements
+    for (const elem of page.elements) {
+      if (elem.type === 'image' && includeImages && elem.data) {
+        const u8 = await toUint8Array(elem.data)
+        if (u8.length > 0) {
+          const imgExt = elem.imageType || 'jpg'
+          const imgFilename = `media/image_${pageIdx + 1}_${relIndex}.${imgExt}`
+          const relId = `rId${relIndex++}`
+          wordRelsContent += `  <Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="${imgFilename}"/>\n`
+          zip.file(`word/${imgFilename}`, u8)
 
-      const dims = await getImageDimensions(page.imageData, imgExt)
-      let aspectRatio = dims.height / dims.width
-      if (isNaN(aspectRatio) || aspectRatio <= 0) aspectRatio = 1.414
+          // Image width & height calculation in EMUs
+          let cx = 5486400 // ~ 5.7 inches
+          let cy = 3657600
+          if (elem.width && elem.height) {
+            const aspect = elem.height / elem.width
+            cx = Math.min(5486400, elem.width * 9525)
+            cy = Math.round(cx * aspect)
+          }
 
-      // Calculate width & height in EMUs preserving aspect ratio
-      let cx = 5486400
-      let cy = Math.round(cx * aspectRatio)
-      if (cy > 7772400) {
-        cy = 7772400
-        cx = Math.round(cy / aspectRatio)
+          bodyXml += `
+            <w:p>
+              <w:pPr>
+                <w:jc w:val="center"/>
+                <w:spacing w:before="200" w:after="200"/>
+              </w:pPr>
+              <w:r>
+                <w:drawing>
+                  <wp:inline distT="0" distB="0" distL="0" distR="0">
+                    <wp:extent cx="${cx}" cy="${cy}"/>
+                    <wp:effectExtent l="0" t="0" r="0" b="0"/>
+                    <wp:docPr id="${relIndex}" name="Picture ${relIndex}"/>
+                    <wp:cNvGraphicFramePr>
+                      <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>
+                    </wp:cNvGraphicFramePr>
+                    <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+                      <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                        <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                          <pic:nvPicPr>
+                            <pic:cNvPr id="${relIndex}" name="Image ${relIndex}"/>
+                            <pic:cNvPicPr><a:picLocks noChangeAspect="1"/></pic:cNvPicPr>
+                          </pic:nvPicPr>
+                          <pic:blipFill>
+                            <a:blip r:embed="${relId}"/>
+                            <a:stretch><a:fillRect/></a:stretch>
+                          </pic:blipFill>
+                          <pic:spPr>
+                            <a:xfrm>
+                              <a:ext cx="${cx}" cy="${cy}"/>
+                            </a:xfrm>
+                            <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+                          </pic:spPr>
+                        </pic:pic>
+                      </a:graphicData>
+                    </a:graphic>
+                  </wp:inline>
+                </w:drawing>
+              </w:r>
+            </w:p>
+          `
+        }
+      } else {
+        bodyXml += renderDocxElement(elem)
       }
-
-      bodyXml += `
-        <w:p>
-          <w:pPr>
-            <w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/>
-            <w:jc w:val="center"/>
-          </w:pPr>
-          <w:r>
-            <w:drawing>
-              <wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="0" behindDoc="1" locked="0" layoutInCell="1" allowOverlap="1">
-                <wp:simplePos x="0" y="0"/>
-                <wp:positionH relativeFrom="page">
-                  <wp:align>center</wp:align>
-                </wp:positionH>
-                <wp:positionV relativeFrom="page">
-                  <wp:posOffset>0</wp:posOffset>
-                </wp:positionV>
-                <wp:extent cx="${cx}" cy="${cy}"/>
-                <wp:effectExtent l="0" t="0" r="0" b="0"/>
-                <wp:wrapNone/>
-                <wp:docPr id="${i + 1}" name="Picture ${i + 1}"/>
-                <wp:cNvGraphicFramePr>
-                  <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>
-                </wp:cNvGraphicFramePr>
-                <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
-                  <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
-                    <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
-                      <pic:nvPicPr>
-                        <pic:cNvPr id="${i + 1}" name="Picture ${i + 1}"/>
-                        <pic:cNvPicPr>
-                          <a:picLocks noChangeAspect="1"/>
-                        </pic:cNvPicPr>
-                      </pic:nvPicPr>
-                      <pic:blipFill>
-                        <a:blip r:embed="${relId}"/>
-                        <a:stretch>
-                          <a:fillRect/>
-                        </a:stretch>
-                      </pic:blipFill>
-                      <pic:spPr>
-                        <a:xfrm>
-                          <a:off x="0" y="0"/>
-                          <a:ext cx="${cx}" cy="${cy}"/>
-                        </a:xfrm>
-                        <a:prstGeom prst="rect">
-                          <a:avLst/>
-                        </a:prstGeom>
-                      </pic:spPr>
-                    </pic:pic>
-                  </a:graphicData>
-                </a:graphic>
-              </wp:anchor>
-            </w:drawing>
-          </w:r>
-        </w:p>
-      `
-    }
-
-    // 2. Render page editable structured content
-    const pageContent = page.html || page.text || ''
-    if (pageContent.trim().length > 0) {
-      bodyXml += convertStructuredContentToDocxXml(pageContent)
-    }
-
-    // 3. Add page break if there are subsequent pages
-    if (i < pageList.length - 1) {
-      bodyXml += `<w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r><w:br w:type="page"/></w:r></w:p>`
     }
   }
 
   wordRelsContent += `</Relationships>`
-
-  bodyXml += `
-    <w:sectPr>
-      <w:pgSz w:w="11906" w:h="16838"/>
-      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/>
-      <w:cols w:space="720"/>
-      <w:docGrid w:linePitch="360"/>
-    </w:sectPr>
-  `
 
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -956,6 +1168,10 @@ export async function generateDocxFile(options: {
             xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
   <w:body>
     ${bodyXml}
+    <w:sectPr>
+      <w:pgSz w:w="11906" w:h="16838"/>
+      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/>
+    </w:sectPr>
   </w:body>
 </w:document>`
 
@@ -1075,39 +1291,96 @@ export async function generateDocxFile(options: {
   })
 }
 
-// ----------------------------------------------------
-// 7. PPTX Generation (OpenXML via JSZip)
-// ----------------------------------------------------
-export async function generatePptxFile(options: {
+// Legacy compatibility wrapper
+export async function generateDocxFile(options: {
   title?: string
-  slides: { title: string; bullets: string[]; body?: string }[]
+  text?: string
+  html?: string
+  paragraphs?: string[]
   images?: { data: Blob | ArrayBuffer | Uint8Array; type?: 'jpg' | 'png' }[]
-  includeBackgroundImages?: boolean
+  pages?: DocxPageOption[]
+  includeImagePages?: boolean
 }): Promise<Blob> {
-  const zip = new JSZip()
-  const presentationTitle = cleanPdfText(options.title || 'Presentation')
-  const slides = options.slides.length > 0 ? options.slides : [{ title: presentationTitle, bullets: ['Slide 1 content'] }]
+  const normPages: NormalizedPage[] = []
 
-  // Process image data to Uint8Array
-  const processedImages: { data: Uint8Array; type: string }[] = []
-  if (options.images && options.images.length > 0) {
-    for (const img of options.images) {
-      const u8 = await toUint8Array(img.data)
-      if (u8.length > 0) {
-        processedImages.push({ data: u8, type: img.type || 'jpg' })
+  if (options.pages && options.pages.length > 0) {
+    for (let i = 0; i < options.pages.length; i++) {
+      const p = options.pages[i]
+      const elements: DocumentElement[] = []
+      if (p.image) {
+        elements.push({
+          type: 'image',
+          data: p.image,
+          imageType: p.imageType || 'jpg',
+        })
+      }
+      if (p.html) {
+        elements.push(...parseHtmlToElements(p.html))
+      } else if (p.text) {
+        elements.push(...parseTextToElements(p.text))
+      }
+      normPages.push({
+        pageNumber: i + 1,
+        width: 595,
+        height: 842,
+        elements,
+      })
+    }
+  } else {
+    const elements: DocumentElement[] = []
+    if (options.images && options.images.length > 0) {
+      for (const img of options.images) {
+        elements.push({
+          type: 'image',
+          data: img.data,
+          imageType: img.type || 'jpg',
+        })
       }
     }
+    if (options.html) {
+      elements.push(...parseHtmlToElements(options.html))
+    } else if (options.text) {
+      elements.push(...parseTextToElements(options.text))
+    } else if (options.paragraphs && options.paragraphs.length > 0) {
+      elements.push(...parseTextToElements(options.paragraphs.join('\n\n')))
+    }
+
+    normPages.push({
+      pageNumber: 1,
+      width: 595,
+      height: 842,
+      elements,
+    })
   }
 
-  const shouldRenderImages = !!options.includeBackgroundImages && processedImages.length > 0
+  const doc: NormalizedDocument = {
+    title: options.title || 'Document',
+    sourceType: 'auto',
+    pageCount: normPages.length,
+    pages: normPages,
+  }
+
+  return generateDocxFromNormalizedDoc(doc, { includeImages: options.includeImagePages })
+}
+
+// ----------------------------------------------------
+// 8. PPTX Generation (PresentationML via JSZip)
+// ----------------------------------------------------
+export async function generatePptxFromNormalizedDoc(
+  doc: NormalizedDocument,
+  options: { includeImages?: boolean } = {}
+): Promise<Blob> {
+  const zip = new JSZip()
+  const presentationTitle = cleanPdfText(doc.title || 'Presentation')
+  const includeImages = options.includeImages !== false
 
   let contentTypesOverrides = ''
   let presentationSlideRels = `  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>\n`
   presentationSlideRels += `  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>\n`
-
   let presentationSlidesList = ''
 
-  for (let i = 0; i < slides.length; i++) {
+  for (let i = 0; i < doc.pages.length; i++) {
+    const page = doc.pages[i]
     const slideNum = i + 1
     const relId = `rId${slideNum + 2}`
 
@@ -1115,21 +1388,82 @@ export async function generatePptxFile(options: {
     presentationSlideRels += `  <Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${slideNum}.xml"/>\n`
     presentationSlidesList += `    <p:sldId id="${255 + slideNum}" r:id="${relId}"/>\n`
 
-    const slide = slides[i]
+    let slideRelsContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+`
+
+    // Extract title, bullets, tables, and images for this slide
+    let slideTitle = `Slide ${slideNum}`
+    const bullets: string[] = []
+    const tables: TableElement[] = []
+    const images: ImageElement[] = []
+
+    for (const el of page.elements) {
+      if (el.type === 'text') {
+        if (el.role === 'title' || (slideTitle === `Slide ${slideNum}` && el.text.length < 80)) {
+          slideTitle = el.text
+        } else {
+          bullets.push(el.text)
+        }
+      } else if (el.type === 'table') {
+        tables.push(el)
+      } else if (el.type === 'image' && includeImages) {
+        images.push(el)
+      }
+    }
+
+    const isTitleRtl = containsRtl(slideTitle)
+
+    // Render image shapes
+    let picXml = ''
+    let imgRelIdx = 2
+    for (const img of images) {
+      if (img.data) {
+        const u8 = await toUint8Array(img.data)
+        if (u8.length > 0) {
+          const imgExt = img.imageType || 'jpg'
+          const imgFilename = `media/slide_${slideNum}_img_${imgRelIdx}.${imgExt}`
+          const imgRelId = `rId${imgRelIdx++}`
+          slideRelsContent += `  <Relationship Id="${imgRelId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../${imgFilename}"/>\n`
+          zip.file(`ppt/${imgFilename}`, u8)
+
+          picXml += `
+          <p:pic>
+            <p:nvPicPr>
+              <p:cNvPr id="${imgRelIdx + 10}" name="Image ${slideNum}"/>
+              <p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr>
+              <p:nvPr/>
+            </p:nvPicPr>
+            <p:blipFill>
+              <a:blip r:embed="${imgRelId}"/>
+              <a:stretch><a:fillRect/></a:stretch>
+            </p:blipFill>
+            <p:spPr>
+              <a:xfrm>
+                <a:off x="7500000" y="1600000"/>
+                <a:ext cx="4000000" cy="3000000"/>
+              </a:xfrm>
+              <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+            </p:spPr>
+          </p:pic>
+          `
+        }
+      }
+    }
+
+    // Render text bullets
     let bulletsXml = ''
-
-    const hasImageForSlide = shouldRenderImages && !!processedImages[i]
-
-    for (const bullet of slide.bullets) {
-      const cleanBullet = cleanPdfText(bullet)
+    for (const b of bullets.slice(0, 10)) {
+      const cleanBullet = cleanPdfText(b)
       if (!cleanBullet) continue
       const isBulletRtl = containsRtl(cleanBullet)
       bulletsXml += `
         <a:p>
           <a:pPr lvl="0" algn="${isBulletRtl ? 'r' : 'l'}" ${isBulletRtl ? 'rtl="1"' : ''}/>
           <a:r>
-            <a:rPr lang="${isBulletRtl ? 'ar-SA' : 'en-US'}" altLang="ar-SA" sz="2000">
-              <a:solidFill><a:srgbClr val="${hasImageForSlide ? 'F1F5F9' : '334155'}"/></a:solidFill>
+            <a:rPr lang="${isBulletRtl ? 'ar-SA' : 'en-US'}" altLang="ar-SA" sz="1800">
+              <a:solidFill><a:srgbClr val="1E293B"/></a:solidFill>
               <a:latin typeface="Segoe UI"/>
               <a:cs typeface="Traditional Arabic"/>
             </a:rPr>
@@ -1139,66 +1473,67 @@ export async function generatePptxFile(options: {
       `
     }
 
-    if (slide.body && slide.bullets.length === 0) {
-      const cleanBody = cleanPdfText(slide.body)
-      if (cleanBody) {
-        const isBodyRtl = containsRtl(cleanBody)
-        bulletsXml += `
-          <a:p>
-            <a:pPr algn="${isBodyRtl ? 'r' : 'l'}" ${isBodyRtl ? 'rtl="1"' : ''}/>
-            <a:r>
-              <a:rPr lang="${isBodyRtl ? 'ar-SA' : 'en-US'}" altLang="ar-SA" sz="2000">
-                <a:solidFill><a:srgbClr val="${hasImageForSlide ? 'F1F5F9' : '334155'}"/></a:solidFill>
-                <a:latin typeface="Segoe UI"/>
-                <a:cs typeface="Traditional Arabic"/>
-              </a:rPr>
-              <a:t>${escapeXml(cleanBody)}</a:t>
-            </a:r>
-          </a:p>
-        `
-      }
-    }
+    // Render table shapes
+    let tableXml = ''
+    for (const tbl of tables) {
+      const isTblRtl = tbl.isRtl
+      const rowsXml = tbl.matrix
+        .slice(0, 8)
+        .map((row) => {
+          const cellsXml = row
+            .slice(0, 6)
+            .map((c) => {
+              return `
+                <a:tc>
+                  <a:txBody>
+                    <a:bodyPr/>
+                    <a:lstStyle/>
+                    <a:p>
+                      <a:pPr algn="${isTblRtl ? 'r' : 'l'}" ${isTblRtl ? 'rtl="1"' : ''}/>
+                      <a:r>
+                        <a:rPr sz="1400"><a:solidFill><a:srgbClr val="0F172A"/></a:solidFill></a:rPr>
+                        <a:t>${escapeXml(c)}</a:t>
+                      </a:r>
+                    </a:p>
+                  </a:txBody>
+                  <a:tcPr/>
+                </a:tc>
+              `
+            })
+            .join('')
+          return `<a:tr h="400000">${cellsXml}</a:tr>`
+        })
+        .join('')
 
-    let slideRelsContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
-`
-    let picXml = ''
+      const colCount = Math.max(...tbl.matrix.map((r) => r.length), 1)
+      const gridColsXml = Array(Math.min(colCount, 6)).fill('<a:gridCol w="1500000"/>').join('')
 
-    if (hasImageForSlide) {
-      const img = processedImages[i]
-      const imgExt = img.type || 'jpg'
-      const imgFilename = `media/image${slideNum}.${imgExt}`
-      const imgRelId = `rId2`
-      slideRelsContent += `  <Relationship Id="${imgRelId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../${imgFilename}"/>\n`
-      zip.file(`ppt/${imgFilename}`, img.data)
-
-      picXml = `
-      <p:pic>
-        <p:nvPicPr>
-          <p:cNvPr id="4" name="Page Image ${slideNum}"/>
-          <p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr>
-          <p:nvPr/>
-        </p:nvPicPr>
-        <p:blipFill>
-          <a:blip r:embed="${imgRelId}"/>
-          <a:stretch><a:fillRect/></a:stretch>
-        </p:blipFill>
-        <p:spPr>
-          <a:xfrm>
-            <a:off x="0" y="0"/>
-            <a:ext cx="12192000" cy="6858000"/>
-          </a:xfrm>
-          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
-        </p:spPr>
-      </p:pic>
+      tableXml += `
+        <p:graphicFrame>
+          <p:nvGraphicFramePr>
+            <p:cNvPr id="5" name="Table 1"/>
+            <p:cNvGraphicFramePr/>
+            <p:nvPr/>
+          </p:nvGraphicFramePr>
+          <p:xfrm>
+            <a:off x="838200" y="2000000"/>
+            <a:ext cx="10515600" cy="3500000"/>
+          </p:xfrm>
+          <a:graphic>
+            <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">
+              <a:tbl>
+                <a:tblPr rtl="${isTblRtl ? '1' : '0'}"/>
+                <a:tblGrid>${gridColsXml}</a:tblGrid>
+                ${rowsXml}
+              </a:tbl>
+            </a:graphicData>
+          </a:graphic>
+        </p:graphicFrame>
       `
     }
+
     slideRelsContent += `</Relationships>`
     zip.file(`ppt/slides/_rels/slide${slideNum}.xml.rels`, slideRelsContent)
-
-    const slideTitle = cleanPdfText(slide.title) || `Slide ${slideNum}`
-    const isTitleRtl = containsRtl(slideTitle)
 
     const slideXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
@@ -1228,23 +1563,19 @@ export async function generatePptxFile(options: {
         </p:nvSpPr>
         <p:spPr>
           <a:xfrm>
-            <a:off x="838200" y="${hasImageForSlide ? '609600' : '609600'}"/>
-            <a:ext cx="10515600" cy="1100000"/>
+            <a:off x="838200" y="609600"/>
+            <a:ext cx="10515600" cy="900000"/>
           </a:xfrm>
-          <a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val 12000"/></a:avLst></a:prstGeom>
-          ${hasImageForSlide ? `
-          <a:solidFill><a:srgbClr val="0F172A"><a:alpha val="85000"/></a:srgbClr></a:solidFill>
-          <a:ln w="12700"><a:solidFill><a:srgbClr val="38BDF8"><a:alpha val="60000"/></a:srgbClr></a:solidFill></a:ln>
-          ` : ''}
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
         </p:spPr>
         <p:txBody>
-          <a:bodyPr lIns="200000" rIns="200000" tIns="150000" bIns="150000" anchor="ctr"/>
+          <a:bodyPr lIns="100000" rIns="100000" tIns="100000" bIns="100000" anchor="ctr"/>
           <a:lstStyle/>
           <a:p>
             <a:pPr algn="${isTitleRtl ? 'r' : 'l'}" ${isTitleRtl ? 'rtl="1"' : ''}/>
             <a:r>
-              <a:rPr lang="${isTitleRtl ? 'ar-SA' : 'en-US'}" altLang="ar-SA" b="1" sz="2800">
-                <a:solidFill><a:srgbClr val="${hasImageForSlide ? 'FFFFFF' : '0F172A'}"/></a:solidFill>
+              <a:rPr lang="${isTitleRtl ? 'ar-SA' : 'en-US'}" altLang="ar-SA" b="1" sz="2600">
+                <a:solidFill><a:srgbClr val="0F172A"/></a:solidFill>
                 <a:latin typeface="Segoe UI"/>
                 <a:cs typeface="Traditional Arabic"/>
               </a:rPr>
@@ -1253,7 +1584,9 @@ export async function generatePptxFile(options: {
           </a:p>
         </p:txBody>
       </p:sp>
-      ${bulletsXml ? `
+      ${
+        bulletsXml
+          ? `
       <p:sp>
         <p:nvSpPr>
           <p:cNvPr id="3" name="Content 3"/>
@@ -1262,21 +1595,20 @@ export async function generatePptxFile(options: {
         </p:nvSpPr>
         <p:spPr>
           <a:xfrm>
-            <a:off x="838200" y="${hasImageForSlide ? '1900000' : '1900000'}"/>
-            <a:ext cx="10515600" cy="4400000"/>
+            <a:off x="838200" y="1700000"/>
+            <a:ext cx="${images.length > 0 ? '6400000' : '10515600'}" cy="4600000"/>
           </a:xfrm>
-          <a:prstGeom prst="roundRect"><a:avLst><a:gd name="adj" fmla="val 8000"/></a:avLst></a:prstGeom>
-          ${hasImageForSlide ? `
-          <a:solidFill><a:srgbClr val="0F172A"><a:alpha val="85000"/></a:srgbClr></a:solidFill>
-          <a:ln w="12700"><a:solidFill><a:srgbClr val="CBD5E1"><a:alpha val="40000"/></a:srgbClr></a:solidFill></a:ln>
-          ` : ''}
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
         </p:spPr>
         <p:txBody>
-          <a:bodyPr lIns="250000" rIns="250000" tIns="200000" bIns="200000"/>
+          <a:bodyPr lIns="100000" rIns="100000" tIns="100000" bIns="100000"/>
           <a:lstStyle/>
           ${bulletsXml}
         </p:txBody>
-      </p:sp>` : ''}
+      </p:sp>`
+          : ''
+      }
+      ${tableXml}
     </p:spTree>
   </p:cSld>
 </p:sld>`
@@ -1379,9 +1711,111 @@ ${presentationSlideRels}
   })
 }
 
+// Legacy PPTX compatibility wrapper
+export async function generatePptxFile(options: {
+  title?: string
+  slides: { title: string; bullets: string[]; body?: string }[]
+  images?: { data: Blob | ArrayBuffer | Uint8Array; type?: 'jpg' | 'png' }[]
+  includeBackgroundImages?: boolean
+}): Promise<Blob> {
+  const normPages: NormalizedPage[] = options.slides.map((s, idx) => {
+    const elements: DocumentElement[] = [
+      {
+        type: 'text',
+        text: s.title,
+        role: 'title',
+        isRtl: containsRtl(s.title),
+      },
+    ]
+
+    for (const b of s.bullets) {
+      elements.push({
+        type: 'text',
+        text: b,
+        role: 'bullet',
+        isRtl: containsRtl(b),
+      })
+    }
+
+    if (options.images && options.images[idx]) {
+      elements.push({
+        type: 'image',
+        data: options.images[idx].data,
+        imageType: options.images[idx].type || 'jpg',
+      })
+    }
+
+    return {
+      pageNumber: idx + 1,
+      width: 960,
+      height: 540,
+      elements,
+      hasNativeText: true,
+    }
+  })
+
+  const doc: NormalizedDocument = {
+    title: options.title || 'Presentation',
+    sourceType: 'auto',
+    pageCount: normPages.length,
+    pages: normPages,
+  }
+
+  return generatePptxFromNormalizedDoc(doc, { includeImages: options.includeBackgroundImages })
+}
+
 // ----------------------------------------------------
-// 8. Excel Generation (via SheetJS)
+// 9. Excel / XLSX Generation (via SheetJS)
+// Strict Rule: Images and logos are NOT inserted into Excel
 // ----------------------------------------------------
+export function generateXlsxFromNormalizedDoc(doc: NormalizedDocument): Blob {
+  const wb = XLSX.utils.book_new()
+  const masterRows: any[][] = []
+
+  for (let pageIdx = 0; pageIdx < doc.pages.length; pageIdx++) {
+    const page = doc.pages[pageIdx]
+
+    if (doc.pages.length > 1) {
+      masterRows.push([`=== Page ${page.pageNumber} ===`])
+    }
+
+    for (const elem of page.elements) {
+      if (elem.type === 'table') {
+        // Direct matrix insertion
+        elem.matrix.forEach((row) => {
+          masterRows.push(row)
+        })
+        masterRows.push([]) // spacer row
+      } else if (elem.type === 'text') {
+        const text = elem.text.trim()
+        if (text.includes('\t')) {
+          masterRows.push(text.split('\t').map((c) => c.trim()))
+        } else if (/\s{2,}/.test(text) && !text.includes(':')) {
+          masterRows.push(text.split(/\s{2,}/).map((c) => c.trim()))
+        } else if (text.includes(':') && text.length < 120) {
+          const parts = text.split(':')
+          masterRows.push([parts[0].trim(), parts.slice(1).join(':').trim()])
+        } else {
+          masterRows.push([text])
+        }
+      }
+      // Image elements and shapes are strictly omitted in Excel
+    }
+  }
+
+  const finalRows = masterRows.length > 0 ? masterRows : [['Converted Sheet'], ['No data']]
+  const ws = XLSX.utils.aoa_to_sheet(finalRows)
+  const sheetName = (doc.title || 'Sheet1').replace(/[\\/?*[\]]/g, '_').slice(0, 31)
+
+  XLSX.utils.book_append_sheet(wb, ws, sheetName)
+  const arrayBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+
+  return new Blob([arrayBuffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
+}
+
+// Legacy Excel wrapper
 export function generateXlsxFromData(data: {
   sheetName?: string
   rows?: any[][]
@@ -1389,7 +1823,7 @@ export function generateXlsxFromData(data: {
   csv?: string
 }): Blob {
   const wb = XLSX.utils.book_new()
-  const sheetName = (data.sheetName || 'Sheet1').slice(0, 31)
+  const sheetName = (data.sheetName || 'Sheet1').replace(/[\\/?*[\]]/g, '_').slice(0, 31)
 
   let ws: XLSX.WorkSheet
   if (data.rows && data.rows.length > 0) {
@@ -1419,187 +1853,52 @@ export function generateXlsxFromData(data: {
 }
 
 // ----------------------------------------------------
-// 9. PDF Generation (via pdf-lib) & WinAnsi Encoding Sanitizer
+// 10. PDF Generation (Canvas Hi-DPI Engine for Arabic/Complex + WinAnsi)
 // ----------------------------------------------------
-
 const UNICODE_TO_ASCII_MAP: [RegExp, string][] = [
-  // Arrows
   [/↔/g, '<->'],
   [/↕/g, '<|>'],
   [/[→➔➜➤⟶⇒]/g, '->'],
   [/[←⟵⇐]/g, '<-'],
   [/[↑⇑]/g, '^'],
   [/[↓⇓]/g, 'v'],
-  [/[⇔⟺]/g, '<=>'],
-  [/↗/g, '/^'],
-  [/↘/g, '\\v'],
-  [/↖/g, '^\\'],
-  [/↙/g, 'v/'],
-
-  // Checkmarks and crosses
   [/[✓✔☑]/g, '[v]'],
   [/[✗✘☒✕✖]/g, '[x]'],
-
-  // Bullets and list markers
-  [/[•‣⁃◦∙◘●○]/g, '*'],
-  [/[■□▪▫]/g, '*'],
-  [/[▲▼►◄▶◀]/g, '>'],
-  [/[★☆]/g, '*'],
-  [/♥/g, '<3>'],
-  [/♦/g, '[D]'],
-  [/♣/g, '[C]'],
-  [/♠/g, '[S]'],
-
-  // Math symbols
-  [/≠/g, '!='],
-  [/[≈≅]/g, '~='],
-  [/≤/g, '<='],
-  [/≥/g, '>='],
-  [/√/g, 'sqrt'],
-  [/∞/g, 'inf'],
-  [/∑/g, 'Sum'],
-  [/∏/g, 'Prod'],
-  [/∫/g, 'int'],
-  [/[∆Δ]/g, 'Delta'],
-  [/[πΠ]/g, 'pi'],
-  [/Ω/g, 'Ohm'],
-  [/[µμ]/g, 'u'],
-  [/±/g, '+/-'],
-  [/×/g, 'x'],
-  [/÷/g, '/'],
-
-  // Quotes, dashes and typography
+  [/[•‣⁃◦∙◘●○■□▪▫]/g, '*'],
   [/[“”„‟″]/g, '"'],
   [/[‘’‚‛′‵]/g, "'"],
-  [/[«»]/g, '"'],
   [/[–—―−]/g, '-'],
   [/…/g, '...'],
-  [/™/g, '(TM)'],
-  [/©/g, '(C)'],
-  [/®/g, '(R)'],
-  [/°/g, ' deg'],
-  [/№/g, 'No.'],
-
-  // Fractions
-  [/½/g, '1/2'],
-  [/¼/g, '1/4'],
-  [/¾/g, '3/4'],
-  [/⅓/g, '1/3'],
-  [/⅔/g, '2/3'],
-  [/⅛/g, '1/8'],
-  [/⅜/g, '3/8'],
-  [/⅝/g, '5/8'],
-  [/⅞/g, '7/8'],
-
-  // Currency
-  [/€/g, 'EUR '],
-  [/£/g, 'GBP '],
-  [/¥/g, 'JPY '],
-  [/₹/g, 'INR '],
-  [/₽/g, 'RUB '],
-  [/₺/g, 'TRY '],
-  [/₩/g, 'KRW '],
-  [/₿/g, 'BTC '],
-  [/₫/g, 'VND '],
-  [/₪/g, 'ILS '],
-  [/¢/g, 'cent'],
 ]
 
-/**
- * Sanitizes any text string to be strictly compatible with PDF-Lib's StandardFonts (WinAnsi encoding).
- * Replaces unencodable Unicode symbols, arrows, fractions, emojis, and unmapped characters.
- */
 export function sanitizeForPdfWinAnsi(input: string): string {
   if (!input) return ''
-
   let text = input
-
-  // Replace known Unicode symbols with clean ASCII equivalents
   for (const [pattern, replacement] of UNICODE_TO_ASCII_MAP) {
     text = text.replace(pattern, replacement)
   }
-
-  // Remove zero-width & non-printable formatting characters
   text = text.replace(/[\u200B-\u200D\uFEFF\u00AD\u2060\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
-  // Normalize whitespace (NBSP, em space, en space, etc.)
   text = text.replace(/[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g, ' ')
-
-  // Convert tabs to spaces
   text = text.replace(/\t/g, '    ')
 
-  // Check every character against safe WinAnsi / ASCII
   let sanitized = ''
   for (let i = 0; i < text.length; i++) {
     const char = text[i]
     const code = char.charCodeAt(0)
-
-    // Standard ASCII printable & basic newline/carriage return
-    if ((code >= 0x20 && code <= 0x7E) || code === 0x0A || code === 0x0D) {
+    if ((code >= 0x20 && code <= 0x7E) || code === 0x0a || code === 0x0d) {
       sanitized += char
-      continue
-    }
-
-    // Windows-1252 / Latin-1 safe characters (accented Latin letters, etc.)
-    if (code >= 0xA0 && code <= 0xFF) {
+    } else if (code >= 0xa0 && code <= 0xff) {
       sanitized += char
-      continue
-    }
-
-    // Try decomposing diacritics to basic Latin letters
-    const decomposed = char.normalize('NFD').replace(/[\u0300-\u036F]/g, '')
-    if (decomposed && decomposed.charCodeAt(0) >= 0x20 && decomposed.charCodeAt(0) <= 0x7E) {
-      sanitized += decomposed
     } else {
-      // Safe fallback for unmappable glyphs
-      sanitized += ' '
+      const decomposed = char.normalize('NFD').replace(/[\u0300-\u036F]/g, '')
+      if (decomposed && decomposed.charCodeAt(0) >= 0x20 && decomposed.charCodeAt(0) <= 0x7e) {
+        sanitized += decomposed
+      } else {
+        sanitized += ' '
+      }
     }
   }
-
   return sanitized
-}
-
-function safeWidthOfText(font: any, text: string, size: number): number {
-  try {
-    return font.widthOfTextAtSize(text, size)
-  } catch {
-    const fallback = text.replace(/[^\x20-\x7E]/g, ' ')
-    try {
-      return font.widthOfTextAtSize(fallback, size)
-    } catch {
-      return fallback.length * size * 0.55
-    }
-  }
-}
-
-function safeDrawText(
-  page: any,
-  font: any,
-  text: string,
-  options: { x: number; y: number; size: number; color: any }
-) {
-  try {
-    page.drawText(text, {
-      x: options.x,
-      y: options.y,
-      size: options.size,
-      font,
-      color: options.color,
-    })
-  } catch (err) {
-    console.warn('PDF drawText encoding warning, using ASCII fallback:', err)
-    const fallback = text.replace(/[^\x20-\x7E]/g, ' ')
-    try {
-      page.drawText(fallback, {
-        x: options.x,
-        y: options.y,
-        size: options.size,
-        font,
-        color: options.color,
-      })
-    } catch {
-      // ignore
-    }
-  }
 }
 
 export async function generatePdfDocument(options: {
@@ -1613,7 +1912,6 @@ export async function generatePdfDocument(options: {
   const margin = 50
   const contentWidth = pageWidth - margin * 2
 
-  // If images are provided:
   if (options.images && options.images.length > 0) {
     const pdfDoc = await PDFDocument.create()
     for (const img of options.images) {
@@ -1625,7 +1923,6 @@ export async function generatePdfDocument(options: {
         embeddedImg = await pdfDoc.embedJpg(img.data)
       }
 
-      // Calculate scale to fit page margins proportionally
       const imgWidth = embeddedImg.width
       const imgHeight = embeddedImg.height
       const scaleFactor = Math.min(contentWidth / imgWidth, (pageHeight - margin * 2) / imgHeight, 1)
@@ -1652,11 +1949,9 @@ export async function generatePdfDocument(options: {
   const allText = [rawTitle, ...rawParagraphs].join(' ')
   const hasRtlOrComplex = containsRtl(allText)
 
-  // If text contains Arabic/RTL, render using Canvas Hi-DPI Engine (Like Adobe / iLovePDF)
-  // to ensure 100% accurate connected glyphs, RTL flow, and zero empty pages
   if (hasRtlOrComplex && typeof document !== 'undefined') {
     const pdfDoc = await PDFDocument.create()
-    const scale = 2 // 2x Retina scale for crisp text output
+    const scale = 2
     const canvasWidth = pageWidth * scale
     const canvasHeight = pageHeight * scale
     const canvasMargin = margin * scale
@@ -1685,7 +1980,6 @@ export async function generatePdfDocument(options: {
       pageCanvases.push(canvas)
     }
 
-    // Render Title
     if (rawTitle) {
       const isTitleRtl = containsRtl(rawTitle)
       ctx.direction = isTitleRtl ? 'rtl' : 'ltr'
@@ -1697,7 +1991,6 @@ export async function generatePdfDocument(options: {
       currentY += 45 * scale
     }
 
-    // Render Paragraphs
     ctx.font = `${13 * scale}px "Cairo", "Segoe UI", "Tahoma", -apple-system, sans-serif`
     ctx.fillStyle = '#334155'
 
@@ -1713,7 +2006,6 @@ export async function generatePdfDocument(options: {
       ctx.textAlign = isParaRtl ? 'right' : 'left'
       const paraX = isParaRtl ? canvasWidth - canvasMargin : canvasMargin
 
-      // Word wrapping for Canvas
       const words = trimmed.split(/\s+/)
       let currentLine = ''
 
@@ -1750,7 +2042,6 @@ export async function generatePdfDocument(options: {
       }
     }
 
-    // Embed all generated pages into PDFDocument
     for (const pCanvas of pageCanvases) {
       const pngBlob = await new Promise<Blob>((resolve) => {
         pCanvas.toBlob((b) => resolve(b || new Blob([])), 'image/png', 1.0)
@@ -1770,7 +2061,7 @@ export async function generatePdfDocument(options: {
     return new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' })
   }
 
-  // Standard Latin/English PDF Generation via StandardFonts
+  // Latin PDF generation
   const pdfDoc = await PDFDocument.create()
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
@@ -1779,11 +2070,11 @@ export async function generatePdfDocument(options: {
   let y = pageHeight - margin
 
   const title = sanitizeForPdfWinAnsi(rawTitle)
-
-  safeDrawText(page, boldFont, title, {
+  page.drawText(title, {
     x: margin,
     y: y - 18,
     size: 20,
+    font: boldFont,
     color: rgb(0.06, 0.09, 0.16),
   })
   y -= 45
@@ -1797,23 +2088,28 @@ export async function generatePdfDocument(options: {
       continue
     }
 
-    // Wrap lines
     const words = trimmed.split(/\s+/)
     let currentLine = ''
 
     for (const word of words) {
       const testLine = currentLine ? `${currentLine} ${word}` : word
-      const textWidth = safeWidthOfText(font, testLine, 10.5)
+      let textWidth = 0
+      try {
+        textWidth = font.widthOfTextAtSize(testLine, 10.5)
+      } catch {
+        textWidth = testLine.length * 6
+      }
 
       if (textWidth > contentWidth) {
         if (y < margin + 25) {
           page = pdfDoc.addPage([pageWidth, pageHeight])
           y = pageHeight - margin
         }
-        safeDrawText(page, font, currentLine, {
+        page.drawText(currentLine, {
           x: margin,
           y,
           size: 10.5,
+          font,
           color: rgb(0.2, 0.25, 0.35),
         })
         y -= 16
@@ -1828,10 +2124,11 @@ export async function generatePdfDocument(options: {
         page = pdfDoc.addPage([pageWidth, pageHeight])
         y = pageHeight - margin
       }
-      safeDrawText(page, font, currentLine, {
+      page.drawText(currentLine, {
         x: margin,
         y,
         size: 10.5,
+        font,
         color: rgb(0.2, 0.25, 0.35),
       })
       y -= 18
@@ -1843,22 +2140,23 @@ export async function generatePdfDocument(options: {
 }
 
 // ----------------------------------------------------
-// 10. HTML Document Export
+// 11. HTML Document Export
 // ----------------------------------------------------
 export function generateHtmlDocument(options: {
   title: string
   bodyHtml: string
   sourceType: string
 }): Blob {
+  const isDocRtl = containsRtl(options.title + ' ' + options.bodyHtml)
   const fullHtml = `<!DOCTYPE html>
-<html lang="en">
+<html lang="${isDocRtl ? 'ar' : 'en'}" dir="${isDocRtl ? 'rtl' : 'ltr'}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(options.title)}</title>
   <style>
     :root {
-      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Cairo", Helvetica, Arial, sans-serif;
       --bg: #ffffff;
       --text: #1e293b;
       --muted: #64748b;
@@ -1909,7 +2207,7 @@ export function generateHtmlDocument(options: {
     th, td {
       padding: 10px 14px;
       border: 1px solid var(--border);
-      text-align: left;
+      text-align: ${isDocRtl ? 'right' : 'left'};
       font-size: 0.875rem;
     }
     th {
@@ -1936,7 +2234,7 @@ export function generateHtmlDocument(options: {
   <div class="container">
     <div class="header">
       <h1>${escapeHtml(options.title)}</h1>
-      <div class="meta">Converted from ${escapeHtml(options.sourceType.toUpperCase())} • Generated cleanly</div>
+      <div class="meta">Converted from ${escapeHtml(options.sourceType.toUpperCase())} • DigitalMix Universal Engine</div>
     </div>
     <div class="content">
       ${options.bodyHtml}
@@ -1946,28 +2244,4 @@ export function generateHtmlDocument(options: {
 </html>`
 
   return new Blob([fullHtml], { type: 'text/html;charset=utf-8' })
-}
-
-// ----------------------------------------------------
-// Helpers
-// ----------------------------------------------------
-function escapeHtml(str: string): string {
-  if (!str) return ''
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
-}
-
-function escapeXml(str: string): string {
-  if (!str) return ''
-  return str
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
 }

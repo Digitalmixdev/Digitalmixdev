@@ -57,14 +57,25 @@ import {
   parsePptx,
   parseXlsx,
   parsePdf,
+  parsePdfToNormalizedDocument,
+  parseDocxToNormalizedDocument,
+  parsePptxToNormalizedDocument,
+  parseXlsxToNormalizedDocument,
   renderPdfToImages,
   generateDocxFile,
+  generateDocxFromNormalizedDoc,
   generatePptxFile,
+  generatePptxFromNormalizedDoc,
   generateXlsxFromData,
+  generateXlsxFromNormalizedDoc,
   generatePdfDocument,
   generateHtmlDocument,
+  parseTextToElements,
+  parseHtmlToElements,
+  escapeHtml,
   type ConversionResult,
   type DocxPageOption,
+  type NormalizedDocument,
 } from '@/lib/converters/office-converter'
 import {
   imagesToPdf,
@@ -618,32 +629,33 @@ export default function DocumentConverterTool() {
 
         // 1. DOCX Source
         if (src === 'docx') {
-          const docxData = await parseDocx(file)
+          const normDoc = await parseDocxToNormalizedDocument(file)
           if (tgt === 'pdf') {
             const pdfBlob = await generatePdfDocument({
               title: baseName,
-              text: docxData.text,
-              images: docxData.images && docxData.images.length > 0 && !docxData.text
-                ? await Promise.all(docxData.images.map(async img => ({
-                    data: await img.blob.arrayBuffer(),
-                    type: (img.filename.toLowerCase().endsWith('png') ? 'png' : 'jpg') as 'png' | 'jpg'
-                  })))
-                : undefined
+              text: normDoc.rawText,
             })
-            res = { blob: pdfBlob, filename: `${baseName}.pdf`, mimeType: 'application/pdf', previewHtml: docxData.html, previewText: docxData.text, pageCount: docxData.images?.length || 1 }
+            res = { blob: pdfBlob, filename: `${baseName}.pdf`, mimeType: 'application/pdf', previewText: normDoc.rawText, pageCount: normDoc.pageCount }
+          } else if (tgt === 'pptx') {
+            const pptxBlob = await generatePptxFromNormalizedDoc(normDoc, { includeImages: pdfToDocxMode === 'withImages' })
+            res = { blob: pptxBlob, filename: `${baseName}.pptx`, mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', previewText: normDoc.rawText, pageCount: normDoc.pageCount }
+          } else if (tgt === 'xlsx') {
+            const xlsxBlob = generateXlsxFromNormalizedDoc(normDoc)
+            res = { blob: xlsxBlob, filename: `${baseName}.xlsx`, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', previewText: normDoc.rawText }
           } else if (tgt === 'html') {
+            const docxData = await parseDocx(file)
             const htmlBlob = generateHtmlDocument({ title: baseName, bodyHtml: docxData.html, sourceType: 'Word Document' })
-            res = { blob: htmlBlob, filename: `${baseName}.html`, mimeType: 'text/html', previewHtml: docxData.html, previewText: docxData.text }
+            res = { blob: htmlBlob, filename: `${baseName}.html`, mimeType: 'text/html', previewHtml: docxData.html, previewText: normDoc.rawText }
           } else if (tgt === 'txt') {
-            res = { blob: new Blob([docxData.text], { type: 'text/plain;charset=utf-8' }), filename: `${baseName}.txt`, mimeType: 'text/plain', previewText: docxData.text }
+            res = { blob: new Blob([normDoc.rawText || ''], { type: 'text/plain;charset=utf-8' }), filename: `${baseName}.txt`, mimeType: 'text/plain', previewText: normDoc.rawText }
           } else if (tgt === 'jpg' || tgt === 'png') {
-            const pdfBlob = await generatePdfDocument({ title: baseName, text: docxData.text })
+            const pdfBlob = await generatePdfDocument({ title: baseName, text: normDoc.rawText })
             const imgs = await renderPdfToImages(pdfBlob, tgt as 'jpg' | 'png')
             res = {
               blob: imgs[0]?.blob || pdfBlob,
               filename: `${baseName}-page1.${tgt}`,
               mimeType: tgt === 'jpg' ? 'image/jpeg' : 'image/png',
-              previewHtml: docxData.html,
+              previewText: normDoc.rawText,
               pageCount: imgs.length,
               items: imgs.map((img) => ({ name: `${baseName}-page${img.pageNumber}.${tgt}`, blob: img.blob, url: img.dataUrl })),
             }
@@ -651,85 +663,89 @@ export default function DocumentConverterTool() {
         }
         // 2. PPTX Source
         else if (src === 'pptx') {
-          const pptxData = await parsePptx(file)
+          const normDoc = await parsePptxToNormalizedDocument(file)
           if (tgt === 'pdf') {
+            const pptxData = await parsePptx(file)
             const slideParas = pptxData.slides.map((s) => `[SLIDE ${s.slideNumber}] ${s.title}\n\n${s.bullets.map((b) => `• ${b}`).join('\n')}`)
             const pdfBlob = await generatePdfDocument({ title: baseName, paragraphs: slideParas })
-            res = { blob: pdfBlob, filename: `${baseName}.pdf`, mimeType: 'application/pdf', previewHtml: pptxData.html, previewText: pptxData.text, pageCount: pptxData.slides.length }
+            res = { blob: pdfBlob, filename: `${baseName}.pdf`, mimeType: 'application/pdf', previewText: normDoc.rawText, pageCount: normDoc.pageCount }
+          } else if (tgt === 'docx') {
+            const docxBlob = await generateDocxFromNormalizedDoc(normDoc, { includeImages: pdfToDocxMode === 'withImages' })
+            res = { blob: docxBlob, filename: `${baseName}.docx`, mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', previewText: normDoc.rawText, pageCount: normDoc.pageCount }
+          } else if (tgt === 'xlsx') {
+            const xlsxBlob = generateXlsxFromNormalizedDoc(normDoc)
+            res = { blob: xlsxBlob, filename: `${baseName}.xlsx`, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', previewText: normDoc.rawText }
           } else if (tgt === 'html') {
+            const pptxData = await parsePptx(file)
             const htmlBlob = generateHtmlDocument({ title: baseName, bodyHtml: pptxData.html, sourceType: 'PowerPoint' })
-            res = { blob: htmlBlob, filename: `${baseName}-slides.html`, mimeType: 'text/html', previewHtml: pptxData.html, pageCount: pptxData.slides.length }
+            res = { blob: htmlBlob, filename: `${baseName}-slides.html`, mimeType: 'text/html', previewHtml: pptxData.html, pageCount: normDoc.pageCount }
           } else if (tgt === 'txt') {
-            res = { blob: new Blob([pptxData.text], { type: 'text/plain;charset=utf-8' }), filename: `${baseName}-outline.txt`, mimeType: 'text/plain', previewText: pptxData.text }
+            res = { blob: new Blob([normDoc.rawText || ''], { type: 'text/plain;charset=utf-8' }), filename: `${baseName}-outline.txt`, mimeType: 'text/plain', previewText: normDoc.rawText }
           }
         }
         // 3. XLSX Source
         else if (src === 'xlsx') {
-          const xlsxData = await parseXlsx(file)
+          const normDoc = await parseXlsxToNormalizedDocument(file)
           if (tgt === 'pdf') {
-            const pdfBlob = await generatePdfDocument({ title: `${baseName} - Spreadsheet`, text: xlsxData.text })
-            res = { blob: pdfBlob, filename: `${baseName}.pdf`, mimeType: 'application/pdf', previewHtml: xlsxData.html, previewText: xlsxData.text }
+            const pdfBlob = await generatePdfDocument({ title: `${baseName} - Spreadsheet`, text: normDoc.rawText })
+            res = { blob: pdfBlob, filename: `${baseName}.pdf`, mimeType: 'application/pdf', previewText: normDoc.rawText }
+          } else if (tgt === 'docx') {
+            const docxBlob = await generateDocxFromNormalizedDoc(normDoc)
+            res = { blob: docxBlob, filename: `${baseName}.docx`, mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', previewText: normDoc.rawText }
+          } else if (tgt === 'pptx') {
+            const pptxBlob = await generatePptxFromNormalizedDoc(normDoc)
+            res = { blob: pptxBlob, filename: `${baseName}.pptx`, mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', previewText: normDoc.rawText }
           } else if (tgt === 'html') {
+            const xlsxData = await parseXlsx(file)
             const htmlBlob = generateHtmlDocument({ title: baseName, bodyHtml: xlsxData.html, sourceType: 'Excel Spreadsheet' })
             res = { blob: htmlBlob, filename: `${baseName}.html`, mimeType: 'text/html', previewHtml: xlsxData.html }
           } else if (tgt === 'txt') {
-            res = { blob: new Blob([xlsxData.text], { type: 'text/plain;charset=utf-8' }), filename: `${baseName}.csv`, mimeType: 'text/csv', previewText: xlsxData.text }
+            res = { blob: new Blob([normDoc.rawText || ''], { type: 'text/plain;charset=utf-8' }), filename: `${baseName}.csv`, mimeType: 'text/csv', previewText: normDoc.rawText }
           }
         }
         // 4. PDF Source
         else if (src === 'pdf') {
-          const pdfData = await parsePdf(file)
-          const pageImages = await renderPdfToImages(file, 'jpg', 0.92, 2.0).catch(() => [])
+          setConversionProgress('Analyzing PDF structure, extracting native layout & text...')
+          const normDoc = await parsePdfToNormalizedDocument(file, {
+            ocrHandler: async (blob) => {
+              setConversionProgress('Scanned page detected: running OCR recognition...')
+              return await performOcrOnImageBlob(blob)
+            },
+          })
+
           if (tgt === 'docx') {
-            setConversionProgress('Analyzing document structure and performing OCR text recognition...')
-            const docxPages: DocxPageOption[] = []
-            const finalParagraphs: string[] = []
-            let fullHtml = ''
-
-            for (let i = 0; i < pdfData.pages.length; i++) {
-              const p = pdfData.pages[i]
-              let pageText = p.text?.trim() || ''
-              let pageHtml = ''
-
-              // Run OCR if text is short/scanned image form or missing
-              if (pageText.length < 50 && pageImages[i]) {
-                setConversionProgress(`Recognizing text via OCR on page ${i + 1} of ${pdfData.pages.length}...`)
-                const ocrRes = await performOcrOnImageBlob(pageImages[i].blob)
-                if (ocrRes.text && ocrRes.text.trim().length > pageText.length) {
-                  pageText = ocrRes.text.trim()
-                  pageHtml = ocrRes.html
-                }
-              }
-
-              if (pageText) {
-                if (pdfData.pages.length > 1) {
-                  finalParagraphs.push(`--- Page ${p.pageNumber} ---`)
-                }
-                finalParagraphs.push(pageText)
-                fullHtml += (pageHtml || `<p>${pageText.replace(/\n+/g, '</p><p>')}</p>`) + '\n'
-              }
-
-              docxPages.push({
-                text: pageText,
-                html: pageHtml || undefined,
-                image: pdfToDocxMode === 'withImages' && pageImages[i] ? pageImages[i].blob : undefined,
-                imageType: 'jpg',
-              })
-            }
-
-            const fullExtractedText = finalParagraphs.join('\n\n')
-
-            const docxBlob = await generateDocxFile({
-              title: baseName,
-              pages: docxPages,
-              includeImagePages: pdfToDocxMode === 'withImages',
+            setConversionProgress('Generating editable DOCX with native typography & tables...')
+            const docxBlob = await generateDocxFromNormalizedDoc(normDoc, {
+              includeImages: pdfToDocxMode === 'withImages',
             })
             res = {
               blob: docxBlob,
               filename: `${baseName}.docx`,
               mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-              previewText: fullExtractedText,
-              pageCount: pdfData.pageCount,
+              previewText: normDoc.rawText,
+              pageCount: normDoc.pageCount,
+            }
+          } else if (tgt === 'pptx') {
+            setConversionProgress('Generating editable PPTX presentation slides...')
+            const pptxBlob = await generatePptxFromNormalizedDoc(normDoc, {
+              includeImages: pdfToDocxMode === 'withImages',
+            })
+            res = {
+              blob: pptxBlob,
+              filename: `${baseName}.pptx`,
+              mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+              previewText: normDoc.rawText,
+              pageCount: normDoc.pageCount,
+            }
+          } else if (tgt === 'xlsx') {
+            setConversionProgress('Extracting tables and structured data to Excel...')
+            const xlsxBlob = generateXlsxFromNormalizedDoc(normDoc)
+            res = {
+              blob: xlsxBlob,
+              filename: `${baseName}.xlsx`,
+              mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              previewText: normDoc.rawText,
+              pageCount: normDoc.pageCount,
             }
           } else if (tgt === 'jpg' || tgt === 'png') {
             const images = await renderPdfToImages(file, tgt)
@@ -742,173 +758,114 @@ export default function DocumentConverterTool() {
               items: images.map((img) => ({ name: `${baseName}-page${img.pageNumber}.${tgt}`, blob: img.blob, url: img.dataUrl })),
             }
           } else if (tgt === 'html') {
-            const htmlContent = `<div class="space-y-4">${pdfData.pages.map((p) => `<div class="p-4 border rounded-xl bg-card"><div class="text-xs text-muted-foreground font-bold mb-1">Page ${p.pageNumber}</div><p class="whitespace-pre-wrap text-sm">${p.text}</p></div>`).join('')}</div>`
+            const htmlContent = `<div class="space-y-6">${normDoc.pages.map((p) => `<div class="p-6 border rounded-xl bg-card shadow-sm"><div class="text-xs text-muted-foreground font-bold mb-3">Page ${p.pageNumber}</div><div class="space-y-2">${p.elements.map(e => e.type === 'text' ? `<p class="${e.role === 'title' ? 'text-xl font-bold' : e.role === 'byline' ? 'text-primary font-medium' : ''}">${escapeHtml(e.text)}</p>` : e.type === 'table' ? `<table class="w-full border">${e.matrix.map(r => `<tr>${r.map(c => `<td class="border p-2">${escapeHtml(c)}</td>`).join('')}</tr>`).join('')}</table>` : '').join('')}</div></div>`).join('')}</div>`
             const htmlBlob = generateHtmlDocument({ title: baseName, bodyHtml: htmlContent, sourceType: 'PDF' })
-            res = { blob: htmlBlob, filename: `${baseName}.html`, mimeType: 'text/html', previewHtml: htmlContent, pageCount: pdfData.pageCount }
+            res = { blob: htmlBlob, filename: `${baseName}.html`, mimeType: 'text/html', previewHtml: htmlContent, pageCount: normDoc.pageCount }
           } else if (tgt === 'txt') {
-            res = { blob: new Blob([pdfData.text], { type: 'text/plain;charset=utf-8' }), filename: `${baseName}.txt`, mimeType: 'text/plain', previewText: pdfData.text, pageCount: pdfData.pageCount }
-          } else if (tgt === 'pptx') {
-            setConversionProgress('Generating PPTX slides with extracted editable content...')
-            const slides = []
-            for (let i = 0; i < pdfData.pages.length; i++) {
-              const p = pdfData.pages[i]
-              let pageText = p.text?.trim() || ''
-
-              if (pageText.length < 50 && pageImages[i]) {
-                const ocrRes = await performOcrOnImageBlob(pageImages[i].blob)
-                if (ocrRes.text && ocrRes.text.trim().length > pageText.length) {
-                  pageText = ocrRes.text.trim()
-                }
-              }
-
-              const lines = pageText.split('\n').filter((l) => l.trim().length > 0)
-              const title = lines[0] ? lines[0].slice(0, 70) : `الصفحة ${p.pageNumber}`
-              const bullets = lines.slice(1, 12).map((l) => l.slice(0, 150))
-              if (bullets.length === 0) {
-                bullets.push(lines[0] || `محتوى الصفحة ${p.pageNumber}`)
-              }
-
-              slides.push({
-                title,
-                bullets,
-              })
-            }
-
-            const pptxBlob = await generatePptxFile({
-              title: baseName,
-              slides,
-              images: pdfToDocxMode === 'withImages' ? pageImages.map((img) => ({ data: img.blob, type: 'jpg' })) : undefined,
-              includeBackgroundImages: pdfToDocxMode === 'withImages',
-            })
-            res = {
-              blob: pptxBlob,
-              filename: `${baseName}.pptx`,
-              mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-              previewText: pdfData.text,
-              pageCount: pdfData.pageCount,
-            }
-          } else if (tgt === 'xlsx') {
-            setConversionProgress('Analyzing document structure & converting to Excel...')
-            let fullHtml = ''
-            const rows: any[][] = []
-
-            for (let i = 0; i < pdfData.pages.length; i++) {
-              const p = pdfData.pages[i]
-              let pageText = p.text?.trim() || ''
-
-              if (pageText.length < 50 && pageImages[i]) {
-                const ocrRes = await performOcrOnImageBlob(pageImages[i].blob)
-                if (ocrRes.text && ocrRes.text.trim().length > pageText.length) {
-                  pageText = ocrRes.text.trim()
-                  if (ocrRes.html) fullHtml += ocrRes.html + '\n'
-                }
-              }
-
-              if (pageText) {
-                const lines = pageText.split('\n').filter((l) => l.trim().length > 0)
-                lines.forEach((l) => {
-                  if (l.includes('\t')) {
-                    rows.push(l.split('\t').map((c) => c.trim()))
-                  } else if (/\s{2,}/.test(l)) {
-                    rows.push(l.split(/\s{2,}/).map((c) => c.trim()))
-                  } else if (l.includes(':')) {
-                    const parts = l.split(':')
-                    rows.push([parts[0].trim(), parts.slice(1).join(':').trim()])
-                  } else {
-                    rows.push([l.trim()])
-                  }
-                })
-              }
-            }
-
-            const xlsxBlob = generateXlsxFromData({
-              sheetName: baseName,
-              rows: rows.length > 0 ? rows : undefined,
-              htmlTable: fullHtml.includes('<table') ? fullHtml : undefined,
-            })
-            res = {
-              blob: xlsxBlob,
-              filename: `${baseName}.xlsx`,
-              mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-              previewText: pdfData.text,
-              pageCount: pdfData.pageCount,
-            }
+            res = { blob: new Blob([normDoc.rawText || ''], { type: 'text/plain;charset=utf-8' }), filename: `${baseName}.txt`, mimeType: 'text/plain', previewText: normDoc.rawText, pageCount: normDoc.pageCount }
           }
         }
         // 5. HTML Source
         else if (src === 'html') {
           const textContent = await file.text()
+          const elements = parseHtmlToElements(textContent)
+          const normDoc: NormalizedDocument = {
+            title: baseName,
+            sourceType: 'html',
+            pageCount: 1,
+            pages: [{ pageNumber: 1, width: 595, height: 842, elements, hasNativeText: true }],
+            rawText: elements.filter(e => e.type === 'text').map(e => (e as any).text).join('\n'),
+          }
           if (tgt === 'pdf') {
             const pdfBlob = await generatePdfDocument({ title: baseName, text: textContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() })
             res = { blob: pdfBlob, filename: `${baseName}.pdf`, mimeType: 'application/pdf', previewHtml: textContent }
           } else if (tgt === 'docx') {
-            const docxBlob = await generateDocxFile({ title: baseName, html: textContent })
+            const docxBlob = await generateDocxFromNormalizedDoc(normDoc)
             res = { blob: docxBlob, filename: `${baseName}.docx`, mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', previewHtml: textContent }
+          } else if (tgt === 'pptx') {
+            const pptxBlob = await generatePptxFromNormalizedDoc(normDoc)
+            res = { blob: pptxBlob, filename: `${baseName}.pptx`, mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', previewHtml: textContent }
+          } else if (tgt === 'xlsx') {
+            const xlsxBlob = generateXlsxFromNormalizedDoc(normDoc)
+            res = { blob: xlsxBlob, filename: `${baseName}.xlsx`, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', previewHtml: textContent }
           }
         }
         // 6. Plain Text Source
         else if (src === 'txt') {
           const textContent = await file.text()
+          const elements = parseTextToElements(textContent)
+          const normDoc: NormalizedDocument = {
+            title: baseName,
+            sourceType: 'txt',
+            pageCount: 1,
+            pages: [{ pageNumber: 1, width: 595, height: 842, elements, hasNativeText: true }],
+            rawText: textContent,
+          }
           if (tgt === 'pdf') {
             const pdfBlob = await generatePdfDocument({ title: baseName, text: textContent })
             res = { blob: pdfBlob, filename: `${baseName}.pdf`, mimeType: 'application/pdf', previewText: textContent }
           } else if (tgt === 'docx') {
-            const docxBlob = await generateDocxFile({ title: baseName, text: textContent })
+            const docxBlob = await generateDocxFromNormalizedDoc(normDoc)
             res = { blob: docxBlob, filename: `${baseName}.docx`, mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', previewText: textContent }
+          } else if (tgt === 'pptx') {
+            const pptxBlob = await generatePptxFromNormalizedDoc(normDoc)
+            res = { blob: pptxBlob, filename: `${baseName}.pptx`, mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', previewText: textContent }
+          } else if (tgt === 'xlsx') {
+            const xlsxBlob = generateXlsxFromNormalizedDoc(normDoc)
+            res = { blob: xlsxBlob, filename: `${baseName}.xlsx`, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', previewText: textContent }
           }
         }
-        // 7. Image Source (JPG/PNG -> DOCX or XLSX via OCR)
-        else if ((src === 'jpg' || src === 'png') && tgt === 'docx') {
-          setConversionProgress('Recognizing text inside image via OCR...')
+        // 7. Image Source (JPG/PNG -> DOCX or XLSX or PPTX via OCR)
+        else if ((src === 'jpg' || src === 'png') && (tgt === 'docx' || tgt === 'pptx' || tgt === 'xlsx')) {
+          setConversionProgress('Recognizing text, tables, and document layout via OCR...')
           const ocrRes = await performOcrOnImageBlob(file)
-          const paragraphs = ocrRes.text.split(/\r?\n\r?\n|\r?\n/).map((l) => l.trim()).filter(Boolean)
-          const docxBlob = await generateDocxFile({
-            title: baseName,
-            text: ocrRes.text,
-            html: ocrRes.html,
-            paragraphs: paragraphs.length > 0 ? paragraphs : ['No text recognized from image.'],
-            images: pdfToDocxMode === 'withImages' ? [{ data: await file.arrayBuffer(), type: src as 'jpg' | 'png' }] : undefined,
-            includeImagePages: pdfToDocxMode === 'withImages',
-          })
-          res = {
-            blob: docxBlob,
-            filename: `${baseName}.docx`,
-            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            previewText: ocrRes.text,
-            pageCount: 1,
-          }
-        } else if ((src === 'jpg' || src === 'png') && tgt === 'xlsx') {
-          setConversionProgress('Recognizing text & tabular structure from image for Excel...')
-          const ocrRes = await performOcrOnImageBlob(file)
-          const rows: any[][] = []
+          const elements = ocrRes.html ? parseHtmlToElements(ocrRes.html) : parseTextToElements(ocrRes.text)
 
-          if (ocrRes.text) {
-            const lines = ocrRes.text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
-            lines.forEach((l) => {
-              if (l.includes('\t')) {
-                rows.push(l.split('\t').map((c) => c.trim()))
-              } else if (/\s{2,}/.test(l)) {
-                rows.push(l.split(/\s{2,}/).map((c) => c.trim()))
-              } else if (l.includes(':')) {
-                const parts = l.split(':')
-                rows.push([parts[0].trim(), parts.slice(1).join(':').trim()])
-              } else {
-                rows.push([l.trim()])
-              }
+          // If user requested images and target is Word or PPTX, include the original image
+          if (pdfToDocxMode === 'withImages' && (tgt === 'docx' || tgt === 'pptx')) {
+            elements.unshift({
+              type: 'image',
+              data: await file.arrayBuffer(),
+              imageType: src as 'jpg' | 'png',
             })
           }
 
-          const xlsxBlob = generateXlsxFromData({
-            sheetName: baseName,
-            rows: rows.length > 0 ? rows : undefined,
-            htmlTable: ocrRes.html.includes('<table') ? ocrRes.html : undefined,
-          })
-          res = {
-            blob: xlsxBlob,
-            filename: `${baseName}.xlsx`,
-            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            previewText: ocrRes.text,
+          const normDoc: NormalizedDocument = {
+            title: baseName,
+            sourceType: src,
             pageCount: 1,
+            pages: [{ pageNumber: 1, width: 595, height: 842, elements, isScanned: true }],
+            rawText: ocrRes.text,
+          }
+
+          if (tgt === 'docx') {
+            const docxBlob = await generateDocxFromNormalizedDoc(normDoc, { includeImages: pdfToDocxMode === 'withImages' })
+            res = {
+              blob: docxBlob,
+              filename: `${baseName}.docx`,
+              mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              previewText: ocrRes.text,
+              pageCount: 1,
+            }
+          } else if (tgt === 'pptx') {
+            const pptxBlob = await generatePptxFromNormalizedDoc(normDoc, { includeImages: pdfToDocxMode === 'withImages' })
+            res = {
+              blob: pptxBlob,
+              filename: `${baseName}.pptx`,
+              mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+              previewText: ocrRes.text,
+              pageCount: 1,
+            }
+          } else if (tgt === 'xlsx') {
+            // Excel: strictly exclude image, only structured table and data
+            const xlsxBlob = generateXlsxFromNormalizedDoc(normDoc)
+            res = {
+              blob: xlsxBlob,
+              filename: `${baseName}.xlsx`,
+              mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              previewText: ocrRes.text,
+              pageCount: 1,
+            }
           }
         }
 
