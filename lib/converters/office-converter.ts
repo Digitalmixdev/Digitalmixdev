@@ -630,6 +630,27 @@ function convertStructuredContentToDocxXml(htmlOrText: string): string {
   return xml
 }
 
+export interface DocxPageOption {
+  text?: string
+  html?: string
+  image?: Blob | ArrayBuffer | Uint8Array
+  imageType?: 'jpg' | 'png'
+}
+
+async function getImageDimensions(u8: Uint8Array, type: string): Promise<{ width: number; height: number }> {
+  if (typeof window === 'undefined') return { width: 800, height: 1131 }
+  try {
+    const blob = new Blob([u8 as unknown as BlobPart], { type: type === 'png' ? 'image/png' : 'image/jpeg' })
+    if (typeof createImageBitmap !== 'undefined') {
+      const bitmap = await createImageBitmap(blob)
+      return { width: bitmap.width, height: bitmap.height }
+    }
+  } catch {
+    // ignore
+  }
+  return { width: 800, height: 1131 }
+}
+
 // ----------------------------------------------------
 // 6. DOCX Generation (OpenXML via JSZip)
 // ----------------------------------------------------
@@ -639,30 +660,60 @@ export async function generateDocxFile(options: {
   html?: string
   paragraphs?: string[]
   images?: { data: Blob | ArrayBuffer | Uint8Array; type?: 'jpg' | 'png' }[]
+  pages?: DocxPageOption[]
   includeImagePages?: boolean
 }): Promise<Blob> {
   const zip = new JSZip()
 
-  // Convert image data to Uint8Array safely
-  const processedImages: { data: Uint8Array; type: string }[] = []
-  if (options.images && options.images.length > 0) {
-    for (const img of options.images) {
-      const u8 = await toUint8Array(img.data)
-      if (u8.length > 0) {
-        processedImages.push({ data: u8, type: img.type || 'jpg' })
+  // Build unified page array
+  const pageList: {
+    text?: string
+    html?: string
+    imageData?: Uint8Array
+    imageType: string
+  }[] = []
+
+  if (options.pages && options.pages.length > 0) {
+    for (const p of options.pages) {
+      let u8: Uint8Array | undefined
+      if (p.image) {
+        u8 = await toUint8Array(p.image)
       }
+      pageList.push({
+        text: p.text,
+        html: p.html,
+        imageData: u8 && u8.length > 0 ? u8 : undefined,
+        imageType: p.imageType || 'jpg',
+      })
+    }
+  } else {
+    // Single page or legacy format
+    const paragraphsList: string[] = []
+    if (options.paragraphs && options.paragraphs.length > 0) {
+      paragraphsList.push(...options.paragraphs.map((p) => cleanPdfText(p)).filter(Boolean))
+    } else if (options.text) {
+      const lines = options.text.split(/\r?\n\r?\n|\r?\n/).map((l) => cleanPdfText(l)).filter(Boolean)
+      paragraphsList.push(...lines)
+    }
+
+    if (options.images && options.images.length > 0) {
+      for (let i = 0; i < options.images.length; i++) {
+        const img = options.images[i]
+        const u8 = await toUint8Array(img.data)
+        pageList.push({
+          text: i === 0 ? (options.html || options.text || paragraphsList.join('\n')) : undefined,
+          imageData: u8.length > 0 ? u8 : undefined,
+          imageType: img.type || 'jpg',
+        })
+      }
+    } else {
+      pageList.push({
+        text: options.text || paragraphsList.join('\n'),
+        html: options.html,
+        imageType: 'jpg',
+      })
     }
   }
-
-  const paragraphsList: string[] = []
-  if (options.paragraphs && options.paragraphs.length > 0) {
-    paragraphsList.push(...options.paragraphs.map((p) => cleanPdfText(p)).filter(Boolean))
-  } else if (options.text) {
-    const lines = options.text.split(/\r?\n\r?\n|\r?\n/).map((l) => cleanPdfText(l)).filter(Boolean)
-    paragraphsList.push(...lines)
-  }
-
-  const titleText = cleanPdfText(options.title || paragraphsList[0] || 'Converted Document')
 
   let wordRelsContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
@@ -670,37 +721,51 @@ export async function generateDocxFile(options: {
 `
 
   let bodyXml = ''
+  let relIndex = 2
+  const shouldRenderImages = options.includeImagePages
 
-  const shouldRenderImages = processedImages.length > 0 && options.includeImagePages
+  for (let i = 0; i < pageList.length; i++) {
+    const page = pageList[i]
 
-  // MODE A: Render full-page background image behind text (behindDoc="1")
-  if (shouldRenderImages) {
-    let relIndex = 2
-    for (let i = 0; i < processedImages.length; i++) {
-      const img = processedImages[i]
-      const imgExt = img.type || 'jpg'
+    // 1. Render page image if requested and available
+    if (shouldRenderImages && page.imageData) {
+      const imgExt = page.imageType || 'jpg'
       const imgFilename = `media/image${i + 1}.${imgExt}`
       const relId = `rId${relIndex++}`
 
       wordRelsContent += `  <Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="${imgFilename}"/>\n`
-      zip.file(`word/${imgFilename}`, img.data)
+      zip.file(`word/${imgFilename}`, page.imageData)
+
+      const dims = await getImageDimensions(page.imageData, imgExt)
+      let aspectRatio = dims.height / dims.width
+      if (isNaN(aspectRatio) || aspectRatio <= 0) aspectRatio = 1.414
+
+      // Calculate width & height in EMUs preserving aspect ratio
+      // Standard page content width = 5,486,400 EMUs (6 inches)
+      let cx = 5486400
+      let cy = Math.round(cx * aspectRatio)
+      if (cy > 7772400) {
+        cy = 7772400
+        cx = Math.round(cy / aspectRatio)
+      }
 
       bodyXml += `
         <w:p>
           <w:pPr>
             <w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/>
+            <w:jc w:val="center"/>
           </w:pPr>
           <w:r>
             <w:drawing>
               <wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="0" behindDoc="1" locked="0" layoutInCell="1" allowOverlap="1" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">
                 <wp:simplePos x="0" y="0"/>
-                <wp:positionH relativeFrom="page">
+                <wp:positionH relativeFrom="margin">
                   <wp:align>center</wp:align>
                 </wp:positionH>
-                <wp:positionV relativeFrom="page">
-                  <wp:align>top</wp:align>
+                <wp:positionV relativeFrom="top">
+                  <wp:posOffset>0</wp:posOffset>
                 </wp:positionV>
-                <wp:extent cx="7560060" cy="10691630"/>
+                <wp:extent cx="${cx}" cy="${cy}"/>
                 <wp:effectExtent l="0" t="0" r="0" b="0"/>
                 <wp:wrapNone/>
                 <wp:docPr id="${i + 1}" name="Page ${i + 1} Background"/>
@@ -713,7 +778,7 @@ export async function generateDocxFile(options: {
                       <pic:nvPicPr>
                         <pic:cNvPr id="${i + 1}" name="Page ${i + 1}"/>
                         <pic:cNvPicPr>
-                          <a:picLocks noChangeAspect="0"/>
+                          <a:picLocks noChangeAspect="1"/>
                         </pic:cNvPicPr>
                       </pic:nvPicPr>
                       <pic:blipFill>
@@ -723,7 +788,7 @@ export async function generateDocxFile(options: {
                       <pic:spPr>
                         <a:xfrm>
                           <a:off x="0" y="0"/>
-                          <a:ext cx="7560060" cy="10691630"/>
+                          <a:ext cx="${cx}" cy="${cy}"/>
                         </a:xfrm>
                         <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
                       </pic:spPr>
@@ -736,12 +801,17 @@ export async function generateDocxFile(options: {
         </w:p>
       `
     }
-  }
 
-  // MODE B: Render extracted editable structured document content directly on top of the page
-  const structuredSource = options.html || options.text || paragraphsList.join('\n')
-  if (structuredSource && structuredSource.trim().length > 0) {
-    bodyXml += convertStructuredContentToDocxXml(structuredSource)
+    // 2. Render page editable structured content
+    const pageContent = page.html || page.text || ''
+    if (pageContent.trim().length > 0) {
+      bodyXml += convertStructuredContentToDocxXml(pageContent)
+    }
+
+    // 3. Add page break if there are subsequent pages
+    if (i < pageList.length - 1) {
+      bodyXml += `<w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r><w:br w:type="page"/></w:r></w:p>`
+    }
   }
 
   wordRelsContent += `</Relationships>`
