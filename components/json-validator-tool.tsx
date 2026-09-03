@@ -31,6 +31,7 @@ import { useLanguage } from '@/lib/i18n/context'
 import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities } from '@/lib/history-service'
 import { registerToolInputGetter } from '@/lib/ai/tool-input-bus'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { diagnoseJsonIssue, autoRepairJson } from '@/lib/json-repair-helper'
 
 export interface JsonValidationError {
@@ -395,6 +396,7 @@ export function validateJsonPayload(raw: string): JsonValidationResult {
 }
 
 export function JsonValidatorTool() {
+  const router = useRouter()
   const { t, language } = useLanguage()
   const isAr = language === 'ar'
 
@@ -536,6 +538,15 @@ export function JsonValidatorTool() {
     toast.success(isAr ? 'تم تحميل ملف JSON' : 'Downloaded JSON file')
   }
 
+  // Open in JSON Formatter
+  const handleOpenInFormatter = () => {
+    if (!jsonInput.trim()) return
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('json_formatter_code', jsonInput)
+    }
+    router.push(`/tools/json-formatter?code=${encodeURIComponent(jsonInput)}`)
+  }
+
   // Clear Input
   const handleClear = () => {
     setJsonInput('')
@@ -589,13 +600,17 @@ export function JsonValidatorTool() {
             </Button>
           </div>
 
-          <Link href="/tools/json-formatter">
-            <Button variant="outline" size="sm" className="rounded-xl gap-1.5 text-xs font-semibold">
-              <FileCode className="h-3.5 w-3.5 text-primary" />
-              {isAr ? 'منسق ومجمل JSON' : 'JSON Formatter'}
-              <ExternalLink className="h-3 w-3 opacity-60" />
-            </Button>
-          </Link>
+          <Button
+            onClick={handleOpenInFormatter}
+            variant="outline"
+            size="sm"
+            disabled={!jsonInput.trim()}
+            className="rounded-xl gap-1.5 text-xs font-semibold"
+          >
+            <FileCode className="h-3.5 w-3.5 text-primary" />
+            {isAr ? 'منسق ومجمل JSON' : 'JSON Formatter'}
+            <ExternalLink className="h-3 w-3 opacity-60" />
+          </Button>
         </div>
 
         {activeTab === 'history' ? (

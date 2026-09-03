@@ -515,7 +515,7 @@ export function findBestKeywordMatch(
   contextClues?: { isFunctionPosition?: boolean; isClauseStart?: boolean; expectedKeyword?: string }
 ): TypoCandidate | null {
   const clean = token.toUpperCase().replace(/[\\\/]/g, '')
-  if (!clean || clean.length < 2) return null
+  if (!clean || (clean.length < 2 && !contextClues?.expectedKeyword)) return null
 
   // Fast-path: if exact match in vocab, not a typo
   if (vocab.includes(clean)) return null
@@ -537,7 +537,11 @@ export function findBestKeywordMatch(
     if (candUpper.length >= 7) {
       maxAllowedDist = 3
     } else if (candUpper.length >= 4) {
-      maxAllowedDist = 2
+      if (clean.length >= 4 && clean[0] === candUpper[0] && clean[1] === candUpper[1]) {
+        maxAllowedDist = 3
+      } else {
+        maxAllowedDist = 2
+      }
     } else if (candUpper.length <= 3) {
       maxAllowedDist = 1
     }
@@ -545,7 +549,7 @@ export function findBestKeywordMatch(
     if (dist > maxAllowedDist) continue
 
     // Conservative rules for short words (2-3 chars) to avoid false positives on table/column names
-    if (candUpper.length <= 3 && dist >= 2) continue
+    if (candUpper.length <= 3 && dist >= 2 && !contextClues?.expectedKeyword) continue
     if (candUpper.length <= 2 && dist >= 1 && !contextClues?.expectedKeyword) continue
 
     // Calculate confidence score (0.0 to 1.0)
@@ -553,6 +557,7 @@ export function findBestKeywordMatch(
 
     // Bonus for matching first or last letter
     if (clean[0] === candUpper[0]) baseConfidence += 0.08
+    if (clean.length >= 2 && candUpper.length >= 2 && clean[1] === candUpper[1]) baseConfidence += 0.08
     if (clean[clean.length - 1] === candUpper[candUpper.length - 1]) baseConfidence += 0.05
 
     // Bonus for adjacent transposition (e.g. SELETC -> SELECT)
@@ -560,6 +565,9 @@ export function findBestKeywordMatch(
 
     // Bonus if context explicitly expects this keyword or clause type
     if (contextClues?.expectedKeyword && contextClues.expectedKeyword === candUpper) {
+      baseConfidence += 0.15
+    }
+    if (contextClues?.isFunctionPosition) {
       baseConfidence += 0.15
     }
 
@@ -742,8 +750,23 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
   }
 
   // 4. Dynamic Context-Aware Keyword Typo & Grammar Checking
-  // We inspect non-keyword tokens that appear in keyword-expected slots.
+  // Extract qualified columns in query (e.g. u.name, o.amount) for missing-dot checks
+  const qualifiedColumnMap = new Map<string, { alias: string; col: string; line: number }>()
+  tokens.forEach((t) => {
+    if (t.type === 'qualified_identifier' || t.value.includes('.')) {
+      const parts = t.value.split('.')
+      if (parts.length === 2) {
+        const joint = (parts[0] + parts[1]).toLowerCase()
+        qualifiedColumnMap.set(joint, { alias: parts[0], col: parts[1], line: t.line })
+      }
+    }
+  })
+
+  const reportedTokenIndices = new Set<number>()
+
   for (let i = 0; i < tokens.length; i++) {
+    if (reportedTokenIndices.has(i)) continue
+
     const current = tokens[i]
     const prev = tokens[i - 1]
     const prev2 = tokens[i - 2]
@@ -763,6 +786,22 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
 
     const upperVal = current.value.toUpperCase()
 
+    // Missing dot check (e.g., 'uname' when 'u.name' exists in query)
+    if (current.type === 'identifier' && !current.value.includes('.')) {
+      const qualMatch = qualifiedColumnMap.get(current.value.toLowerCase())
+      if (qualMatch) {
+        errors.push({
+          line: current.line,
+          column: current.column,
+          message: `Missing dot '.' in column reference '${current.value}' on line ${current.line}`,
+          severity: 'error',
+          suggestion: `Did you mean '${qualMatch.alias}.${qualMatch.col}'?`,
+        })
+        reportedTokenIndices.add(i)
+        continue
+      }
+    }
+
     // Guard: Common user identifiers (orders, users, customer, etc.) should not be flagged
     if (COMMON_USER_IDENTIFIERS.has(upperVal)) {
       // Exception: If preceding token is ORDER or GROUP and current token is not BY, or if it's start of statement
@@ -781,18 +820,35 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
       continue
     }
 
-    // 4a. Function Call Typo check (e.g. SM(o.amount) or COUN(o.id) or COALESC(a, b))
-    if (next && next.value === '(' && current.type === 'identifier') {
-      const fnMatch = findBestKeywordMatch(upperVal, COMMON_SQL_FUNCTIONS, { isFunctionPosition: true })
-      if (fnMatch && fnMatch.confidence >= 0.75) {
-        errors.push({
-          line: current.line,
-          column: current.column,
-          message: `Misspelled SQL function '${current.value}(...)' on line ${current.line}`,
-          severity: 'error',
-          suggestion: `Did you mean '${fnMatch.keyword}(...)'?`,
-        })
-        continue
+    // 4a. Function Call Typo check (e.g. SM(o.amount) or COUN(o.id) or COTod))
+    if (current.type === 'identifier') {
+      if (next && next.value === '(') {
+        const fnMatch = findBestKeywordMatch(upperVal, COMMON_SQL_FUNCTIONS, { isFunctionPosition: true })
+        if (fnMatch && fnMatch.confidence >= 0.70) {
+          errors.push({
+            line: current.line,
+            column: current.column,
+            message: `Misspelled SQL function '${current.value}(...)' on line ${current.line}`,
+            severity: 'error',
+            suggestion: `Did you mean '${fnMatch.keyword}(...)'?`,
+          })
+          reportedTokenIndices.add(i)
+          continue
+        }
+      } else if (next && next.value === ')' && (!prev || prev.value !== '(')) {
+        // e.g. "COTod)" where opening paren was omitted
+        const fnMatch = findBestKeywordMatch(upperVal, COMMON_SQL_FUNCTIONS, { isFunctionPosition: true })
+        if (fnMatch && fnMatch.confidence >= 0.70) {
+          errors.push({
+            line: current.line,
+            column: current.column,
+            message: `Misspelled function name '${current.value}' before ')' on line ${current.line}`,
+            severity: 'error',
+            suggestion: `Did you mean '${fnMatch.keyword}(...)'?`,
+          })
+          reportedTokenIndices.add(i)
+          continue
+        }
       }
     }
 
@@ -810,6 +866,7 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
             severity: 'error',
             suggestion: `Did you mean '${stmtMatch.keyword}'?`,
           })
+          reportedTokenIndices.add(i)
           continue
         }
       }
@@ -827,6 +884,8 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
             severity: 'error',
             suggestion: `Did you mean '${current.value} JOIN'?`,
           })
+          reportedTokenIndices.add(i)
+          reportedTokenIndices.add(i + 1)
           continue
         }
       }
@@ -843,6 +902,7 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
           severity: 'error',
           suggestion: `Did you mean 'JOIN'?`,
         })
+        reportedTokenIndices.add(i)
         continue
       }
     }
@@ -856,14 +916,15 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
         severity: 'error',
         suggestion: "Did you mean 'LEFT JOIN'?",
       })
+      reportedTokenIndices.add(i)
       continue
     }
 
-    // 4f. Check ORDER / GROUP without BY or with typo in BY (e.g. "ORDER BY", "ORDR BY", "GRUOP BY")
+    // 4f. Check ORDER / GROUP without BY or with typo in BY (e.g. "ORDER BY", "ORDR BY", "GROP Y")
     if (['ORDER', 'GROUP'].includes(upperVal)) {
       if (next && next.type === 'identifier' && next.value.toUpperCase() !== 'BY') {
         const byMatch = findBestKeywordMatch(next.value.toUpperCase(), ['BY'], { expectedKeyword: 'BY' })
-        if (byMatch && byMatch.confidence >= 0.80) {
+        if (byMatch && byMatch.confidence >= 0.70) {
           errors.push({
             line: next.line,
             column: next.column,
@@ -871,6 +932,9 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
             severity: 'error',
             suggestion: `Did you mean '${current.value} BY'?`,
           })
+          reportedTokenIndices.add(i)
+          reportedTokenIndices.add(i + 1)
+          continue
         } else if (!COMMON_USER_IDENTIFIERS.has(next.value.toUpperCase())) {
           errors.push({
             line: current.line,
@@ -879,6 +943,8 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
             severity: 'error',
             suggestion: `Did you mean '${current.value} BY ${next.value}'?`,
           })
+          reportedTokenIndices.add(i)
+          continue
         }
       }
     }
@@ -900,22 +966,39 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
               severity: 'error',
               suggestion: `Did you mean '${dirMatch.keyword}'?`,
             })
+            reportedTokenIndices.add(k)
           }
         }
         k++
       }
     }
 
-    // 4h. Check clause-transition keyword typos (e.g. "SELECT id, name FORM users", "WHEER age > 18", "GRUOP BY")
+    // 4h. Check clause-transition keyword typos (e.g. "SELECT id, name FORM users", "WHEER age > 18", "GROP Y")
     if (current.type === 'identifier') {
-      // Is it in a position where a major clause keyword is expected?
-      const isAfterAliasOrColumn = prev && (prev.type === 'identifier' || prev.type === 'qualified_identifier' || prev.value === ')' || prev.type === 'string_literal' || prev.type === 'number_literal')
-      const isBeforeIdentifierOrCondition = next && (next.type === 'identifier' || next.type === 'qualified_identifier')
+      // Clause keyword fuzzy match
+      const match = findBestKeywordMatch(upperVal, ['FROM', 'WHERE', 'HAVING', 'GROUP', 'ORDER', 'LIMIT', 'JOIN', 'UNION'])
+      if (match && match.confidence >= 0.72) {
+        // If it matched GROUP or ORDER, check if next token is 'BY' or typo of 'BY' (e.g. 'Y')
+        if (['GROUP', 'ORDER'].includes(match.keyword) && next) {
+          const byMatch = findBestKeywordMatch(next.value.toUpperCase(), ['BY'], { expectedKeyword: 'BY' })
+          if (next.value.toUpperCase() === 'BY' || byMatch) {
+            errors.push({
+              line: current.line,
+              column: current.column,
+              message: `Misspelled SQL clause keyword '${current.value} ${next.value}' on line ${current.line}`,
+              severity: 'error',
+              suggestion: `Did you mean '${match.keyword} BY'?`,
+            })
+            reportedTokenIndices.add(i)
+            reportedTokenIndices.add(i + 1)
+            continue
+          }
+        }
 
-      if (isAfterAliasOrColumn && isBeforeIdentifierOrCondition) {
-        // High likelihood of clause keyword (FROM, WHERE, HAVING, GROUP, ORDER, LIMIT, JOIN)
-        const match = findBestKeywordMatch(upperVal, ['FROM', 'WHERE', 'HAVING', 'GROUP', 'ORDER', 'LIMIT', 'JOIN', 'UNION'])
-        if (match && match.confidence >= 0.75) {
+        const isAfterAliasOrColumn = prev && (prev.type === 'identifier' || prev.type === 'qualified_identifier' || prev.value === ')' || prev.type === 'string_literal' || prev.type === 'number_literal')
+        const isBeforeIdentifierOrCondition = next && (next.type === 'identifier' || next.type === 'qualified_identifier')
+
+        if (isAfterAliasOrColumn && isBeforeIdentifierOrCondition) {
           errors.push({
             line: current.line,
             column: current.column,
@@ -923,6 +1006,7 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
             severity: 'error',
             suggestion: `Did you mean '${match.keyword}'?`,
           })
+          reportedTokenIndices.add(i)
           continue
         }
       }
@@ -941,6 +1025,7 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
               severity: 'error',
               suggestion: `Did you mean '${generalMatch.keyword}'?`,
             })
+            reportedTokenIndices.add(i)
           }
         }
       }

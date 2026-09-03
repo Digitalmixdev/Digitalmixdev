@@ -180,8 +180,28 @@ export default function SqlFormatterTool() {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('sql_validator_code', inputSql)
     }
-    router.push(`/tools/sql-validator?code=${encodeURIComponent(inputSql)}`)
+    router.push(`/tools/sql-validator?code=${encodeURIComponent(inputSql)}&dialect=${dialect}`)
   }
+
+  // Read incoming query/dialect from URL params or sessionStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const codeParam = params.get('code')
+      const dialectParam = params.get('dialect') as SqlDialect | null
+      const sessionCode = sessionStorage.getItem('sql_formatter_code')
+      if (codeParam) {
+        setInputSql(codeParam)
+        sessionStorage.removeItem('sql_formatter_code')
+      } else if (sessionCode) {
+        setInputSql(sessionCode)
+        sessionStorage.removeItem('sql_formatter_code')
+      }
+      if (dialectParam) {
+        setDialect(dialectParam)
+      }
+    }
+  }, [])
 
   // Register current input with privacy-first AI Assistant bus
   useEffect(() => {

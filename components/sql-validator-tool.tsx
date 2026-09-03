@@ -29,6 +29,7 @@ import { useLanguage } from '@/lib/i18n/context'
 import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities } from '@/lib/history-service'
 import { registerToolInputGetter } from '@/lib/ai/tool-input-bus'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 import {
   validateSqlCode,
@@ -184,6 +185,7 @@ ORDRE BY price DESC;`,
 ]
 
 export function SqlValidatorTool() {
+  const router = useRouter()
   const { language } = useLanguage()
   const isAr = language === 'ar'
 
@@ -192,6 +194,14 @@ export function SqlValidatorTool() {
   const [copied, setCopied] = useState<boolean>(false)
   const [history, setHistory] = useState<SqlValidatorHistoryItem[]>([])
   const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor')
+
+  const handleOpenInFormatter = () => {
+    if (!sqlInput.trim()) return
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('sql_formatter_code', sqlInput)
+    }
+    router.push(`/tools/sql-formatter?code=${encodeURIComponent(sqlInput)}&dialect=${dialect}`)
+  }
 
   // Load history from localStorage
   useEffect(() => {
@@ -224,6 +234,7 @@ export function SqlValidatorTool() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
       const codeParam = params.get('code')
+      const dialectParam = params.get('dialect') as SqlDialect | null
       const sessionCode = sessionStorage.getItem('sql_validator_code')
       if (codeParam) {
         setSqlInput(codeParam)
@@ -231,6 +242,9 @@ export function SqlValidatorTool() {
       } else if (sessionCode) {
         setSqlInput(sessionCode)
         sessionStorage.removeItem('sql_validator_code')
+      }
+      if (dialectParam) {
+        setDialect(dialectParam)
       }
     }
   }, [])
@@ -561,16 +575,16 @@ export function SqlValidatorTool() {
                       {isAr ? 'إصلاح تلقائي' : 'Auto Fix'}
                     </Button>
 
-                    <Link href={`/tools/sql-formatter`}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="rounded-xl text-xs gap-1 font-semibold text-muted-foreground hover:text-foreground"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        {isAr ? 'منسق SQL' : 'SQL Formatter'}
-                      </Button>
-                    </Link>
+                    <Button
+                      onClick={handleOpenInFormatter}
+                      variant="ghost"
+                      size="sm"
+                      disabled={!sqlInput.trim()}
+                      className="rounded-xl text-xs gap-1 font-semibold text-muted-foreground hover:text-foreground"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                      {isAr ? 'منسق SQL' : 'SQL Formatter'}
+                    </Button>
                   </div>
 
                   <div className="flex items-center gap-2">

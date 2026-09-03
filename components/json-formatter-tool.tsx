@@ -164,6 +164,22 @@ export default function JsonFormatterTool() {
     router.push(`/tools/json-validator?code=${encodeURIComponent(inputJson)}`)
   }
 
+  // Read incoming payload from URL search params or sessionStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const codeParam = params.get('code')
+      const sessionCode = sessionStorage.getItem('json_formatter_code')
+      if (codeParam) {
+        setInputJson(codeParam)
+        sessionStorage.removeItem('json_formatter_code')
+      } else if (sessionCode) {
+        setInputJson(sessionCode)
+        sessionStorage.removeItem('json_formatter_code')
+      }
+    }
+  }, [])
+
   // Register current input with privacy-first AI Assistant bus
   useEffect(() => {
     return registerToolInputGetter('json-formatter', () => inputJson)
