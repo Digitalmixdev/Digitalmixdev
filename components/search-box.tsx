@@ -71,7 +71,7 @@ export function SearchBox() {
             <input
               type="text"
               suppressHydrationWarning
-              placeholder={t('hero.search_placeholder', 'Search tools... (e.g., PDF, QR, SQL, JSON, JWT, UUID)')}
+              placeholder={t('hero.search_placeholder', 'Search +20 developer tools (e.g. JSON, SQL, KPI, Image Converter)...')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setSearchFocused(true)}

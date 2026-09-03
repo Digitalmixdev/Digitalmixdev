@@ -19,6 +19,7 @@ import {
   Calculator,
   Key,
   ShieldCheck,
+  CheckCircle2,
   Hash,
   Binary,
   Clock,
@@ -209,6 +210,8 @@ export function HistoryView({ initialActivities = [], onCountChange }: HistoryVi
   // Helper for icon per tool
   const getToolIcon = (toolId: string) => {
     const id = (toolId || '').toLowerCase()
+    if (id.includes('sql-validator')) return <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+    if (id.includes('json-validator')) return <ShieldCheck className="w-5 h-5 text-emerald-400" />
     if (id.includes('sql')) return <Code className="w-5 h-5 text-sky-400" />
     if (id.includes('doc') || id.includes('office') || id.includes('word'))
       return <FileText className="w-5 h-5 text-blue-400" />

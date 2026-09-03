@@ -27,6 +27,9 @@ import {
   Wrench,
   Sparkles,
   CheckCircle2,
+  ShieldCheck,
+  FileSpreadsheet,
+  TrendingUp,
   ScanLine,
   Palette,
 } from 'lucide-react'
@@ -34,17 +37,22 @@ import { ALL_TOOLS, TOOL_CATEGORIES, CategoryId } from '@/constants/tools'
 import { useLanguage } from '@/lib/i18n/context'
 
 const ICON_MAP: Record<string, any> = {
+  Database,
   Code,
   FileCode,
+  FileSpreadsheet,
   FileText,
   FileArchive,
   File,
   Binary,
   Shield,
+  ShieldCheck,
+  CheckCircle2,
   Fingerprint,
   Key,
   BarChart3,
   Calculator,
+  TrendingUp,
   Layers,
   Maximize2,
   QrCode,

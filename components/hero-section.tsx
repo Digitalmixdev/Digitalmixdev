@@ -53,7 +53,7 @@ export function HeroSection() {
               variants={itemVariants}
             >
               <Sparkles className="h-4 w-4 text-primary" />
-              <span suppressHydrationWarning>{t('hero.badge', '18+ Essential Tools Launched')}</span>
+              <span suppressHydrationWarning>{t('hero.badge', '+20 Essential Tools Launched')}</span>
             </m.div>
 
             {/* Heading */}

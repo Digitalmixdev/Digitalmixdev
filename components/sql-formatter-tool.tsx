@@ -16,6 +16,7 @@ import {
   FileText,
   Zap,
   ShieldCheck,
+  CheckCircle2,
   Lock,
   Layers,
   History,
@@ -643,7 +644,7 @@ export default function SqlFormatterTool() {
               size="sm"
               className="h-10 px-3.5 gap-2 text-xs font-semibold border-border/80 hover:border-primary/50 text-foreground"
             >
-              <ShieldCheck className="h-4 w-4 text-emerald-500" />
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
               <span>{isArabic ? 'مدقق استعلامات SQL' : 'SQL Validator'}</span>
               <ExternalLink className="h-3 w-3 opacity-60" />
             </Button>
@@ -672,7 +673,7 @@ export default function SqlFormatterTool() {
 
           <Link href="/tools/sql-validator">
             <Button size="sm" variant="destructive" className="rounded-xl text-xs gap-1.5 shrink-0 font-bold shadow-xs">
-              <ShieldCheck className="h-3.5 w-3.5" />
+              <CheckCircle2 className="h-3.5 w-3.5" />
               {isArabic ? 'افحص وصلّح بـ مدقق SQL' : 'Debug & Fix with SQL Validator'}
             </Button>
           </Link>

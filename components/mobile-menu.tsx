@@ -32,6 +32,8 @@ import {
   Loader2,
   Settings,
   Palette,
+  CheckCircle2,
+  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -70,6 +72,8 @@ const toolIconMap: Record<string, LucideIcon> = {
   Image: ImageIcon,
   ScanLine,
   Palette,
+  CheckCircle2,
+  ShieldCheck,
 }
 
 interface MobileMenuProps {
@@ -88,7 +92,7 @@ export function MobileMenu({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { user, logout } = useAuth()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const totalToolsCount = categories.reduce((sum, c) => sum + (c.tools?.length || 0), 0) || 18
+  const totalToolsCount = categories.reduce((sum, c) => sum + (c.tools?.length || 0), 0) || 20
 
   useEffect(() => {
     if (mobileMenuOpen) {

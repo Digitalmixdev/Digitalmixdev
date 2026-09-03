@@ -20,8 +20,9 @@ export async function POST(req: NextRequest) {
     const mimeType = imageFile.type || 'image/jpeg'
 
     const ai = new GoogleGenAI({ apiKey: rawApiKey })
-    const rawModel = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim().replace(/['"]/g, '')
-    const selectedModel = rawModel.startsWith('gemini-3') ? 'gemini-2.5-flash' : rawModel
+    const rawModel = (process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite').trim().replace(/['"]/g, '')
+    const deprecated = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']
+    const selectedModel = deprecated.includes(rawModel) ? 'gemini-3.1-flash-lite' : rawModel
 
     const prompt = `You are an expert document reconstruction and OCR engine.
 Extract ALL text and visual document structure from this document/image into clean HTML markup.

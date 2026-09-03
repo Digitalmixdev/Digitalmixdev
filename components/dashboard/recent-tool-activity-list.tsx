@@ -18,6 +18,7 @@ import {
   FileSpreadsheet,
   Key,
   ShieldCheck,
+  CheckCircle2,
   Hash,
   Binary,
   FileText,
@@ -40,6 +41,10 @@ interface RecentToolActivityListProps {
 // Icon helper mapped to toolId or category
 function getToolIcon(toolId?: string, category?: string) {
   switch (toolId) {
+    case 'sql-validator':
+      return CheckCircle2
+    case 'json-validator':
+      return ShieldCheck
     case 'sql-formatter':
       return Code
     case 'json-formatter':

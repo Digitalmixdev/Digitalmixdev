@@ -9,9 +9,28 @@ import {
   Code,
   Calculator,
   FileText,
+  FileCode,
+  FileSpreadsheet,
+  Binary,
+  Shield,
+  Fingerprint,
+  Key,
+  BarChart3,
+  TrendingUp,
+  Layers,
+  Maximize2,
+  QrCode,
+  FileArchive,
+  Flame,
+  RefreshCw,
+  Image as ImageIcon,
+  ScanLine,
+  Palette,
+  CheckCircle2,
+  ShieldCheck,
   ArrowRight,
   Rocket,
-  Flame,
+  type LucideIcon,
 } from "lucide-react"
 import { TOOL_CATEGORIES, ToolDefinition, ToolCategory, CategoryId } from "@/constants/tools"
 import { useLanguage } from "@/lib/i18n/context"
@@ -21,6 +40,32 @@ const iconMap: Record<CategoryId, typeof Database> = {
   developer: Code,
   calculators: Calculator,
   files: FileText,
+}
+
+const toolIconMap: Record<string, LucideIcon> = {
+  Database,
+  Code,
+  FileCode,
+  FileSpreadsheet,
+  FileText,
+  Binary,
+  Shield,
+  Fingerprint,
+  Key,
+  BarChart3,
+  Calculator,
+  TrendingUp,
+  Layers,
+  Maximize2,
+  QrCode,
+  FileArchive,
+  Flame,
+  RefreshCw,
+  Image: ImageIcon,
+  ScanLine,
+  Palette,
+  CheckCircle2,
+  ShieldCheck,
 }
 
 const categoryStyles: Record<CategoryId, {
@@ -135,6 +180,7 @@ export function CategoriesGrid() {
                         {category.tools.map((tool) => {
                           const localizedToolName = t(`tool.${tool.id.replace(/-/g, '_')}`, tool.name)
                           const localizedToolDesc = t(`tool.${tool.id.replace(/-/g, '_')}_desc`, tool.description)
+                          const ToolIcon = toolIconMap[tool.icon] || Code
 
                           return (
                             <button
@@ -152,8 +198,9 @@ export function CategoriesGrid() {
                               }`}
                               title={localizedToolDesc}
                             >
-                              <span className="flex items-center gap-1" suppressHydrationWarning>
-                                {localizedToolName}
+                              <span className="flex items-center gap-1.5" suppressHydrationWarning>
+                                <ToolIcon className="h-3 w-3 shrink-0 opacity-75" />
+                                <span>{localizedToolName}</span>
                                 {!tool.active && (
                                   <span className="text-[9px] opacity-70" suppressHydrationWarning>{t('nav.coming_soon', 'Soon')}</span>
                                 )}

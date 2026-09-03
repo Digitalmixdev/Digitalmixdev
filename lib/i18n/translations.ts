@@ -30,13 +30,13 @@ export const translations: Record<Language, TranslationDictionary> = {
     'nav.coming_soon': 'Soon',
 
     // Hero Section
-    'hero.badge': '18+ Essential Tools Launched',
+    'hero.badge': '+20 Essential Tools Launched',
     'hero.title_start': 'Free Digital Tools to',
     'hero.title_highlight': 'Simplify',
     'hero.title_end': 'Your Data & Dev Workflow',
     'hero.subtitle':
       'Powerful, privacy-focused utilities for developers. No sign-up required. Process files locally, convert data instantly, and boost your productivity.',
-    'hero.search_placeholder': 'Search 18+ developer tools (e.g. JSON, SQL, KPI, Image Converter)...',
+    'hero.search_placeholder': 'Search +20 developer tools (e.g. JSON, SQL, KPI, Image Converter)...',
     'hero.popular': 'Popular:',
 
     // Common Actions
@@ -426,13 +426,13 @@ export const translations: Record<Language, TranslationDictionary> = {
     'nav.coming_soon': 'قريباً',
 
     // Hero Section
-    'hero.badge': 'تم إطلاق أكثر من 18 أداة أساسية',
+    'hero.badge': 'تم إطلاق أكثر من 20 أداة أساسية',
     'hero.title_start': 'أدوات رقمية مجانية',
     'hero.title_highlight': 'لتبسيط',
     'hero.title_end': 'سير عملك والتعامل مع البيانات',
     'hero.subtitle':
       'أدوات قوية وسريعة تحافظ على خصوصيتك بالكامل. بدون تسجيل، معالجة الملفات محلياً داخل جهازك دون رفعها لأي سيرفر، تحويل فوري وزيادة في الإنتاجية.',
-    'hero.search_placeholder': 'ابحث بين أكثر من 18 أداة (مثل: محول الصور، دمج PDF، منسق JSON، حاسبة KPI)...',
+    'hero.search_placeholder': 'ابحث بين أكثر من 20 أداة (مثل: محول الصور، دمج PDF، منسق JSON، حاسبة KPI)...',
     'hero.popular': 'الأكثر طلباً:',
 
     // Common Actions

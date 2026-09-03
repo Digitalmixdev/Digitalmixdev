@@ -185,7 +185,7 @@ export const DIGITALMIX_TOOLS_KNOWLEDGE: ToolKnowledgeItem[] = [
       'انسخ كود JSON السليم أو قم بتنزيله كملف.',
     ],
     keywords: ['json', 'validator', 'syntax', 'check', 'lint', 'auto fix', 'errors', 'audit'],
-    relatedTools: ['json-formatter', 'sql-validator', 'csv-json'],
+    relatedTools: ['csv-json', 'json-formatter', 'sql-formatter'],
     supportsCodeAnalysis: true,
     codeType: 'json',
   },

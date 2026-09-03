@@ -152,8 +152,8 @@ const toolMeta: ToolMetadata = {
       a: 'No. All parsing, syntax checks, and validation logic execute 100% locally in your browser runtime. Your queries and schema structures remain strictly private.',
     },
     {
-      q: 'Can I fix or format my SQL query after validating?',
-      a: 'Yes! Click the "Auto-Fix & Format" button to clean up syntax, fix keyword casing, and beautify your query instantly.',
+      q: 'Can I fix my SQL query after validating?',
+      a: 'Yes! Click the "Auto Fix" button to automatically fix misspelled keywords, function typos, punctuation mistakes, and syntax errors in-place without altering your layout.',
     },
   ],
   faqs_ar: [
@@ -166,13 +166,31 @@ const toolMeta: ToolMetadata = {
       a: 'لا. كل عمليات الفحص والتدقيق تتم بنسبة 100% داخل متصفحك المحلي دون أي نقل للبيانات عبر الشبكة.',
     },
     {
-      q: 'هل يمكنني تنسيق الاستعلام بعد الفحص؟',
-      a: 'نعم! اضغط على زر "إصلاح وتنسيق تلقائي" لتصحيح الأخطاء الإملائية وتجميل الكود فوراً.',
+      q: 'هل يمكنني إصلاح الاستعلام بعد الفحص؟',
+      a: 'نعم! اضغط على زر "إصلاح تلقائي" لتصحيح الأخطاء الإملائية، وتعديل الترقيم، وضبط الاستعلام فورياً مع الحفاظ على تنسيقك.',
     },
   ],
 }
 
 const SAMPLE_QUERIES: { label: string; label_ar: string; dialect: SqlDialect; sql: string }[] = [
+  {
+    label: 'Query with Typos & Trailing Colon',
+    label_ar: 'استعلام به أخطاء وترقيم خاطئ',
+    dialect: 'postgresql',
+    sql: `SElET u.id,
+u.name,
+COUNT(o.id) AS total_orders,
+SM (o.amount) AS total_spent
+FROM
+  users u LET
+  JOIN orders o ON u.id = o.user_id WHEE u.status = 'active'
+  AND o.created_at >= '2025-01-01'
+GROUP BY
+  u.id,
+  u.name HAVIG CoUNT(o.id) > 2 ORDR BY total_spent DESC
+LIMIT
+  50:`,
+  },
   {
     label: 'Valid Complex Query',
     label_ar: 'استعلام معقد صحيح',
@@ -213,32 +231,263 @@ ORDRE BY price DESC;`,
   },
 ]
 
-// Common misspelled SQL keywords lookup
-const TYPO_MAP: Record<string, string> = {
+// Comprehensive dictionary of common SQL keyword typos
+const KNOWN_TYPOS: Record<string, string> = {
+  // SELECT typos
+  SELET: 'SELECT',
+  SELEt: 'SELECT',
+  SElET: 'SELECT',
   SEELCT: 'SELECT',
   SELEC: 'SELECT',
   SLCT: 'SELECT',
   SELCT: 'SELECT',
+  SLEECT: 'SELECT',
+  SLECT: 'SELECT',
+  SELETC: 'SELECT',
+
+  // FROM typos
   FORM: 'FROM',
   FROMM: 'FROM',
+  FRM: 'FROM',
+  FOM: 'FROM',
+  FRO: 'FROM',
+  FORMM: 'FROM',
+
+  // WHERE typos
+  WHEE: 'WHERE',
   WHER: 'WHERE',
   WHEREER: 'WHERE',
   WHERER: 'WHERE',
-  INSRT: 'INSERT',
-  INSERTT: 'INSERT',
-  UPDAT: 'UPDATE',
-  UPDT: 'UPDATE',
-  DELTE: 'DELETE',
-  DELET: 'DELETE',
-  JOIM: 'JOIN',
-  JION: 'JOIN',
+  WEHRE: 'WHERE',
+  WHEREE: 'WHERE',
+  WHRE: 'WHERE',
+  WERE: 'WHERE',
+
+  // HAVING typos
+  HAVIG: 'HAVING',
+  HAVNG: 'HAVING',
+  HAVIN: 'HAVING',
+  HAVG: 'HAVING',
+  HVING: 'HAVING',
+
+  // ORDER typos
+  ORDR: 'ORDER',
   ORDRE: 'ORDER',
   ODER: 'ORDER',
+  ORER: 'ORDER',
+  ORDRR: 'ORDER',
+
+  // GROUP typos
   GRP: 'GROUP',
   GROP: 'GROUP',
-  HAVNG: 'HAVING',
+  GROPU: 'GROUP',
+  GROPP: 'GROUP',
+  GROU: 'GROUP',
+
+  // JOIN & JOIN types
+  JION: 'JOIN',
+  JOIM: 'JOIN',
+  JOINN: 'JOIN',
+  JON: 'JOIN',
+  LET: 'LEFT',
+  LFFT: 'LEFT',
+  LEET: 'LEFT',
+  LFT: 'LEFT',
+  RIGTH: 'RIGHT',
+  RGHT: 'RIGHT',
+  RIGH: 'RIGHT',
+  INER: 'INNER',
+  INNR: 'INNER',
+  INERR: 'INNER',
+  CROS: 'CROSS',
+  FUL: 'FULL',
+  OUTR: 'OUTER',
+
+  // INSERT / UPDATE / DELETE / VALUES
+  INSRT: 'INSERT',
+  INSERTT: 'INSERT',
+  ISNERT: 'INSERT',
+  UPDAT: 'UPDATE',
+  UPDT: 'UPDATE',
+  UPDTE: 'UPDATE',
+  UPADTE: 'UPDATE',
+  DELTE: 'DELETE',
+  DELET: 'DELETE',
+  DLETE: 'DELETE',
+  DELEET: 'DELETE',
   VALUS: 'VALUES',
   VALUSE: 'VALUES',
+  VAULES: 'VALUES',
+  VALS: 'VALUES',
+
+  // DISTINCT / LIMIT / OFFSET / BETWEEN
+  DISTINT: 'DISTINCT',
+  DISTINC: 'DISTINCT',
+  DISTINCTT: 'DISTINCT',
+  DISTICNT: 'DISTINCT',
+  LIMT: 'LIMIT',
+  LMIT: 'LIMIT',
+  LIMTT: 'LIMIT',
+  OFFST: 'OFFSET',
+  OFSET: 'OFFSET',
+  BETWEN: 'BETWEEN',
+  BTWEEN: 'BETWEEN',
+}
+
+// Function typos before "("
+const KNOWN_FUNCTION_TYPOS: Record<string, string> = {
+  SM: 'SUM',
+  SUMM: 'SUM',
+  SU: 'SUM',
+  CONT: 'COUNT',
+  COUTN: 'COUNT',
+  CUONT: 'COUNT',
+  CNUT: 'COUNT',
+  AVRG: 'AVG',
+  AVARAGE: 'AVG',
+  AVERAGE: 'AVG',
+  MAXX: 'MAX',
+  MINN: 'MIN',
+  COALESC: 'COALESCE',
+  COALESE: 'COALESCE',
+  ROUNDD: 'ROUND',
+  FLOORR: 'FLOOR',
+  CONCT: 'CONCAT',
+  SUBSTRG: 'SUBSTRING',
+}
+
+const COMMON_SQL_FUNCS = [
+  'COUNT', 'SUM', 'AVG', 'MIN', 'MAX', 'COALESCE', 'ROUND', 'FLOOR', 'CEIL',
+  'ABS', 'CONCAT', 'SUBSTRING', 'TRIM', 'UPPER', 'LOWER', 'LENGTH', 'NOW'
+]
+
+const MAJOR_KEYWORDS = [
+  'SELECT', 'FROM', 'WHERE', 'GROUP', 'HAVING', 'ORDER', 'LIMIT', 'OFFSET',
+  'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'CROSS', 'FULL', 'INSERT',
+  'UPDATE', 'DELETE', 'VALUES', 'DISTINCT', 'BETWEEN'
+]
+
+// Levenshtein distance for fuzzy typo catching
+function getLevenshteinDistance(a: string, b: string): number {
+  const an = a.length
+  const bn = b.length
+  if (an === 0) return bn
+  if (bn === 0) return an
+
+  const matrix: number[][] = []
+  for (let i = 0; i <= bn; i++) matrix[i] = [i]
+  for (let j = 0; j <= an; j++) matrix[0][j] = j
+
+  for (let i = 1; i <= bn; i++) {
+    for (let j = 1; j <= an; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1]
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        )
+      }
+    }
+  }
+  return matrix[bn][an]
+}
+
+// Auto-Fix implementation: fixes typos, punctuation & clauses without altering user formatting
+export function autoFixSqlCode(sql: string, dialect: SqlDialect): {
+  fixedSql: string
+  fixCount: number
+  fixesApplied: string[]
+} {
+  let fixed = sql
+  const fixesApplied: string[] = []
+  let fixCount = 0
+
+  // 1. Fix trailing colon ":" at the very end of statement (e.g. "50:" -> "50;")
+  if (/(?<!:):(?!\:)\s*$/m.test(fixed)) {
+    fixed = fixed.replace(/(?<!:):(?!\:)\s*$/m, ';')
+    fixesApplied.push("Replaced trailing colon ':' with ';'")
+    fixCount++
+  }
+
+  // 1b. Fix trailing colons before newlines on numeric/keyword lines (e.g. "50:\n" or "DESC:\n")
+  const inlineTrailingColon = /([0-9a-zA-Z_])\s*:\s*(\r?\n)/g
+  if (inlineTrailingColon.test(fixed)) {
+    fixed = fixed.replace(inlineTrailingColon, '$1;$2')
+    fixesApplied.push("Replaced invalid trailing colon ':' with ';'")
+    fixCount++
+  }
+
+  // 2. Fix multi-word clause typos before single word replace
+  // "LET JOIN" -> "LEFT JOIN" (both same line and across newlines)
+  const letJoinRegex = /\bLET\s+(\r?\n\s*)?(JOIN\b)/gi
+  if (letJoinRegex.test(fixed)) {
+    fixed = fixed.replace(letJoinRegex, (match, nl, joinWord) => {
+      fixCount++
+      return nl ? `LEFT ${nl}${joinWord}` : `LEFT ${joinWord}`
+    })
+    fixesApplied.push("Corrected 'LET JOIN' to 'LEFT JOIN'")
+  }
+
+  // "ORDR BY" / "ODER BY" / "ORDRE BY" -> "ORDER BY"
+  const ordrByRegex = /\b(?:ORDR|ODER|ORDRE)\s+BY\b/gi
+  if (ordrByRegex.test(fixed)) {
+    fixed = fixed.replace(ordrByRegex, 'ORDER BY')
+    fixesApplied.push("Corrected 'ORDR BY' to 'ORDER BY'")
+    fixCount++
+  }
+
+  // "GROP BY" / "GRP BY" -> "GROUP BY"
+  const gropByRegex = /\b(?:GROP|GRP|GROPU)\s+BY\b/gi
+  if (gropByRegex.test(fixed)) {
+    fixed = fixed.replace(gropByRegex, 'GROUP BY')
+    fixesApplied.push("Corrected 'GROP BY' to 'GROUP BY'")
+    fixCount++
+  }
+
+  // 3. Fix misspelled functions before "(" (e.g. "SM (o.amount)" -> "SUM (o.amount)")
+  Object.entries(KNOWN_FUNCTION_TYPOS).forEach(([typo, correct]) => {
+    const fnRegex = new RegExp(`\\b${typo}\\s*(?=\\()`, 'gi')
+    if (fnRegex.test(fixed)) {
+      fixed = fixed.replace(fnRegex, (match) => {
+        fixCount++
+        return correct + (match.includes(' ') ? ' ' : '')
+      })
+      fixesApplied.push(`Corrected function '${typo}(...)' to '${correct}(...)'`)
+    }
+  })
+
+  // 4. Fix individual misspelled keywords
+  Object.entries(KNOWN_TYPOS).forEach(([typo, correct]) => {
+    // Skip if handled by multi-word checks
+    if (['LET', 'ORDR', 'ODER', 'ORDRE', 'GROP', 'GRP'].includes(typo)) return
+
+    const kwRegex = new RegExp(`\\b${typo}\\b`, 'gi')
+    if (kwRegex.test(fixed)) {
+      fixed = fixed.replace(kwRegex, correct)
+      fixesApplied.push(`Corrected keyword '${typo}' to '${correct}'`)
+      fixCount++
+    }
+  })
+
+  // 5. Trailing commas before major clauses
+  const trailingCommaRegex = /,\s*(\r?\n\s*)?(FROM|WHERE|GROUP\s+BY|HAVING|ORDER\s+BY|LIMIT)\b/gi
+  if (trailingCommaRegex.test(fixed)) {
+    fixed = fixed.replace(trailingCommaRegex, '$1$2')
+    fixesApplied.push('Removed trailing comma before major SQL clause')
+    fixCount++
+  }
+
+  // 6. Duplicate commas ",," -> ","
+  const dupCommaRegex = /,(?:\s*,)+/g
+  if (dupCommaRegex.test(fixed)) {
+    fixed = fixed.replace(dupCommaRegex, ',')
+    fixesApplied.push('Cleaned duplicate commas')
+    fixCount++
+  }
+
+  return { fixedSql: fixed, fixCount, fixesApplied }
 }
 
 export function validateSqlCode(sql: string, dialect: SqlDialect): SqlValidationResult {
@@ -336,7 +585,7 @@ export function validateSqlCode(sql: string, dialect: SqlDialect): SqlValidation
   if (inSingleQuote) {
     errors.push({
       line: lines.length,
-      message: 'Unclosed single quote (\') string literal',
+      message: "Unclosed single quote (') string literal",
       severity: 'error',
       suggestion: "Add a closing single quote (') to terminate the string literal.",
     })
@@ -374,33 +623,188 @@ export function validateSqlCode(sql: string, dialect: SqlDialect): SqlValidation
     })
   }
 
-  // 2. Keyword Typos and Spelling Check
+  // 2. Trailing Colon Check (e.g. "50:", "LIMIT 50:", "DESC:")
   lines.forEach((lineStr, idx) => {
     const lineNum = idx + 1
-    // strip comments
-    const codePart = lineStr.split('--')[0]
-    const words = codePart.split(/[\s,();]+/).map((w) => w.trim().toUpperCase())
+    const codePart = lineStr.split('--')[0].trim()
+    if (!codePart) return
 
-    words.forEach((w) => {
-      if (TYPO_MAP[w]) {
+    // Colon at the end of line that is not part of postgres cast "::" and not a parameter ":param"
+    if (/(?<!:):(?!\:)\s*$/.test(codePart)) {
+      errors.push({
+        line: lineNum,
+        message: `Syntax error: Invalid trailing colon ':' found at line ${lineNum}`,
+        severity: 'error',
+        suggestion: "SQL statements do not end with a colon ':'. Use a semicolon ';' or remove it.",
+      })
+    }
+  })
+
+  // 3. Multi-word clause and JOIN typo checks
+  // Check "LET JOIN" (same line or across consecutive lines)
+  lines.forEach((lineStr, idx) => {
+    const lineNum = idx + 1
+    const codePart = lineStr.split('--')[0]
+
+    // "LET" at end of line followed by "JOIN" on next line
+    if (/\bLET\s*$/i.test(codePart.trim())) {
+      const nextLine = (lines[idx + 1] || '').split('--')[0].trim()
+      if (/^JOIN\b/i.test(nextLine)) {
         errors.push({
           line: lineNum,
-          message: `Misspelled SQL keyword '${w}' found on line ${lineNum}`,
+          message: `Misspelled JOIN keyword 'LET' on line ${lineNum}`,
           severity: 'error',
-          suggestion: `Did you mean '${TYPO_MAP[w]}'?`,
+          suggestion: "Did you mean 'LEFT JOIN'?",
         })
       }
-    })
+    } else if (/\bLET\s+JOIN\b/i.test(codePart)) {
+      errors.push({
+        line: lineNum,
+        message: `Misspelled JOIN keyword 'LET JOIN' on line ${lineNum}`,
+        severity: 'error',
+        suggestion: "Did you mean 'LEFT JOIN'?",
+      })
+    }
 
-    // Check trailing comma before FROM / WHERE / JOIN
+    // "ORDR BY" / "ODER BY"
+    if (/\b(ORDR|ODER|ORDRE)\s+BY\b/i.test(codePart)) {
+      const match = codePart.match(/\b(ORDR|ODER|ORDRE)\s+BY\b/i)
+      errors.push({
+        line: lineNum,
+        message: `Misspelled SQL clause '${match ? match[1] : 'ORDR'} BY' on line ${lineNum}`,
+        severity: 'error',
+        suggestion: "Did you mean 'ORDER BY'?",
+      })
+    }
+
+    // "GROP BY" / "GRP BY"
+    if (/\b(GROP|GRP|GROPU)\s+BY\b/i.test(codePart)) {
+      const match = codePart.match(/\b(GROP|GRP|GROPU)\s+BY\b/i)
+      errors.push({
+        line: lineNum,
+        message: `Misspelled SQL clause '${match ? match[1] : 'GROP'} BY' on line ${lineNum}`,
+        severity: 'error',
+        suggestion: "Did you mean 'GROUP BY'?",
+      })
+    }
+  })
+
+  // 4. Function typos check before "(" (e.g., "SM (o.amount)")
+  lines.forEach((lineStr, idx) => {
+    const lineNum = idx + 1
+    const codePart = lineStr.split('--')[0]
+
+    // Find function-call patterns: word followed by optional space then "("
+    const fnRegex = /\b([a-zA-Z_][a-zA-Z0-9_]*)\s*(?=\()/g
+    let fnMatch
+    while ((fnMatch = fnRegex.exec(codePart)) !== null) {
+      const fnName = fnMatch[1]
+      const upperFn = fnName.toUpperCase()
+
+      if (KNOWN_FUNCTION_TYPOS[upperFn]) {
+        errors.push({
+          line: lineNum,
+          message: `Misspelled SQL function '${fnName}(...)' on line ${lineNum}`,
+          severity: 'error',
+          suggestion: `Did you mean '${KNOWN_FUNCTION_TYPOS[upperFn]}(...)'?`,
+        })
+      } else if (!COMMON_SQL_FUNCS.includes(upperFn) && upperFn.length >= 2 && upperFn.length <= 6) {
+        // Check fuzzy distance to common functions
+        for (const validFn of COMMON_SQL_FUNCS) {
+          const dist = getLevenshteinDistance(upperFn, validFn)
+          if (dist === 1 || (dist === 2 && upperFn.length >= 5)) {
+            errors.push({
+              line: lineNum,
+              message: `Potentially misspelled SQL function '${fnName}(...)' on line ${lineNum}`,
+              severity: 'error',
+              suggestion: `Did you mean '${validFn}(...)'?`,
+            })
+            break
+          }
+        }
+      }
+    }
+  })
+
+  // 5. Keyword Typos and Spelling Check per word
+  lines.forEach((lineStr, idx) => {
+    const lineNum = idx + 1
+    const codePart = lineStr.split('--')[0]
+
+    // Tokenize line while capturing context
+    const tokenRegex = /\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g
+    let match
+    while ((match = tokenRegex.exec(codePart)) !== null) {
+      const word = match[1]
+      const upperWord = word.toUpperCase()
+      const matchIndex = match.index
+
+      // Check if word is preceded by dot (table.column) or followed by dot
+      const prevChar = matchIndex > 0 ? codePart[matchIndex - 1] : ''
+      const nextChar = matchIndex + word.length < codePart.length ? codePart[matchIndex + word.length] : ''
+      if (prevChar === '.' || nextChar === '.') {
+        // This is a qualified identifier like u.id or o.amount, skip keyword typo check
+        continue
+      }
+
+      // If next non-space char is '(', this is a function call which was checked in step 4
+      const afterSlice = codePart.slice(matchIndex + word.length).trim()
+      if (afterSlice.startsWith('(')) {
+        continue
+      }
+
+      // Check known keyword typos dictionary
+      if (KNOWN_TYPOS[upperWord]) {
+        // Skip if already reported as part of a multi-word combo (e.g. LET before JOIN, ORDR before BY)
+        if (upperWord === 'LET' && /\bLET\s+(\r?\n\s*)?JOIN\b/i.test(sql)) continue
+        if (['ORDR', 'ODER', 'ORDRE'].includes(upperWord) && /\b(?:ORDR|ODER|ORDRE)\s+BY\b/i.test(sql)) continue
+        if (['GROP', 'GRP'].includes(upperWord) && /\b(?:GROP|GRP)\s+BY\b/i.test(sql)) continue
+
+        errors.push({
+          line: lineNum,
+          message: `Misspelled SQL keyword '${word}' on line ${lineNum}`,
+          severity: 'error',
+          suggestion: `Did you mean '${KNOWN_TYPOS[upperWord]}'?`,
+        })
+      } else if (!MAJOR_KEYWORDS.includes(upperWord) && upperWord.length >= 4) {
+        // Fuzzy check against major keywords
+        for (const kw of MAJOR_KEYWORDS) {
+          const dist = getLevenshteinDistance(upperWord, kw)
+          if (dist === 1) {
+            errors.push({
+              line: lineNum,
+              message: `Misspelled SQL keyword '${word}' on line ${lineNum}`,
+              severity: 'error',
+              suggestion: `Did you mean '${kw}'?`,
+            })
+            break
+          }
+        }
+      }
+    }
+
+    // Check duplicate commas ",,"
+    if (/,(?:\s*,)+/.test(codePart)) {
+      errors.push({
+        line: lineNum,
+        message: `Syntax error: Duplicate comma found on line ${lineNum}`,
+        severity: 'error',
+        suggestion: 'Remove the duplicate comma.',
+      })
+    }
+
+    // Check trailing comma before FROM / WHERE / JOIN / GROUP BY / HAVING / ORDER BY
     if (/,\s*$/i.test(codePart.trim())) {
-      const nextLine = lines[idx + 1]?.trim().toUpperCase() || ''
+      const nextLine = (lines[idx + 1] || '').split('--')[0].trim().toUpperCase()
       if (
         nextLine.startsWith('FROM') ||
         nextLine.startsWith('WHERE') ||
         nextLine.startsWith('JOIN') ||
+        nextLine.startsWith('LEFT') ||
+        nextLine.startsWith('RIGHT') ||
         nextLine.startsWith('GROUP BY') ||
-        nextLine.startsWith('HAVING')
+        nextLine.startsWith('HAVING') ||
+        nextLine.startsWith('ORDER BY')
       ) {
         errors.push({
           line: lineNum,
@@ -412,29 +816,29 @@ export function validateSqlCode(sql: string, dialect: SqlDialect): SqlValidation
     }
   })
 
-  // 3. Statement Type & Clause Analysis
+  // 6. Statement Type & Clause Analysis
   const upperSql = sql.toUpperCase()
   let statementType = 'UNKNOWN'
-  if (/\bSELECT\b/.test(upperSql)) statementType = 'SELECT'
-  else if (/\bINSERT\b/.test(upperSql)) statementType = 'INSERT'
-  else if (/\bUPDATE\b/.test(upperSql)) statementType = 'UPDATE'
-  else if (/\bDELETE\b/.test(upperSql)) statementType = 'DELETE'
+  if (/\bSELECT\b/.test(upperSql) || /\b(SElET|SELET|SEELCT|SLCT|SELCT)\b/i.test(sql)) statementType = 'SELECT'
+  else if (/\bINSERT\b/.test(upperSql) || /\b(INSRT|INSERTT)\b/i.test(sql)) statementType = 'INSERT'
+  else if (/\bUPDATE\b/.test(upperSql) || /\b(UPDAT|UPDT)\b/i.test(sql)) statementType = 'UPDATE'
+  else if (/\bDELETE\b/.test(upperSql) || /\b(DELTE|DELET)\b/i.test(sql)) statementType = 'DELETE'
   else if (/\bCREATE\b/.test(upperSql)) statementType = 'CREATE'
   else if (/\bALTER\b/.test(upperSql)) statementType = 'ALTER'
   else if (/\bDROP\b/.test(upperSql)) statementType = 'DROP'
 
   const clauseBreakdown = {
-    select: /\bSELECT\b/.test(upperSql),
-    from: /\bFROM\b/.test(upperSql),
-    join: /\b(LEFT|RIGHT|INNER|OUTER|CROSS|FULL)?\s*JOIN\b/.test(upperSql),
-    where: /\bWHERE\b/.test(upperSql),
-    groupBy: /\bGROUP\s+BY\b/.test(upperSql),
-    having: /\bHAVING\b/.test(upperSql),
-    orderBy: /\bORDER\s+BY\b/.test(upperSql),
-    limit: /\b(LIMIT|TOP|FETCH)\b/.test(upperSql),
+    select: /\bSELECT\b/.test(upperSql) || /\b(SElET|SELET|SEELCT|SLCT)\b/i.test(sql),
+    from: /\bFROM\b/.test(upperSql) || /\b(FORM|FROMM)\b/i.test(sql),
+    join: /\b(LEFT|RIGHT|INNER|OUTER|CROSS|FULL|LET)?\s*JOIN\b/i.test(sql),
+    where: /\bWHERE\b/.test(upperSql) || /\b(WHEE|WHER|WEHRE)\b/i.test(sql),
+    groupBy: /\bGROUP\s+BY\b/.test(upperSql) || /\b(GROP|GRP)\s+BY\b/i.test(sql),
+    having: /\bHAVING\b/.test(upperSql) || /\b(HAVIG|HAVNG)\b/i.test(sql),
+    orderBy: /\bORDER\s+BY\b/.test(upperSql) || /\b(ORDR|ODER|ORDRE)\s+BY\b/i.test(sql),
+    limit: /\b(LIMIT|TOP|FETCH|LIMT)\b/i.test(sql),
   }
 
-  // 4. Specific Structural Checks & Risk Audits
+  // 7. Specific Structural Checks & Risk Audits
   if (statementType === 'UPDATE') {
     if (!clauseBreakdown.where) {
       warnings.push({
@@ -523,13 +927,13 @@ export function validateSqlCode(sql: string, dialect: SqlDialect): SqlValidation
     }
   }
 
-  // 5. Run sql-formatter parser as a secondary engine validator
+  // 8. Run secondary dialect parser check
   try {
     const formatted = format(sql, { language: dialect === 'tsql' ? 'sql' : dialect === 'plsql' ? 'plsql' : dialect })
     if (formatted && errors.length === 0) {
       info.push({
         line: 1,
-        message: `Query parsed & formatted cleanly for dialect: ${dialect.toUpperCase()}`,
+        message: `Query parsed cleanly for dialect: ${dialect.toUpperCase()}`,
         severity: 'info',
       })
     }
@@ -548,9 +952,9 @@ export function validateSqlCode(sql: string, dialect: SqlDialect): SqlValidation
   // Extract Table Names
   const tablesDetected: string[] = []
   const tableRegex = /\b(?:FROM|JOIN|INTO|UPDATE|TABLE)\s+([`"']?[a-zA-Z0-9_.-]+[`"']?)/gi
-  let match
-  while ((match = tableRegex.exec(sql)) !== null) {
-    const tbl = match[1].replace(/[`"']/g, '')
+  let tableMatch
+  while ((tableMatch = tableRegex.exec(sql)) !== null) {
+    const tbl = tableMatch[1].replace(/[`"']/g, '')
     if (tbl && !['SELECT', 'WHERE', 'SET', 'VALUES', '(', ')'].includes(tbl.toUpperCase()) && !tablesDetected.includes(tbl)) {
       tablesDetected.push(tbl)
     }
@@ -663,27 +1067,27 @@ export function SqlValidatorTool() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // Auto-Fix
+  // Auto-Fix (Fixes typos, syntax, and punctuation in-place WITHOUT formatting)
   const handleAutoFix = () => {
     if (!sqlInput.trim()) return
-    let fixed = sqlInput
 
-    // Fix misspelled keywords
-    Object.entries(TYPO_MAP).forEach(([typo, correct]) => {
-      const reg = new RegExp(`\\b${typo}\\b`, 'gi')
-      fixed = fixed.replace(reg, correct)
-    })
+    const { fixedSql, fixCount, fixesApplied } = autoFixSqlCode(sqlInput, dialect)
 
-    // Try formatting
-    try {
-      fixed = format(fixed, { language: dialect === 'tsql' ? 'sql' : dialect === 'plsql' ? 'plsql' : dialect })
-      toast.success(isAr ? 'تم تصحيح الأخطاء وتنسيق الكود تلقائياً' : 'Auto-fixed typos & formatted query successfully!')
-    } catch {
-      toast.info(isAr ? 'تم تصحيح الأخطاء الإملائية للكلمات المفتاحية' : 'Fixed keyword typos in query!')
+    if (fixCount > 0) {
+      toast.success(
+        isAr
+          ? `تم الإصلاح التلقائي بنجاح (${fixCount} أخطاء تم تصحيحها)!`
+          : `Auto-fixed ${fixCount} issue(s) successfully without reformatting!`
+      )
+    } else {
+      toast.info(
+        isAr
+          ? 'لم يتم العثور على أخطاء إملائية أو ترقيم تحتاج لإصلاح.'
+          : 'No typo or punctuation fixes needed in this query.'
+      )
     }
 
-    setSqlInput(fixed)
-    handleValidate()
+    setSqlInput(fixedSql)
   }
 
   // Download SQL File
@@ -930,10 +1334,11 @@ export function SqlValidatorTool() {
                       variant="secondary"
                       size="sm"
                       disabled={!sqlInput.trim()}
-                      className="rounded-xl text-xs gap-1.5 font-bold hover:bg-primary/10 hover:text-primary transition-all"
+                      className="rounded-xl text-xs gap-1.5 font-bold hover:bg-primary/10 hover:text-primary transition-all shadow-xs"
+                      title={isAr ? 'إصلاح الأخطاء الإملائية وعلامات الترقيم تلقائياً دون إعادة تنسيق' : 'Auto-fix typos, invalid colons, and syntax errors without reformatting'}
                     >
                       <Wand2 className="h-3.5 w-3.5 text-primary" />
-                      {isAr ? 'إصلاح وتنسيق تلقائي' : 'Auto-Fix & Format'}
+                      {isAr ? 'إصلاح تلقائي' : 'Auto Fix'}
                     </Button>
 
                     <Link href={`/tools/sql-formatter`}>
@@ -1049,10 +1454,22 @@ export function SqlValidatorTool() {
               {/* Errors List */}
               {validationResult.errors.length > 0 && (
                 <div className="space-y-2">
-                  <h5 className="text-xs font-bold uppercase tracking-wider text-destructive flex items-center gap-1.5">
-                    <XCircle className="h-3.5 w-3.5" />
-                    {isAr ? 'الأخطاء النحوية:' : 'Syntax Errors:'} ({validationResult.errors.length})
-                  </h5>
+                  <div className="flex items-center justify-between gap-2">
+                    <h5 className="text-xs font-bold uppercase tracking-wider text-destructive flex items-center gap-1.5">
+                      <XCircle className="h-3.5 w-3.5" />
+                      {isAr ? 'الأخطاء النحوية:' : 'Syntax Errors:'} ({validationResult.errors.length})
+                    </h5>
+
+                    <Button
+                      onClick={handleAutoFix}
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs font-bold gap-1 rounded-lg border-destructive/40 hover:bg-destructive/10 text-destructive hover:text-destructive transition-colors cursor-pointer"
+                    >
+                      <Wand2 className="h-3 w-3" />
+                      {isAr ? 'إصلاح تلقائي' : 'Auto Fix'}
+                    </Button>
+                  </div>
                   <div className="space-y-2">
                     {validationResult.errors.map((err, idx) => (
                       <div

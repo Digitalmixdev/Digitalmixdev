@@ -97,38 +97,61 @@ Language Instructions:
 - Respond in the language of the user (Arabic for Arabic prompts, English for English prompts).
 - Keep official tool names (e.g. "SQL Formatter", "JSON Formatter", "JWT Decoder/Encoder", "Base64", "Regex Tester", "PDF Merger", "CSV to JSON") in their English technical form even when conversing in Arabic.`
 
-    // Construct conversation history for Gemini
+    // Construct and sanitize conversation history for Gemini
     const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = []
 
     if (Array.isArray(history)) {
       for (const msg of history.slice(-6)) {
-        if (msg.role === 'user' || msg.role === 'assistant') {
+        if (!msg.content || typeof msg.content !== 'string' || !msg.content.trim()) continue
+        const role = msg.role === 'assistant' ? 'model' : 'user'
+        // First turn must start with user in Gemini multi-turn
+        if (contents.length === 0 && role === 'model') continue
+
+        const prev = contents[contents.length - 1]
+        if (prev && prev.role === role) {
+          prev.parts[0].text += `\n\n${msg.content.trim()}`
+        } else {
           contents.push({
-            role: msg.role === 'user' ? 'user' : 'model',
-            parts: [{ text: msg.content }],
+            role,
+            parts: [{ text: msg.content.trim() }],
           })
         }
       }
     }
 
-    let userPromptText = message
+    let userPromptText = message.trim()
     if (sharedInput && sharedInput.trim().length > 0) {
-      userPromptText = `${message}\n\n[USER SHARED INPUT FROM ${currentTool?.name || 'CURRENT TOOL'}]:\n\`\`\`\n${sharedInput.slice(0, 4000)}\n\`\`\``
+      userPromptText = `${message.trim()}\n\n[USER SHARED INPUT FROM ${currentTool?.name || 'CURRENT TOOL'}]:\n\`\`\`\n${sharedInput.slice(0, 4000)}\n\`\`\``
     }
 
-    contents.push({
-      role: 'user',
-      parts: [{ text: userPromptText }],
-    })
+    const prevLast = contents[contents.length - 1]
+    if (prevLast && prevLast.role === 'user') {
+      prevLast.parts[0].text += `\n\n${userPromptText}`
+    } else {
+      contents.push({
+        role: 'user',
+        parts: [{ text: userPromptText }],
+      })
+    }
 
     const envModel = process.env.GEMINI_MODEL?.trim().replace(/['"]/g, '')
+    const deprecated = [
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+      'gemini-1.5-pro',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-2.0-flash-thinking',
+    ]
+    const safeEnvModel = envModel && !deprecated.includes(envModel) ? envModel : null
+
+    // Ultra-fast modern models with minimal latency and high availability
     const candidateModels = Array.from(
       new Set([
-        'gemini-2.5-flash',
-        envModel && envModel !== 'gemini-2.5-flash' ? envModel : null,
-        'gemini-2.0-flash',
-        'gemini-1.5-pro',
-        'gemini-1.5-flash',
+        safeEnvModel,
+        'gemini-3.5-flash-lite',
+        'gemini-3.1-flash-lite',
+        'gemini-3.8-flash',
       ])
     ).filter(Boolean) as string[]
 
@@ -143,6 +166,7 @@ Language Instructions:
           config: {
             systemInstruction,
             temperature: 0.4,
+            maxOutputTokens: 1200,
           },
         })
         if (response.text && response.text.trim().length > 0) {
