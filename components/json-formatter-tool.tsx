@@ -34,7 +34,6 @@ import { registerToolInputGetter } from '@/lib/ai/tool-input-bus'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { autoRepairJson, diagnoseJsonIssue } from '@/lib/json-repair-helper'
-import { validateJsonPayload } from '@/components/json-validator-tool'
 
 interface JsonStats {
   lines: number
@@ -156,6 +155,14 @@ export default function JsonFormatterTool() {
   const [isCopied, setIsCopied] = useState(false)
   const [syntaxWarning, setSyntaxWarning] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleDebugInValidator = () => {
+    if (!inputJson.trim()) return
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('json_validator_code', inputJson)
+    }
+    router.push(`/tools/json-validator?code=${encodeURIComponent(inputJson)}`)
+  }
 
   // Register current input with privacy-first AI Assistant bus
   useEffect(() => {
@@ -435,87 +442,67 @@ export default function JsonFormatterTool() {
 
   const handleFormat = () => {
     if (!inputJson.trim()) return
-
-    // Run comprehensive validator rule checking
-    const validation = validateJsonPayload(inputJson)
-
     try {
       const parsed = JSON.parse(inputJson.trim())
       const formatted = JSON.stringify(parsed, null, indentSpaces)
       setOutputJson(formatted)
-
-      if (!validation.isValid && validation.error) {
-        setSyntaxWarning(
-          `${isArabic ? 'خطأ صياغة JSON في السطر ' + validation.error.line + ':' : 'JSON Syntax Error on line ' + validation.error.line + ':'} ${validation.error.message}. ${isArabic ? (validation.error.suggestion_ar || validation.error.suggestion) : validation.error.suggestion}`
-        )
-      } else {
-        setSyntaxWarning('')
-        toast.success(isArabic ? 'تم تنسيق وتجميل JSON بنجاح' : 'JSON formatted successfully')
-      }
-
+      setSyntaxWarning('')
       saveToHistory(inputJson, formatted, indentSpaces, 'format')
       recordUsage()
+      toast.success(isArabic ? 'تم تنسيق وتجميل JSON بنجاح' : 'JSON formatted successfully')
     } catch (err: unknown) {
-      // Attempt safe structured formatting via repair engine so code is formatted visually
-      const repairResult = autoRepairJson(inputJson, indentSpaces)
-      if (repairResult.output) {
-        setOutputJson(repairResult.output)
-      } else {
-        setOutputJson(inputJson)
-      }
-
+      // Check if auto-repair can resolve it or diagnose
       const diagnosis = diagnoseJsonIssue(err instanceof Error ? err : new Error(String(err)), inputJson)
+      setOutputJson('')
       setSyntaxWarning(
-        `${isArabic ? 'خطأ صياغة JSON (السطر ' + diagnosis.line + '):' : 'Invalid JSON Syntax (Line ' + diagnosis.line + '):'} ${diagnosis.message}. ${isArabic ? diagnosis.suggestion_ar : diagnosis.suggestion}`
+        `${isArabic ? 'خطأ صياغة JSON:' : 'Invalid JSON Syntax:'} ${diagnosis.message}. ${isArabic ? diagnosis.suggestion_ar : diagnosis.suggestion}`
       )
+    }
+  }
+
+  const handleAutoFix = () => {
+    if (!inputJson.trim()) return
+    const repairResult = autoRepairJson(inputJson, indentSpaces)
+    if (repairResult.success) {
+      setInputJson(repairResult.output)
+      setOutputJson(repairResult.output)
+      setSyntaxWarning('')
+      saveToHistory(inputJson, repairResult.output, indentSpaces, 'format')
       recordUsage()
+      toast.success(
+        isArabic
+          ? 'تم إصلاح أخطاء الصياغة بنجاح!'
+          : 'Auto-fixed syntax issues successfully!'
+      )
+    } else {
+      if (repairResult.output && repairResult.output !== inputJson) {
+        setInputJson(repairResult.output)
+      }
+      toast.info(
+        isArabic
+          ? 'تم تطبيق بعض الإصلاحات الجزئية، يرجى مراجعة هيكل البيانات'
+          : 'Applied partial fixes, please review payload structure'
+      )
     }
   }
 
   const handleMinify = () => {
     if (!inputJson.trim()) return
-
-    const validation = validateJsonPayload(inputJson)
-
     try {
       const parsed = JSON.parse(inputJson.trim())
       const minified = JSON.stringify(parsed)
       setOutputJson(minified)
-
-      if (!validation.isValid && validation.error) {
-        setSyntaxWarning(
-          `${isArabic ? 'خطأ صياغة JSON في السطر ' + validation.error.line + ':' : 'JSON Syntax Error on line ' + validation.error.line + ':'} ${validation.error.message}. ${isArabic ? (validation.error.suggestion_ar || validation.error.suggestion) : validation.error.suggestion}`
-        )
-      } else {
-        setSyntaxWarning('')
-        toast.success(isArabic ? 'تم ضغط وتصغير JSON' : 'JSON minified successfully')
-      }
-
+      setSyntaxWarning('')
       saveToHistory(inputJson, minified, indentSpaces, 'minify')
       recordUsage()
+      toast.success(isArabic ? 'تم ضغط وتصغير JSON' : 'JSON minified successfully')
     } catch (err: unknown) {
-      const repairResult = autoRepairJson(inputJson, 0)
-      if (repairResult.output) {
-        setOutputJson(repairResult.output.replace(/\s+/g, ' '))
-      } else {
-        setOutputJson(inputJson.replace(/\s+/g, ' '))
-      }
-
       const diagnosis = diagnoseJsonIssue(err instanceof Error ? err : new Error(String(err)), inputJson)
+      setOutputJson('')
       setSyntaxWarning(
-        `${isArabic ? 'خطأ صياغة JSON (السطر ' + diagnosis.line + '):' : 'Invalid JSON Syntax (Line ' + diagnosis.line + '):'} ${diagnosis.message}. ${isArabic ? diagnosis.suggestion_ar : diagnosis.suggestion}`
+        `${isArabic ? 'خطأ صياغة JSON:' : 'Invalid JSON Syntax:'} ${diagnosis.message}. ${isArabic ? diagnosis.suggestion_ar : diagnosis.suggestion}`
       )
     }
-  }
-
-  const handleDebugWithValidator = () => {
-    if (!inputJson.trim()) return
-    try {
-      sessionStorage.setItem('digitalmix_transfer_json_to_validator', inputJson)
-    } catch {
-      // ignore
-    }
-    router.push('/tools/json-validator')
   }
 
   const handleClear = () => {
@@ -616,7 +603,7 @@ export default function JsonFormatterTool() {
               className="h-10 px-3.5 gap-2 text-xs font-semibold border-border/80 hover:border-primary/50 text-foreground"
             >
               <ShieldCheck className="h-4 w-4 text-emerald-500" />
-              <span>{isArabic ? 'مدقق ملفات JSON' : 'JSON Validator'}</span>
+              <span>{isArabic ? 'مدقق بيانات JSON' : 'JSON Validator'}</span>
             </Button>
           </Link>
         </div>
@@ -635,21 +622,20 @@ export default function JsonFormatterTool() {
 
       {/* Syntax Warning Banner */}
       {syntaxWarning && (
-        <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex flex-wrap items-center justify-between gap-3 animate-in fade-in-0 duration-200">
-          <div className="flex items-center gap-3 min-w-0">
-            <AlertTriangle className="h-5 w-5 shrink-0 text-destructive" />
-            <span className="text-xs sm:text-sm font-mono font-medium break-all">{syntaxWarning}</span>
+        <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex flex-col gap-3.5 animate-in fade-in-0 duration-200">
+          <div className="flex items-start gap-3 min-w-0">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-destructive mt-0.5" />
+            <span className="text-xs sm:text-sm font-mono font-medium leading-relaxed break-all">{syntaxWarning}</span>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div>
             <Button
               size="sm"
-              variant="destructive"
-              onClick={handleDebugWithValidator}
-              className="rounded-xl text-xs gap-1.5 font-bold shadow-xs cursor-pointer"
+              onClick={handleDebugInValidator}
+              className="rounded-xl text-xs gap-2 font-bold shadow-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 px-4 py-2"
             >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              {isArabic ? 'افحص وصلّح بـ مدقق JSON' : 'Debug with JSON Validator'}
+              <ShieldCheck className="h-4 w-4" />
+              {isArabic ? 'افحص واكتشف الأخطاء بـ مدقق JSON' : 'Debug with JSON Validator'}
             </Button>
           </div>
         </div>

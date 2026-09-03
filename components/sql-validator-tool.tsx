@@ -13,6 +13,7 @@ import {
   Zap,
   History,
   CheckCircle2,
+  ShieldCheck,
   XCircle,
   RotateCcw,
   Wand2,
@@ -64,7 +65,7 @@ const toolMeta: ToolMetadata = {
     name: 'Database Tools',
     slug: 'database',
   },
-  icon: CheckCircle2,
+  icon: ShieldCheck,
   privacyBadge: '100% Client-Side • Multi-Dialect Syntax Audit',
   privacyBadge_ar: 'معالجة محلية 100% • تدقيق نحوي متعدد اللهجات',
   features: [
@@ -217,6 +218,22 @@ export function SqlValidatorTool() {
   useEffect(() => {
     registerToolInputGetter('sql-validator', () => sqlInput)
   }, [sqlInput])
+
+  // Check for pre-filled query code from URL search param or sessionStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const codeParam = params.get('code')
+      const sessionCode = sessionStorage.getItem('sql_validator_code')
+      if (codeParam) {
+        setSqlInput(codeParam)
+        sessionStorage.removeItem('sql_validator_code')
+      } else if (sessionCode) {
+        setSqlInput(sessionCode)
+        sessionStorage.removeItem('sql_validator_code')
+      }
+    }
+  }, [])
 
   // Validation Result Memo
   const validationResult = useMemo(() => {

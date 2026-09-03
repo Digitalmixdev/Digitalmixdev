@@ -36,6 +36,7 @@ import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities } fro
 import { registerToolInputGetter } from '@/lib/ai/tool-input-bus'
 import { validateSqlCode, autoFixSqlCode } from '@/lib/sql-validator-engine'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 type SqlDialect = 'sql' | 'mysql' | 'postgresql' | 'sqlite' | 'plsql'
 
@@ -163,6 +164,7 @@ const DIALECTS: { value: SqlDialect; label: string }[] = [
 ]
 
 export default function SqlFormatterTool() {
+  const router = useRouter()
   const { language } = useLanguage()
   const isArabic = language === 'ar'
 
@@ -172,6 +174,14 @@ export default function SqlFormatterTool() {
   const [isCopied, setIsCopied] = useState(false)
   const [syntaxWarning, setSyntaxWarning] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleDebugInValidator = () => {
+    if (!inputSql.trim()) return
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('sql_validator_code', inputSql)
+    }
+    router.push(`/tools/sql-validator?code=${encodeURIComponent(inputSql)}`)
+  }
 
   // Register current input with privacy-first AI Assistant bus
   useEffect(() => {
@@ -639,7 +649,7 @@ export default function SqlFormatterTool() {
               size="sm"
               className="h-10 px-3.5 gap-2 text-xs font-semibold border-border/80 hover:border-primary/50 text-foreground"
             >
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <ShieldCheck className="h-4 w-4 text-emerald-500" />
               <span>{isArabic ? 'مدقق استعلامات SQL' : 'SQL Validator'}</span>
               <ExternalLink className="h-3 w-3 opacity-60" />
             </Button>
@@ -660,29 +670,21 @@ export default function SqlFormatterTool() {
 
       {/* Syntax Warning Banner */}
       {syntaxWarning && (
-        <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex flex-wrap items-center justify-between gap-3 animate-in fade-in-0 duration-200">
-          <div className="flex items-center gap-3 min-w-0">
-            <AlertTriangle className="h-5 w-5 shrink-0 text-destructive" />
-            <span className="text-xs sm:text-sm font-mono font-medium break-all">{syntaxWarning}</span>
+        <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex flex-col gap-3.5 animate-in fade-in-0 duration-200">
+          <div className="flex items-start gap-3 min-w-0">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-destructive mt-0.5" />
+            <span className="text-xs sm:text-sm font-mono font-medium leading-relaxed break-all">{syntaxWarning}</span>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div>
             <Button
               size="sm"
-              variant="default"
-              onClick={handleAutoFix}
-              className="rounded-xl text-xs gap-1.5 font-bold shadow-xs bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDebugInValidator}
+              className="rounded-xl text-xs gap-2 font-bold shadow-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 px-4 py-2"
             >
-              <Sparkles className="h-3.5 w-3.5" />
-              {isArabic ? 'إصلاح تلقائي وتنسيق' : 'Auto Fix & Format'}
+              <ShieldCheck className="h-4 w-4" />
+              {isArabic ? 'افحص واكتشف الأخطاء بـ مدقق SQL' : 'Debug with SQL Validator'}
             </Button>
-
-            <Link href="/tools/sql-validator">
-              <Button size="sm" variant="outline" className="rounded-xl text-xs gap-1.5 font-bold shadow-xs border-destructive/30 text-destructive hover:bg-destructive/10">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                {isArabic ? 'مدقق SQL' : 'SQL Validator'}
-              </Button>
-            </Link>
           </div>
         </div>
       )}

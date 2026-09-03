@@ -70,7 +70,7 @@ export const ALL_TOOLS: ToolDefinition[] = [
     href: '/tools/sql-validator',
     description: 'Validate SQL query syntax, detect errors, verify clause structures, and lint queries in real time.',
     categoryId: 'database',
-    icon: 'CheckCircle2',
+    icon: 'ShieldCheck',
     active: true,
     keywords: ['sql', 'validator', 'syntax', 'check', 'lint', 'query', 'database', 'errors', 'postgres', 'mysql'],
   },

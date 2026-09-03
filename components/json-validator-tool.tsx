@@ -398,10 +398,26 @@ export function JsonValidatorTool() {
   const { t, language } = useLanguage()
   const isAr = language === 'ar'
 
-  const [jsonInput, setJsonInput] = useState<string>(SAMPLE_PAYLOADS[0].json)
+  const [jsonInput, setJsonInput] = useState<string>('')
   const [copied, setCopied] = useState<boolean>(false)
   const [history, setHistory] = useState<JsonValidatorHistoryItem[]>([])
   const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor')
+
+  // Check for pre-filled JSON payload from URL search param or sessionStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const codeParam = params.get('code')
+      const sessionCode = sessionStorage.getItem('json_validator_code')
+      if (codeParam) {
+        setJsonInput(codeParam)
+        sessionStorage.removeItem('json_validator_code')
+      } else if (sessionCode) {
+        setJsonInput(sessionCode)
+        sessionStorage.removeItem('json_validator_code')
+      }
+    }
+  }, [])
 
   // Load history from localStorage
   useEffect(() => {
