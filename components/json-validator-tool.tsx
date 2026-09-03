@@ -31,7 +31,7 @@ import { useLanguage } from '@/lib/i18n/context'
 import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities } from '@/lib/history-service'
 import { registerToolInputGetter } from '@/lib/ai/tool-input-bus'
 import Link from 'next/link'
-import { jsonrepair } from 'jsonrepair'
+import { diagnoseJsonIssue, autoRepairJson } from '@/lib/json-repair-helper'
 
 export interface JsonValidationError {
   line: number
@@ -201,6 +201,37 @@ const SAMPLE_PAYLOADS = [
 }`,
   },
   {
+    label: 'Missing Opening Curly Brace {',
+    label_ar: 'قوس البداية { مفقود',
+    json: `  "status": "success",
+  "code": 200,
+  "data": {
+    "user": {
+      "id": "usr_9921",
+      "name": "Jane Doe",
+      "roles": [
+        "admin",
+        "developer"
+      ],
+      "settings": {
+        "notifications": true,
+        "theme": "dark"
+      }
+    },
+    "metrics": [
+      {
+        "day": "Mon",
+        "value": 142
+      },
+      {
+        "day": "Tue",
+        "value": 189
+      }
+    ]
+  }
+}`,
+  },
+  {
     label: 'Missing Commas Error',
     label_ar: 'خطأ فواصل مفقودة',
     json: `{
@@ -280,66 +311,19 @@ function measureJsonStats(obj: any, raw: string): { keyCount: number; maxDepth: 
   return { keyCount, maxDepth }
 }
 
-// Extract line and column from Native Error
+// Extract line and column from Native Error using Enhanced Diagnostic Helper
 function parseJsonError(err: Error, raw: string): JsonValidationError {
-  const msg = err.message || 'Invalid JSON syntax'
+  const diagnosis = diagnoseJsonIssue(err, raw)
   const lines = raw.split('\n')
-
-  let line = 1
-  let column = 1
-
-  // Extract position from standard V8 error message: e.g. "at position 142" or "line 3 column 12"
-  const lineColMatch = msg.match(/line\s+(\d+)\s+column\s+(\d+)/i)
-  const posMatch = msg.match(/position\s+(\d+)/i)
-
-  if (lineColMatch) {
-    line = parseInt(lineColMatch[1], 10)
-    column = parseInt(lineColMatch[2], 10)
-  } else if (posMatch) {
-    const pos = parseInt(posMatch[1], 10)
-    let count = 0
-    for (let i = 0; i < lines.length; i++) {
-      if (count + lines[i].length + 1 >= pos) {
-        line = i + 1
-        column = pos - count + 1
-        break
-      }
-      count += lines[i].length + 1
-    }
-  }
-
-  // Suggestion analysis
-  let suggestion = 'Check for missing closing braces/brackets, quotes, or trailing commas.'
-  let suggestion_ar = 'تحقق من الأقواس غير المغلقة، أو علامات التنصيص، أو الفواصل المفقودة أو الزائدة.'
-
-  if (/trailing comma/i.test(msg) || /Unexpected token \}/i.test(msg) || /Unexpected token \]/i.test(msg)) {
-    suggestion = 'Remove the trailing comma before closing bracket or brace.'
-    suggestion_ar = 'قم بإزالة الفاصلة الزائدة قبل القوس الختامي.'
-  } else if (
-    /Expected ',' or '\}'/i.test(msg) ||
-    /Expected ',' or '\]'/i.test(msg) ||
-    /Expected ','/i.test(msg) ||
-    /after property value/i.test(msg)
-  ) {
-    suggestion = "Missing comma (',') between object properties or array elements. Click 'Auto Fix' to add it automatically."
-    suggestion_ar = "فاصلة مفقودة (',') بين خصائص الكائن أو عناصر المصفوفة. اضغط على 'إصلاح تلقائي' لإضافتها وتنسيق الكود فورياً."
-  } else if (/Unexpected token/i.test(msg) && /'/.test(raw)) {
-    suggestion = 'JSON requires double quotes (") for keys and string values, not single quotes (\').'
-    suggestion_ar = 'تتطلب معايير JSON استخدام علامات تنصيص مزدوجة (") بدلاً من المفردة (\').'
-  } else if (/Expected double-quoted property name/i.test(msg)) {
-    suggestion = 'Object keys must be enclosed in double quotes (").'
-    suggestion_ar = 'يجب وضع أسماء المفاتيح داخل علامات تنصيص مزدوجة (").'
-  }
-
-  const snippet = lines[line - 1] ? lines[line - 1].trim() : ''
+  const snippet = lines[diagnosis.line - 1] ? lines[diagnosis.line - 1].trim() : ''
 
   return {
-    line,
-    column,
-    message: msg,
+    line: diagnosis.line,
+    column: diagnosis.column,
+    message: diagnosis.message,
     snippet,
-    suggestion,
-    suggestion_ar,
+    suggestion: diagnosis.suggestion,
+    suggestion_ar: diagnosis.suggestion_ar,
   }
 }
 
@@ -493,69 +477,30 @@ export function JsonValidatorTool() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // Auto-Fix JSON Algorithm (Missing commas, trailing commas, unquoted keys, single quotes, unclosed brackets, comments)
+  // Auto-Fix JSON Algorithm (Missing opening/closing braces, missing commas, trailing commas, unquoted keys, single quotes, unclosed brackets, comments)
   const handleAutoFix = () => {
     if (!jsonInput.trim()) return
 
-    try {
-      // 1. Primary: jsonrepair handles missing commas, brackets, quotes, trailing commas, comments
-      const repaired = jsonrepair(jsonInput)
-      const parsed = JSON.parse(repaired)
-      const formatted = JSON.stringify(parsed, null, 2)
-      setJsonInput(formatted)
+    const repairResult = autoRepairJson(jsonInput, 2)
+    if (repairResult.success) {
+      setJsonInput(repairResult.output)
+      const fixesSummary = repairResult.fixesApplied.length > 0
+        ? ` (${repairResult.fixesApplied.slice(0, 2).join(', ')})`
+        : ''
       toast.success(
         isAr
-          ? 'تم إصلاح أخطاء الصياغة وإضافة الفواصل المفقودة وتنسيق JSON بنجاح!'
-          : 'Auto-fixed syntax, missing commas & formatted JSON successfully!'
+          ? `تم إصلاح أخطاء الصياغة وهيكل JSON وتنسيقه بنجاح!`
+          : `Auto-fixed syntax & formatted JSON successfully!${fixesSummary}`
       )
-    } catch {
-      // 2. Pre-processing heuristic + jsonrepair fallback
-      let fixed = jsonInput
-
-      // Remove JS Comments
-      fixed = fixed.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '$1')
-
-      // Fix missing commas between closing brace/bracket/quote/value and next key/element
-      // e.g. } \n "key": or true \n "key":
-      fixed = fixed.replace(/(\}|\]|"|true|false|null|\d+)(\s*)(\r?\n\s*)(["{\[])/g, '$1,$2$3$4')
-
-      // Remove trailing commas before } or ]
-      fixed = fixed.replace(/,(\s*[\}\]])/g, '$1')
-
-      // Convert single quoted keys and values to double quotes
-      fixed = fixed.replace(/(')([^'\\]*(\\.[^'\\]*)*)(')(\s*:)/g, '"$2"$5')
-      fixed = fixed.replace(/(:\s*)(')([^'\\]*(\\.[^'\\]*)*)(')/g, '$1"$3"')
-
-      // Quote unquoted alphanumeric property keys: key: -> "key":
-      fixed = fixed.replace(/([{,]\s*)([a-zA-Z0-9_$]+)(\s*:)/g, '$1"$2"$3')
-
-      try {
-        const repaired = jsonrepair(fixed)
-        const parsed = JSON.parse(repaired)
-        setJsonInput(JSON.stringify(parsed, null, 2))
-        toast.success(
-          isAr
-            ? 'تم إصلاح أخطاء الصياغة وإضافة الفواصل المفقودة بنجاح!'
-            : 'Auto-fixed syntax errors & missing commas successfully!'
-        )
-      } catch {
-        try {
-          const parsed = JSON.parse(fixed)
-          setJsonInput(JSON.stringify(parsed, null, 2))
-          toast.success(
-            isAr
-              ? 'تم إصلاح أخطاء الصياغة وتنسيق JSON بنجاح!'
-              : 'Auto-fixed syntax errors & formatted JSON successfully!'
-          )
-        } catch {
-          setJsonInput(fixed)
-          toast.info(
-            isAr
-              ? 'تم تطبيق بعض الإصلاحات، يرجى مراجعة هيكل البيانات'
-              : 'Applied partial fixes, please review payload structure'
-          )
-        }
+    } else {
+      if (repairResult.output && repairResult.output !== jsonInput) {
+        setJsonInput(repairResult.output)
       }
+      toast.info(
+        isAr
+          ? 'تم تطبيق بعض الإصلاحات الجزئية، يرجى مراجعة هيكل البيانات'
+          : 'Applied partial fixes, please review payload structure'
+      )
     }
 
     handleValidate()
@@ -798,6 +743,17 @@ export function JsonValidatorTool() {
                       <Wand2 className="h-3.5 w-3.5 text-primary" />
                       {isAr ? 'إصلاح تلقائي' : 'Auto Fix'}
                     </Button>
+
+                    <Link href={`/tools/json-formatter`}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-xl text-xs gap-1 font-semibold text-muted-foreground hover:text-foreground"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        {isAr ? 'منسق JSON' : 'JSON Formatter'}
+                      </Button>
+                    </Link>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -896,20 +852,9 @@ export function JsonValidatorTool() {
                       <XCircle className="h-4 w-4" />
                       {isAr ? 'موقع الخطأ بدقة:' : 'Error Location:'}
                     </h5>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-extrabold text-destructive bg-destructive/20 px-2 py-0.5 rounded-md">
-                        Line {validationResult.error.line}, Col {validationResult.error.column || 1}
-                      </span>
-                      <Button
-                        onClick={handleAutoFix}
-                        size="sm"
-                        variant="outline"
-                        className="h-6 text-[11px] font-bold gap-1 rounded-lg border-destructive/40 hover:bg-destructive/10 text-destructive hover:text-destructive transition-colors cursor-pointer"
-                      >
-                        <Wand2 className="h-3 w-3" />
-                        {isAr ? 'إصلاح تلقائي' : 'Auto Fix'}
-                      </Button>
-                    </div>
+                    <span className="text-xs font-extrabold text-destructive bg-destructive/20 px-2 py-0.5 rounded-md">
+                      Line {validationResult.error.line}, Col {validationResult.error.column || 1}
+                    </span>
                   </div>
 
                   <div className="space-y-1">
@@ -924,22 +869,11 @@ export function JsonValidatorTool() {
                   </div>
 
                   {(validationResult.error.suggestion || validationResult.error.suggestion_ar) && (
-                    <div className="pt-2 border-t border-destructive/20 text-xs text-muted-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div>
-                        💡 <span className="font-semibold text-foreground">{isAr ? 'نصيحة للإصلاح:' : 'Suggestion:'}</span>{' '}
-                        {isAr
-                          ? validationResult.error.suggestion_ar || validationResult.error.suggestion
-                          : validationResult.error.suggestion}
-                      </div>
-                      <Button
-                        onClick={handleAutoFix}
-                        size="sm"
-                        variant="outline"
-                        className="h-6 text-[11px] font-bold gap-1 rounded-lg border-destructive/40 hover:bg-destructive/10 text-destructive hover:text-destructive transition-colors shrink-0 cursor-pointer self-start sm:self-auto"
-                      >
-                        <Wand2 className="h-3 w-3" />
-                        {isAr ? 'إصلاح تلقائي' : 'Auto Fix'}
-                      </Button>
+                    <div className="pt-2 border-t border-destructive/20 text-xs text-muted-foreground">
+                      💡 <span className="font-semibold text-foreground">{isAr ? 'نصيحة للإصلاح:' : 'Suggestion:'}</span>{' '}
+                      {isAr
+                        ? validationResult.error.suggestion_ar || validationResult.error.suggestion
+                        : validationResult.error.suggestion}
                     </div>
                   )}
                 </div>

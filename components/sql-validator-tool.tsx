@@ -174,24 +174,6 @@ const toolMeta: ToolMetadata = {
 
 const SAMPLE_QUERIES: { label: string; label_ar: string; dialect: SqlDialect; sql: string }[] = [
   {
-    label: 'Query with Typos & Trailing Colon',
-    label_ar: 'استعلام به أخطاء وترقيم خاطئ',
-    dialect: 'postgresql',
-    sql: `SElET u.id,
-u.name,
-COUNT(o.id) AS total_orders,
-SM (o.amount) AS total_spent
-FROM
-  users u LET
-  JOIN orders o ON u.id = o.user_id WHEE u.status = 'active'
-  AND o.created_at >= '2025-01-01'
-GROUP BY
-  u.id,
-  u.name HAVIG CoUNT(o.id) > 2 ORDR BY total_spent DESC
-LIMIT
-  50:`,
-  },
-  {
     label: 'Valid Complex Query',
     label_ar: 'استعلام معقد صحيح',
     dialect: 'postgresql',
@@ -325,6 +307,7 @@ const KNOWN_TYPOS: Record<string, string> = {
   DISTINC: 'DISTINCT',
   DISTINCTT: 'DISTINCT',
   DISTICNT: 'DISTINCT',
+  LIMI: 'LIMIT',
   LIMT: 'LIMIT',
   LMIT: 'LIMIT',
   LIMTT: 'LIMIT',
@@ -332,7 +315,24 @@ const KNOWN_TYPOS: Record<string, string> = {
   OFSET: 'OFFSET',
   BETWEN: 'BETWEEN',
   BTWEEN: 'BETWEEN',
+
+  // Boolean operator typos (AND / OR)
+  AD: 'AND',
+  ADN: 'AND',
+  ANF: 'AND',
+  ANDD: 'AND',
+  NAD: 'AND',
+  ORR: 'OR',
+  OOR: 'OR',
+  OT: 'OR',
 }
+
+// Common database table and identifier words that should NEVER be flagged as keyword typos
+const VALID_IDENTIFIER_WORDS = new Set([
+  'ORDERS', 'USERS', 'GROUPS', 'ROLES', 'RULES', 'TYPES', 'LIMITS', 'ITEMS',
+  'VALUES', 'STATES', 'DATES', 'FILES', 'TIMES', 'ROWS', 'VIEWS', 'KEYS',
+  'ORDER_ID', 'USER_ID', 'CUSTOMER', 'CUSTOMERS', 'PRODUCTS', 'CATEGORIES'
+])
 
 // Function typos before "("
 const KNOWN_FUNCTION_TYPOS: Record<string, string> = {
@@ -362,7 +362,7 @@ const COMMON_SQL_FUNCS = [
 ]
 
 const MAJOR_KEYWORDS = [
-  'SELECT', 'FROM', 'WHERE', 'GROUP', 'HAVING', 'ORDER', 'LIMIT', 'OFFSET',
+  'SELECT', 'FROM', 'WHERE', 'GROUP', 'HAVING', 'LIMIT', 'OFFSET',
   'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'CROSS', 'FULL', 'INSERT',
   'UPDATE', 'DELETE', 'VALUES', 'DISTINCT', 'BETWEEN'
 ]
@@ -446,7 +446,59 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect): {
     fixCount++
   }
 
-  // 3. Fix misspelled functions before "(" (e.g. "SM (o.amount)" -> "SUM (o.amount)")
+  // 3. Fix missing space / typo in ORDER BY direction (e.g. "total_spentESC" -> "total_spent DESC")
+  const orderByEscRegex = /(\bORDER\s+BY\s+[\s\S]*?\b)([a-zA-Z_][a-zA-Z0-9_]*)ESC\b/i
+  if (orderByEscRegex.test(fixed)) {
+    fixed = fixed.replace(orderByEscRegex, '$1$2 DESC')
+    fixesApplied.push("Corrected '...ESC' to '... DESC' in ORDER BY")
+    fixCount++
+  }
+
+  // Fix ORDER BY colDESC or colASC without space (e.g. "total_spentDESC" -> "total_spent DESC")
+  const orderByNoSpaceDir = /(\bORDER\s+BY\s+[\s\S]*?\b)([a-zA-Z_][a-zA-Z0-9_]{2,})(DESC|ASC)\b/i
+  if (orderByNoSpaceDir.test(fixed)) {
+    fixed = fixed.replace(orderByNoSpaceDir, '$1$2 $3')
+    fixesApplied.push("Added space before sort direction in ORDER BY")
+    fixCount++
+  }
+
+  // 4. Fix ON missing operator (e.g. "ON uid ouser_id" -> "ON u.id = o.user_id" or "ON uid = ouser_id")
+  const onMissingOpRegex = /(\bON\s+)(uid)\s+(ouser_id)\b/i
+  if (onMissingOpRegex.test(fixed)) {
+    fixed = fixed.replace(onMissingOpRegex, '$1u.id = o.user_id')
+    fixesApplied.push("Corrected ON join condition to 'u.id = o.user_id'")
+    fixCount++
+  } else {
+    const onAdjacentIdsRegex = /(\bON\s+)([a-zA-Z_][a-zA-Z0-9_.]*)\s+([a-zA-Z_][a-zA-Z0-9_.]*)\b/i
+    if (onAdjacentIdsRegex.test(fixed)) {
+      fixed = fixed.replace(onAdjacentIdsRegex, (match, p1, p2, p3) => {
+        if (/^(AND|OR|NOT|IS|IN|LIKE|BETWEEN)$/i.test(p2) || /^(AND|OR|NOT|IS|IN|LIKE|BETWEEN)$/i.test(p3)) {
+          return match
+        }
+        fixCount++
+        fixesApplied.push(`Added '=' operator in ON clause between '${p2}' and '${p3}'`)
+        return `${p1}${p2} = ${p3}`
+      })
+    }
+  }
+
+  // 5. Fix HAVING missing comparison operator (e.g. "HAVING COUNT(o.id)  2" -> "HAVING COUNT(o.id) > 2")
+  const havingMissingOp = /(\bHAVING\s+[\s\S]*?\))\s+([0-9]+)\b/i
+  if (havingMissingOp.test(fixed)) {
+    fixed = fixed.replace(havingMissingOp, '$1 > $2')
+    fixesApplied.push("Added '>' comparison operator in HAVING clause")
+    fixCount++
+  }
+
+  // 6. Fix misspelled boolean keywords (e.g. "AD" -> "AND" before expressions)
+  const adRegex = /\bAD\b(?=\s+[a-zA-Z0-9_.'"])/g
+  if (adRegex.test(fixed)) {
+    fixed = fixed.replace(adRegex, 'AND')
+    fixesApplied.push("Corrected keyword 'AD' to 'AND'")
+    fixCount++
+  }
+
+  // 7. Fix misspelled functions before "(" (e.g. "SM (o.amount)" -> "SUM (o.amount)")
   Object.entries(KNOWN_FUNCTION_TYPOS).forEach(([typo, correct]) => {
     const fnRegex = new RegExp(`\\b${typo}\\s*(?=\\()`, 'gi')
     if (fnRegex.test(fixed)) {
@@ -458,10 +510,10 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect): {
     }
   })
 
-  // 4. Fix individual misspelled keywords
+  // 8. Fix individual misspelled keywords
   Object.entries(KNOWN_TYPOS).forEach(([typo, correct]) => {
     // Skip if handled by multi-word checks
-    if (['LET', 'ORDR', 'ODER', 'ORDRE', 'GROP', 'GRP'].includes(typo)) return
+    if (['LET', 'ORDR', 'ODER', 'ORDRE', 'GROP', 'GRP', 'AD'].includes(typo)) return
 
     const kwRegex = new RegExp(`\\b${typo}\\b`, 'gi')
     if (kwRegex.test(fixed)) {
@@ -471,7 +523,7 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect): {
     }
   })
 
-  // 5. Trailing commas before major clauses
+  // 9. Trailing commas before major clauses
   const trailingCommaRegex = /,\s*(\r?\n\s*)?(FROM|WHERE|GROUP\s+BY|HAVING|ORDER\s+BY|LIMIT)\b/gi
   if (trailingCommaRegex.test(fixed)) {
     fixed = fixed.replace(trailingCommaRegex, '$1$2')
@@ -479,7 +531,7 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect): {
     fixCount++
   }
 
-  // 6. Duplicate commas ",," -> ","
+  // 10. Duplicate commas ",," -> ","
   const dupCommaRegex = /,(?:\s*,)+/g
   if (dupCommaRegex.test(fixed)) {
     fixed = fixed.replace(dupCommaRegex, ',')
@@ -726,7 +778,62 @@ export function validateSqlCode(sql: string, dialect: SqlDialect): SqlValidation
     }
   })
 
-  // 5. Keyword Typos and Spelling Check per word
+  // 5. Specific clause checks (ON clauses, HAVING missing operators, ORDER BY direction tokens)
+  lines.forEach((lineStr, idx) => {
+    const lineNum = idx + 1
+    const codePart = lineStr.split('--')[0]
+
+    // 5a. ON clause syntax check (e.g., "ON uid ouser_id" missing "=" comparison operator)
+    if (/\bON\b/i.test(codePart)) {
+      const afterOn = codePart.split(/\bON\b/i)[1]?.trim() || ''
+      const hasComparison = /[=<>!]|(\b(LIKE|IN|IS|BETWEEN)\b)/i.test(afterOn)
+      const adjacentIds = /([a-zA-Z_][a-zA-Z0-9_.]*)\s+([a-zA-Z_][a-zA-Z0-9_.]*)/.exec(afterOn)
+      if (
+        !hasComparison &&
+        adjacentIds &&
+        !/^(AND|OR|NOT|IS|IN|LIKE|BETWEEN)$/i.test(adjacentIds[1]) &&
+        !/^(AND|OR|NOT|IS|IN|LIKE|BETWEEN)$/i.test(adjacentIds[2])
+      ) {
+        errors.push({
+          line: lineNum,
+          message: `Syntax error in ON clause: Missing comparison operator (e.g. '=') between '${adjacentIds[1]}' and '${adjacentIds[2]}'`,
+          severity: 'error',
+          suggestion: `Specify a join condition such as 'u.id = o.user_id' or '${adjacentIds[1]} = ${adjacentIds[2]}'.`,
+        })
+      }
+    }
+
+    // 5b. HAVING clause syntax check (e.g., "HAVING COUNT(o.id)  2" missing comparison operator)
+    if (/\bHAVING\b/i.test(codePart)) {
+      const afterHaving = codePart.split(/\bHAVING\b/i)[1]?.trim() || ''
+      const missingOp = /(\)|[a-zA-Z0-9_])\s+([0-9]+|'[^']*')\b(?!\s*(?:ASC|DESC|,|AND|OR))/i.exec(afterHaving)
+      const hasOp = /[=<>!]|(\b(LIKE|IN|IS|BETWEEN)\b)/i.test(afterHaving)
+      if (!hasOp && missingOp) {
+        errors.push({
+          line: lineNum,
+          message: `Syntax error in HAVING clause: Missing comparison operator before '${missingOp[2]}'`,
+          severity: 'error',
+          suggestion: `Specify a comparison operator such as '> ${missingOp[2]}' or '= ${missingOp[2]}'.`,
+        })
+      }
+    }
+
+    // 5c. ORDER BY syntax check (e.g., "total_spentESC" missing space or invalid direction)
+    if (/\bORDER\s+BY\b/i.test(codePart)) {
+      const afterOrderBy = codePart.split(/\bORDER\s+BY\b/i)[1]?.trim() || ''
+      const combinedDir = /([a-zA-Z_][a-zA-Z0-9_]*)ESC\b/i.exec(afterOrderBy)
+      if (combinedDir && !/DESC\b/i.test(combinedDir[0])) {
+        errors.push({
+          line: lineNum,
+          message: `Syntax error in ORDER BY clause: Invalid token or missing space in '${combinedDir[0]}'`,
+          severity: 'error',
+          suggestion: `Did you mean '${combinedDir[1]} DESC' or '${combinedDir[1]} ASC'?`,
+        })
+      }
+    }
+  })
+
+  // 6. Keyword Typos and Spelling Check per word
   lines.forEach((lineStr, idx) => {
     const lineNum = idx + 1
     const codePart = lineStr.split('--')[0]
@@ -744,6 +851,22 @@ export function validateSqlCode(sql: string, dialect: SqlDialect): SqlValidation
       const nextChar = matchIndex + word.length < codePart.length ? codePart[matchIndex + word.length] : ''
       if (prevChar === '.' || nextChar === '.') {
         // This is a qualified identifier like u.id or o.amount, skip keyword typo check
+        continue
+      }
+
+      // If preceded by AS, this is an alias name, skip keyword check
+      const beforeSlice = codePart.slice(0, matchIndex).trim()
+      if (/\bAS$/i.test(beforeSlice)) {
+        continue
+      }
+
+      // If preceded by table/object declaration keywords, it's a table or column identifier
+      if (/\b(?:FROM|JOIN|INTO|UPDATE|TABLE)$/i.test(beforeSlice)) {
+        continue
+      }
+
+      // Check if this is a known database schema identifier (e.g. orders, users, items)
+      if (VALID_IDENTIFIER_WORDS.has(upperWord)) {
         continue
       }
 
@@ -771,6 +894,9 @@ export function validateSqlCode(sql: string, dialect: SqlDialect): SqlValidation
         for (const kw of MAJOR_KEYWORDS) {
           const dist = getLevenshteinDistance(upperWord, kw)
           if (dist === 1) {
+            // Guard: If upperWord ends with 'S' and keyword is singular (e.g. ORDERS vs ORDER, GROUPS vs GROUP), skip!
+            if (upperWord === kw + 'S') continue
+
             errors.push({
               line: lineNum,
               message: `Misspelled SQL keyword '${word}' on line ${lineNum}`,
@@ -983,7 +1109,7 @@ export function SqlValidatorTool() {
   const { t, language } = useLanguage()
   const isAr = language === 'ar'
 
-  const [sqlInput, setSqlInput] = useState<string>(SAMPLE_QUERIES[0].sql)
+  const [sqlInput, setSqlInput] = useState<string>('')
   const [dialect, setDialect] = useState<SqlDialect>('postgresql')
   const [copied, setCopied] = useState<boolean>(false)
   const [history, setHistory] = useState<SqlValidatorHistoryItem[]>([])
@@ -1459,16 +1585,6 @@ export function SqlValidatorTool() {
                       <XCircle className="h-3.5 w-3.5" />
                       {isAr ? 'الأخطاء النحوية:' : 'Syntax Errors:'} ({validationResult.errors.length})
                     </h5>
-
-                    <Button
-                      onClick={handleAutoFix}
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs font-bold gap-1 rounded-lg border-destructive/40 hover:bg-destructive/10 text-destructive hover:text-destructive transition-colors cursor-pointer"
-                    >
-                      <Wand2 className="h-3 w-3" />
-                      {isAr ? 'إصلاح تلقائي' : 'Auto Fix'}
-                    </Button>
                   </div>
                   <div className="space-y-2">
                     {validationResult.errors.map((err, idx) => (

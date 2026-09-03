@@ -21,6 +21,7 @@ import {
   Search,
   RotateCcw,
   X,
+  Wand2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -31,6 +32,7 @@ import { useLanguage } from '@/lib/i18n/context'
 import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities } from '@/lib/history-service'
 import { registerToolInputGetter } from '@/lib/ai/tool-input-bus'
 import Link from 'next/link'
+import { autoRepairJson, diagnoseJsonIssue } from '@/lib/json-repair-helper'
 
 interface JsonStats {
   lines: number
@@ -439,8 +441,38 @@ export default function JsonFormatterTool() {
       recordUsage()
       toast.success(isArabic ? 'تم تنسيق وتجميل JSON بنجاح' : 'JSON formatted successfully')
     } catch (err: unknown) {
+      // Check if auto-repair can resolve it or diagnose
+      const diagnosis = diagnoseJsonIssue(err instanceof Error ? err : new Error(String(err)), inputJson)
       setOutputJson('')
-      setSyntaxWarning(`Invalid JSON Syntax: ${err instanceof Error ? err.message : 'Invalid JSON'}`)
+      setSyntaxWarning(
+        `${isArabic ? 'خطأ صياغة JSON:' : 'Invalid JSON Syntax:'} ${diagnosis.message}. ${isArabic ? diagnosis.suggestion_ar : diagnosis.suggestion}`
+      )
+    }
+  }
+
+  const handleAutoFix = () => {
+    if (!inputJson.trim()) return
+    const repairResult = autoRepairJson(inputJson, indentSpaces)
+    if (repairResult.success) {
+      setInputJson(repairResult.output)
+      setOutputJson(repairResult.output)
+      setSyntaxWarning('')
+      saveToHistory(inputJson, repairResult.output, indentSpaces, 'format')
+      recordUsage()
+      toast.success(
+        isArabic
+          ? 'تم إصلاح أخطاء الصياغة بنجاح!'
+          : 'Auto-fixed syntax issues successfully!'
+      )
+    } else {
+      if (repairResult.output && repairResult.output !== inputJson) {
+        setInputJson(repairResult.output)
+      }
+      toast.info(
+        isArabic
+          ? 'تم تطبيق بعض الإصلاحات الجزئية، يرجى مراجعة هيكل البيانات'
+          : 'Applied partial fixes, please review payload structure'
+      )
     }
   }
 
@@ -455,8 +487,11 @@ export default function JsonFormatterTool() {
       recordUsage()
       toast.success(isArabic ? 'تم ضغط وتصغير JSON' : 'JSON minified successfully')
     } catch (err: unknown) {
+      const diagnosis = diagnoseJsonIssue(err instanceof Error ? err : new Error(String(err)), inputJson)
       setOutputJson('')
-      setSyntaxWarning(`Invalid JSON Syntax: ${err instanceof Error ? err.message : 'Invalid JSON'}`)
+      setSyntaxWarning(
+        `${isArabic ? 'خطأ صياغة JSON:' : 'Invalid JSON Syntax:'} ${diagnosis.message}. ${isArabic ? diagnosis.suggestion_ar : diagnosis.suggestion}`
+      )
     }
   }
 
@@ -571,12 +606,23 @@ export default function JsonFormatterTool() {
             <span className="text-xs sm:text-sm font-mono font-medium break-all">{syntaxWarning}</span>
           </div>
 
-          <Link href="/tools/json-validator">
-            <Button size="sm" variant="destructive" className="rounded-xl text-xs gap-1.5 shrink-0 font-bold">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              {isArabic ? 'افحص الكود بـ مدقق JSON' : 'Debug with JSON Validator'}
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="default"
+              onClick={handleAutoFix}
+              className="rounded-xl text-xs gap-1.5 font-bold shadow-xs"
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              {isArabic ? 'إصلاح تلقائي' : 'Auto Fix'}
             </Button>
-          </Link>
+            <Link href="/tools/json-validator">
+              <Button size="sm" variant="outline" className="rounded-xl text-xs gap-1.5 font-bold border-destructive/30 hover:bg-destructive/10">
+                <ShieldCheck className="h-3.5 w-3.5 text-destructive" />
+                {isArabic ? 'افحص الكود بـ مدقق JSON' : 'Debug with JSON Validator'}
+              </Button>
+            </Link>
+          </div>
         </div>
       )}
 
