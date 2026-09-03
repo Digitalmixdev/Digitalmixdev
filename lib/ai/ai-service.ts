@@ -121,6 +121,79 @@ export function generateIntelligentFallback(payload: AiRequestPayload): AiRespon
     }
   }
 
+  // 2.5 Total Tools Count and Inventory Overview
+  if (
+    q.includes('how many tools') ||
+    q.includes('كم أداة') ||
+    q.includes('كم عدد الأدوات') ||
+    q.includes('عدد الأدوات') ||
+    q.includes('all tools') ||
+    q.includes('list of tools') ||
+    q.includes('قائمة الأدوات') ||
+    q.includes('ما هي الأدوات') ||
+    q.includes('what tools')
+  ) {
+    return {
+      content: isAr
+        ? `تضم منصة **DigitalMix** حالياً **22 أداة مجانية واحترافية** تعمل بالكامل محلياً داخل المتصفح (Client-side) لضمان الخصوصية والسرعة، موزعة على 4 أقسام رئيسية:\n\n` +
+          `📊 **أدوات قواعد البيانات (Database Tools - 5 أدوات):**\n` +
+          `1. **SQL Formatter** – تنسيق وتجميل وضغط استعلامات SQL بمختلف اللهجات.\n` +
+          `2. **SQL Validator** – تدقيق استعلامات SQL واكتشاف الأخطاء النحوية والإصلاح الفوري.\n` +
+          `3. **JSON Formatter** – تجميل وتنسيق JSON وتصفح الهيكل الشجري للمفاتيح.\n` +
+          `4. **JSON Validator** – فحص صحة كود JSON وتحديد مكان الخطأ بالسطر والعمود.\n` +
+          `5. **CSV to JSON Converter** – تحويل جداول CSV والإكسيل إلى مصفوفات JSON نظيفة.\n\n` +
+          `🛠️ **أدوات المطورين (Developer Utilities - 5 أدوات):**\n` +
+          `6. **Base64 Encoder/Decoder** – تشفير وفك تشفير النصوص والصور والملفات.\n` +
+          `7. **JWT Decoder/Encoder** – فك وتوليد وتدقيق توكنات JSON Web Tokens.\n` +
+          `8. **UUID Generator** – توليد معرّفات UUID v4 العشوائية بشكل فردي أو بالجملة.\n` +
+          `9. **Hash Generator** – توليد دوال التجزئة الآمنة (MD5, SHA-256, SHA-512).\n` +
+          `10. **Regex Tester** – اختبار وتدقيق التعابير النمطية Regular Expressions فورياً.\n\n` +
+          `📁 **أدوات الملفات والوسائط (File & Media Utilities - 8 أدوات):**\n` +
+          `11. **Document & Office Converter** – تحويل المستندات بين PDF, DOCX, XLSX, PPTX, HTML والصور.\n` +
+          `12. **Universal Image Converter** – تحويل الصور بين 14 صيغة (AVIF, WEBP, PNG, JPG, ICO, PSD, TIFF...).\n` +
+          `13. **Image & File Compressor** – ضغط الصور JPG/PNG/WebP وتجميع الملفات في أرشيف ZIP مضغوط.\n` +
+          `14. **PDF Merger & Organizer** – دمج ملفات الـ PDF وإعادة ترتيب وحذف الصفحات بالسحب والإفلات.\n` +
+          `15. **QR Code Generator** – تصميم وإنشاء رموز QR مخصصة للألوان والشعارات والواي فاي.\n` +
+          `16. **QR & Barcode Scanner** – مسح وقراءة أكواد QR والباركود عبر الكاميرا أو الصور أو الحافظة.\n` +
+          `17. **Image Resizer** – تغيير مقاسات وأبعاد وقص الصور لقوالب شبكات التواصل أو بكسلات مخصصة.\n` +
+          `18. **Image Color Palette Extractor** – استخراج لوحات الألوان السائدة وأكواد HEX/RGB وتناسقات الألوان وفحص تباين WCAG.\n\n` +
+          `🧮 **الحاسبات ومؤشرات الأعمال (Calculators & Business Metrics - 4 أدوات):**\n` +
+          `19. **CAC & LTV Calculator** – حساب تكلفة اكتساب العميل والقيمة الدائمة ومعدلات SaaS.\n` +
+          `20. **Profit Margin Calculator** – حساب مجمل وصافي الربح ونسب الإضافة (Markup).\n` +
+          `21. **ROI Calculator** – حساب العائد على الاستثمار والعائد السنوي المركب وفترة الاسترداد.\n` +
+          `22. **Calorie & BMR Calculator** – حساب السعرات الحرارية اليومية ومعدل الأيض BMR/TDEE وتوزيع الماكروز.`
+        : `DigitalMix currently features **22 browser-based, privacy-first tools** split across 4 main categories:\n\n` +
+          `All tools are 100% free and run entirely on your local device—meaning your data, files, and code never touch a server.\n\n` +
+          `📊 **Database Tools (5)**\n` +
+          `• **SQL Formatter** – Format, beautify, and minify SQL queries across PostgreSQL, MySQL, SQLite, and PL/SQL.\n` +
+          `• **SQL Validator** – Lint SQL syntax, detect clause order errors, and analyze query structure.\n` +
+          `• **JSON Formatter** – Beautify, minify, and explore JSON payloads with an interactive tree viewer.\n` +
+          `• **JSON Validator** – Audit JSON syntax, pinpoint error lines, and auto-fix trailing commas or unquoted keys.\n` +
+          `• **CSV to JSON Converter** – Convert spreadsheet CSV data into formatted JSON arrays with auto type detection.\n\n` +
+          `🛠️ **Developer Utilities (5)**\n` +
+          `• **Base64 Encoder/Decoder** – Convert strings, files, and images to/from Base64 and URL-safe formats.\n` +
+          `• **JWT Decoder/Encoder** – Inspect claims, verify signatures, and encode JSON Web Tokens securely.\n` +
+          `• **UUID Generator** – Generate cryptographically secure RFC 4122 v4 UUIDs individually or in bulk.\n` +
+          `• **Hash Generator** – Calculate cryptographic digests (MD5, SHA-256, SHA-512, HMAC) instantly.\n` +
+          `• **Regex Tester** – Test, match, and debug regular expressions with interactive match highlights.\n\n` +
+          `📁 **File & Media Utilities (8)**\n` +
+          `• **Document & Office Converter** – Convert between PDF, Word (DOCX), Excel (XLSX), PowerPoint (PPTX), and HTML.\n` +
+          `• **Universal Image Converter** – Convert between 14 formats (AVIF, WEBP, PNG, JPG, ICO, PSD, TIFF, ICNS, etc.).\n` +
+          `• **Image & File Compressor** – Compress JPG, PNG, and WebP images or archive files into ZIPs with live savings metrics.\n` +
+          `• **PDF Merger & Organizer** – Combine PDFs, reorder pages, rotate, and strip unwanted pages.\n` +
+          `• **QR Code Generator** – Build custom branded QR codes with custom colors, logos, and formats.\n` +
+          `• **QR & Barcode Scanner** – Scan and parse QR codes and 1D/2D barcodes via camera, image upload, or clipboard.\n` +
+          `• **Image Resizer** – Resize, crop, and transform photos using standard social media aspect ratios or custom pixel dimensions.\n` +
+          `• **Image Color Palette Extractor** – Extract dominant color swatches, HEX/RGB/HSL values, WCAG contrast scores, and export CSS/Tailwind design tokens.\n\n` +
+          `🧮 **Calculators & Business Metrics (4)**\n` +
+          `• **CAC & LTV Calculator** – Calculate SaaS metrics, Customer Acquisition Cost, Churn, and LTV:CAC health ratios.\n` +
+          `• **Profit Margin Calculator** – Compute gross and net profit margins, markup percentages, and target pricing.\n` +
+          `• **ROI Calculator** – Calculate return on investment, annualized gains, and payback periods.\n` +
+          `• **Calorie & BMR Calculator** – Calculate daily calorie expenditure (TDEE), BMR metabolic rate, and macronutrient targets.`,
+      source: 'fallback',
+    }
+  }
+
   // 3. Search and tool discovery
   const searchResults = findRecommendedTools(message, currentToolSlug, 2)
   if (searchResults.length > 0 && searchResults[0].score >= 20) {

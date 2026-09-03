@@ -35,6 +35,8 @@ import { useLanguage } from '@/lib/i18n/context'
 import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities } from '@/lib/history-service'
 import { registerToolInputGetter } from '@/lib/ai/tool-input-bus'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { validateSqlCode } from '@/components/sql-validator-tool'
 
 type SqlDialect = 'sql' | 'mysql' | 'postgresql' | 'sqlite' | 'plsql'
 
@@ -162,6 +164,7 @@ const DIALECTS: { value: SqlDialect; label: string }[] = [
 ]
 
 export default function SqlFormatterTool() {
+  const router = useRouter()
   const { language } = useLanguage()
   const isArabic = language === 'ar'
 
@@ -436,53 +439,14 @@ export default function SqlFormatterTool() {
     const cleanSql = sql.trim()
     if (!cleanSql) return null
 
-    // 1. Parentheses balance
-    const openParens = (cleanSql.match(/\(/g) || []).length
-    const closeParens = (cleanSql.match(/\)/g) || []).length
-    if (openParens !== closeParens) {
+    // Use comprehensive SQL Validator logic
+    const validation = validateSqlCode(cleanSql, dialect)
+    if (!validation.isValid && validation.errors.length > 0) {
+      const firstErr = validation.errors[0]
+      const sug = firstErr.suggestion ? ` (${firstErr.suggestion})` : ''
       return isArabic
-        ? `خطأ في صياغة SQL: عدم تطابق في الأقواس (${openParens} قوس فتح '(' مقابل ${closeParens} قوس إغلاق ')').`
-        : `Invalid SQL Syntax: Mismatched parentheses (${openParens} opening '(' vs ${closeParens} closing ')').`
-    }
-
-    // 2. Unclosed single quote (') in string literals
-    const withoutEscaped = cleanSql.replace(/''/g, '')
-    const singleQuotes = (withoutEscaped.match(/'/g) || []).length
-    if (singleQuotes % 2 !== 0) {
-      return isArabic
-        ? `خطأ في صياغة SQL: تم اكتشاف علامة تنصيص مفردة (') غير مغلقة في النص.`
-        : `Invalid SQL Syntax: Unclosed single quote (') detected in string literal.`
-    }
-
-    // 3. Trailing comma before SQL clauses or closing parenthesis
-    const trailingClauseMatch = cleanSql.match(/,\s*(FROM|WHERE|GROUP\s+BY|HAVING|ORDER\s+BY|LIMIT|OFFSET|UNION|JOIN|LEFT\s+JOIN|RIGHT\s+JOIN|INNER\s+JOIN)\b/i)
-    if (trailingClauseMatch) {
-      const clause = trailingClauseMatch[1].toUpperCase()
-      return isArabic
-        ? `خطأ في صياغة SQL: فاصلة زائدة (trailing comma) مباشرة قبل جملة ${clause}.`
-        : `Invalid SQL Syntax: Trailing comma detected immediately before ${clause} clause.`
-    }
-
-    if (/,\s*\)/.test(cleanSql)) {
-      return isArabic
-        ? `خطأ في صياغة SQL: فاصلة زائدة قبل إغلاق القوس ')'.`
-        : `Invalid SQL Syntax: Trailing comma detected before closing parenthesis ')'.`
-    }
-
-    // 4. Consecutive commas
-    if (/,\s*,/.test(cleanSql)) {
-      return isArabic
-        ? `خطأ في صياغة SQL: تم العثور على فواصل متتالية (,,) فارغة.`
-        : `Invalid SQL Syntax: Consecutive double commas (,,) detected.`
-    }
-
-    // 5. Dangling incomplete clauses at end of query
-    const danglingMatch = cleanSql.match(/\b(SELECT|FROM|WHERE|HAVING|GROUP\s+BY|ORDER\s+BY|JOIN|ON|LIMIT)\s*;?\s*$/i)
-    if (danglingMatch) {
-      const dangling = danglingMatch[1].toUpperCase()
-      return isArabic
-        ? `خطأ في صياغة SQL: جملة ${dangling} غير مكتملة في نهاية الاستعلام.`
-        : `Invalid SQL Syntax: Incomplete dangling ${dangling} clause at end of query.`
+        ? `خطأ صياغة SQL في السطر ${firstErr.line}: ${firstErr.message}${sug}`
+        : `SQL Syntax Error on line ${firstErr.line}: ${firstErr.message}${sug}`
     }
 
     return null
@@ -491,60 +455,83 @@ export default function SqlFormatterTool() {
   const handleFormat = () => {
     if (!inputSql.trim()) return
 
-    const warning = validateSqlSyntax(inputSql)
-    if (warning) {
-      setSyntaxWarning(warning)
-      setOutputSql('')
-      toast.error(isArabic ? 'تم اكتشاف خطأ في صياغة SQL يمنع التنسيق' : 'SQL syntax error prevented formatting')
-      return
-    }
+    const validation = validateSqlCode(inputSql.trim(), dialect)
 
+    // Attempt formatting
+    let formattedResult = ''
     try {
-      const formatted = format(inputSql, {
+      formattedResult = format(inputSql, {
         language: dialect === 'plsql' ? 'plsql' : dialect,
         tabWidth: 2,
         keywordCase: 'upper',
         linesBetweenQueries: 2,
       })
-      setOutputSql(formatted)
-      setSyntaxWarning('')
-      saveToHistory(inputSql, formatted, dialect, 'format')
-      recordUsage()
-      toast.success(isArabic ? 'تم تنسيق استعلام SQL بنجاح' : 'SQL query formatted successfully')
-    } catch (err: unknown) {
-      setOutputSql('')
-      const msg = err instanceof Error ? err.message : 'Could not parse SQL input'
-      setSyntaxWarning(isArabic ? `خطأ في صياغة SQL: ${msg}` : `Invalid SQL Syntax: ${msg}`)
-      toast.error(isArabic ? 'فشل تنسيق الاستعلام بسبب خطأ في الصياغة' : 'Formatting failed due to syntax error')
+    } catch {
+      // Fallback clean indentation
+      formattedResult = inputSql
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .join('\n')
     }
+
+    setOutputSql(formattedResult)
+
+    if (!validation.isValid && validation.errors.length > 0) {
+      const firstErr = validation.errors[0]
+      const sug = firstErr.suggestion ? ` (${firstErr.suggestion})` : ''
+      setSyntaxWarning(
+        isArabic
+          ? `خطأ في صياغة SQL في السطر ${firstErr.line}: ${firstErr.message}${sug}`
+          : `SQL Syntax Error on line ${firstErr.line}: ${firstErr.message}${sug}`
+      )
+    } else {
+      setSyntaxWarning('')
+      toast.success(isArabic ? 'تم تنسيق استعلام SQL بنجاح' : 'SQL query formatted successfully')
+    }
+
+    saveToHistory(inputSql, formattedResult, dialect, 'format')
+    recordUsage()
   }
 
   const handleMinify = () => {
     if (!inputSql.trim()) return
 
-    const warning = validateSqlSyntax(inputSql)
-    if (warning) {
-      setSyntaxWarning(warning)
-      setOutputSql('')
-      toast.error(isArabic ? 'تم اكتشاف خطأ في صياغة SQL يمنع الضغط' : 'SQL syntax error prevented minification')
-      return
+    const validation = validateSqlCode(inputSql.trim(), dialect)
+
+    const minified = inputSql
+      .replace(/\s+/g, ' ')
+      .replace(/\s*([,;()=><])\s*/g, '$1')
+      .trim()
+
+    setOutputSql(minified)
+
+    if (!validation.isValid && validation.errors.length > 0) {
+      const firstErr = validation.errors[0]
+      const sug = firstErr.suggestion ? ` (${firstErr.suggestion})` : ''
+      setSyntaxWarning(
+        isArabic
+          ? `خطأ في صياغة SQL في السطر ${firstErr.line}: ${firstErr.message}${sug}`
+          : `SQL Syntax Error on line ${firstErr.line}: ${firstErr.message}${sug}`
+      )
+    } else {
+      setSyntaxWarning('')
+      toast.success(isArabic ? 'تم ضغط استعلام SQL' : 'SQL query minified')
     }
 
+    saveToHistory(inputSql, minified, dialect, 'minify')
+    recordUsage()
+  }
+
+  const handleDebugWithValidator = () => {
+    if (!inputSql.trim()) return
     try {
-      const minified = inputSql
-        .replace(/\s+/g, ' ')
-        .replace(/\s*([,;()=><])\s*/g, '$1')
-        .trim()
-      setOutputSql(minified)
-      setSyntaxWarning('')
-      saveToHistory(inputSql, minified, dialect, 'minify')
-      recordUsage()
-      toast.success(isArabic ? 'تم ضغط استعلام SQL' : 'SQL query minified')
-    } catch (err: unknown) {
-      setOutputSql('')
-      const msg = err instanceof Error ? err.message : 'Could not minify SQL query'
-      setSyntaxWarning(isArabic ? `خطأ في صياغة SQL: ${msg}` : `Invalid SQL Syntax: ${msg}`)
+      sessionStorage.setItem('digitalmix_transfer_sql_to_validator', inputSql)
+      sessionStorage.setItem('digitalmix_transfer_sql_dialect', dialect)
+    } catch {
+      // ignore
     }
+    router.push('/tools/sql-validator')
   }
 
   const handleClear = () => {
@@ -671,12 +658,15 @@ export default function SqlFormatterTool() {
             <span className="text-xs sm:text-sm font-mono font-medium break-all">{syntaxWarning}</span>
           </div>
 
-          <Link href="/tools/sql-validator">
-            <Button size="sm" variant="destructive" className="rounded-xl text-xs gap-1.5 shrink-0 font-bold shadow-xs">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              {isArabic ? 'افحص وصلّح بـ مدقق SQL' : 'Debug & Fix with SQL Validator'}
-            </Button>
-          </Link>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={handleDebugWithValidator}
+            className="rounded-xl text-xs gap-1.5 shrink-0 font-bold shadow-xs cursor-pointer"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            {isArabic ? 'افحص وصلّح بـ مدقق SQL' : 'Debug with SQL Validator'}
+          </Button>
         </div>
       )}
 

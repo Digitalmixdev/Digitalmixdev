@@ -258,6 +258,8 @@ const KNOWN_TYPOS: Record<string, string> = {
   ODER: 'ORDER',
   ORER: 'ORDER',
   ORDRR: 'ORDER',
+  ORDE: 'ORDER',
+  ORD: 'ORDER',
 
   // GROUP typos
   GRP: 'GROUP',
@@ -316,6 +318,18 @@ const KNOWN_TYPOS: Record<string, string> = {
   BETWEN: 'BETWEEN',
   BTWEEN: 'BETWEEN',
 
+  // Sort direction typos (DESC / ASC)
+  DEC: 'DESC',
+  DES: 'DESC',
+  DESCC: 'DESC',
+  DESNDING: 'DESC',
+  DSESC: 'DESC',
+  DSCE: 'DESC',
+  DESSC: 'DESC',
+  ASCC: 'ASC',
+  ASSC: 'ASC',
+  ASNDING: 'ASC',
+
   // Boolean operator typos (AND / OR)
   AD: 'AND',
   ADN: 'AND',
@@ -339,6 +353,7 @@ const KNOWN_FUNCTION_TYPOS: Record<string, string> = {
   SM: 'SUM',
   SUMM: 'SUM',
   SU: 'SUM',
+  COUN: 'COUNT',
   CONT: 'COUNT',
   COUTN: 'COUNT',
   CUONT: 'COUNT',
@@ -362,9 +377,9 @@ const COMMON_SQL_FUNCS = [
 ]
 
 const MAJOR_KEYWORDS = [
-  'SELECT', 'FROM', 'WHERE', 'GROUP', 'HAVING', 'LIMIT', 'OFFSET',
+  'SELECT', 'FROM', 'WHERE', 'GROUP', 'HAVING', 'ORDER', 'BY', 'LIMIT', 'OFFSET',
   'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'CROSS', 'FULL', 'INSERT',
-  'UPDATE', 'DELETE', 'VALUES', 'DISTINCT', 'BETWEEN'
+  'UPDATE', 'DELETE', 'VALUES', 'DISTINCT', 'BETWEEN', 'DESC', 'ASC'
 ]
 
 // Levenshtein distance for fuzzy typo catching
@@ -430,19 +445,19 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect): {
     fixesApplied.push("Corrected 'LET JOIN' to 'LEFT JOIN'")
   }
 
-  // "ORDR BY" / "ODER BY" / "ORDRE BY" -> "ORDER BY"
-  const ordrByRegex = /\b(?:ORDR|ODER|ORDRE)\s+BY\b/gi
+  // "ORDR BY" / "ODER BY" / "ORDRE BY" / "ORDE B" / "ORDER B" / "ORDE BY" -> "ORDER BY"
+  const ordrByRegex = /\b(?:ORDR|ODER|ORDRE|ORDE|ORDER)\s+(?:BY|B)\b/gi
   if (ordrByRegex.test(fixed)) {
     fixed = fixed.replace(ordrByRegex, 'ORDER BY')
-    fixesApplied.push("Corrected 'ORDR BY' to 'ORDER BY'")
+    fixesApplied.push("Corrected clause to 'ORDER BY'")
     fixCount++
   }
 
-  // "GROP BY" / "GRP BY" -> "GROUP BY"
-  const gropByRegex = /\b(?:GROP|GRP|GROPU)\s+BY\b/gi
+  // "GROP BY" / "GRP BY" / "GROP B" / "GROUP B" -> "GROUP BY"
+  const gropByRegex = /\b(?:GROP|GRP|GROPU|GROPP|GROUP)\s+(?:BY|B)\b/gi
   if (gropByRegex.test(fixed)) {
     fixed = fixed.replace(gropByRegex, 'GROUP BY')
-    fixesApplied.push("Corrected 'GROP BY' to 'GROUP BY'")
+    fixesApplied.push("Corrected clause to 'GROUP BY'")
     fixCount++
   }
 
@@ -451,6 +466,14 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect): {
   if (orderByEscRegex.test(fixed)) {
     fixed = fixed.replace(orderByEscRegex, '$1$2 DESC')
     fixesApplied.push("Corrected '...ESC' to '... DESC' in ORDER BY")
+    fixCount++
+  }
+
+  // Fix ORDER BY direction typos: "DEC", "DES", "DESCC" -> "DESC"
+  const orderByDirTypo = /(\bORDER\s+BY\s+[\s\S]*?\b)(DEC|DES|DESCC|DESNDING|DSESC|DSCE|DESSC)\b/gi
+  if (orderByDirTypo.test(fixed)) {
+    fixed = fixed.replace(orderByDirTypo, '$1DESC')
+    fixesApplied.push("Corrected sort direction to 'DESC'")
     fixCount++
   }
 
@@ -488,6 +511,17 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect): {
     fixed = fixed.replace(havingMissingOp, '$1 > $2')
     fixesApplied.push("Added '>' comparison operator in HAVING clause")
     fixCount++
+  }
+
+  // 5b. Fix WHERE missing operator / unclosed date literal (e.g. "created_at 2025-01-01'" -> "created_at >= '2025-01-01'")
+  const whereMissingDateOp = /(\b(?:WHERE|AND|OR)\s+[a-zA-Z_][a-zA-Z0-9_.]*)\s+([0-9]{4}-[0-9]{2}-[0-9]{2}'?)\b/gi
+  if (whereMissingDateOp.test(fixed)) {
+    fixed = fixed.replace(whereMissingDateOp, (match, colClause, dateVal) => {
+      const cleanDate = dateVal.replace(/'/g, '')
+      fixCount++
+      fixesApplied.push(`Added '>=' operator and quotes for date '${cleanDate}'`)
+      return `${colClause} >= '${cleanDate}'`
+    })
   }
 
   // 6. Fix misspelled boolean keywords (e.g. "AD" -> "AND" before expressions)
@@ -578,8 +612,11 @@ export function validateSqlCode(sql: string, dialect: SqlDialect): SqlValidation
   let squareDepth = 0
   let squareOpenLine = 1
   let inSingleQuote = false
+  let singleQuoteOpenLine = 1
   let inDoubleQuote = false
+  let doubleQuoteOpenLine = 1
   let inBacktick = false
+  let backtickOpenLine = 1
 
   for (let i = 0; i < sql.length; i++) {
     const char = sql[i]
@@ -590,15 +627,24 @@ export function validateSqlCode(sql: string, dialect: SqlDialect): SqlValidation
         // escaped
       } else {
         inSingleQuote = !inSingleQuote
+        if (inSingleQuote) {
+          singleQuoteOpenLine = lineNum
+        }
       }
     } else if (char === '"' && !inSingleQuote && !inBacktick) {
       if (i > 0 && sql[i - 1] === '\\') {
         // escaped
       } else {
         inDoubleQuote = !inDoubleQuote
+        if (inDoubleQuote) {
+          doubleQuoteOpenLine = lineNum
+        }
       }
     } else if (char === '`' && !inSingleQuote && !inDoubleQuote) {
       inBacktick = !inBacktick
+      if (inBacktick) {
+        backtickOpenLine = lineNum
+      }
     }
 
     if (!inSingleQuote && !inDoubleQuote && !inBacktick) {
@@ -636,24 +682,24 @@ export function validateSqlCode(sql: string, dialect: SqlDialect): SqlValidation
 
   if (inSingleQuote) {
     errors.push({
-      line: lines.length,
-      message: "Unclosed single quote (') string literal",
+      line: singleQuoteOpenLine,
+      message: `Unclosed single quote (') string literal on line ${singleQuoteOpenLine}`,
       severity: 'error',
-      suggestion: "Add a closing single quote (') to terminate the string literal.",
+      suggestion: "Add a closing single quote (') to terminate the string literal or check for a missing opening quote.",
     })
   }
   if (inDoubleQuote) {
     errors.push({
-      line: lines.length,
-      message: 'Unclosed double quote (") identifier literal',
+      line: doubleQuoteOpenLine,
+      message: `Unclosed double quote (") identifier literal on line ${doubleQuoteOpenLine}`,
       severity: 'error',
       suggestion: 'Add a closing double quote (") to complete the identifier.',
     })
   }
   if (inBacktick) {
     errors.push({
-      line: lines.length,
-      message: 'Unclosed backtick (`) identifier literal',
+      line: backtickOpenLine,
+      message: `Unclosed backtick (\`) identifier literal on line ${backtickOpenLine}`,
       severity: 'error',
       suggestion: 'Add a closing backtick (`) to complete the table or column name.',
     })
@@ -718,30 +764,34 @@ export function validateSqlCode(sql: string, dialect: SqlDialect): SqlValidation
       })
     }
 
-    // "ORDR BY" / "ODER BY"
-    if (/\b(ORDR|ODER|ORDRE)\s+BY\b/i.test(codePart)) {
-      const match = codePart.match(/\b(ORDR|ODER|ORDRE)\s+BY\b/i)
-      errors.push({
-        line: lineNum,
-        message: `Misspelled SQL clause '${match ? match[1] : 'ORDR'} BY' on line ${lineNum}`,
-        severity: 'error',
-        suggestion: "Did you mean 'ORDER BY'?",
-      })
+    // "ORDR BY" / "ODER BY" / "ORDE B" / "ORDER B" / "ORDRE BY"
+    if (/\b(ORDR|ODER|ORDRE|ORDE|ORDER)\s+(BY|B)\b/i.test(codePart)) {
+      const match = codePart.match(/\b(ORDR|ODER|ORDRE|ORDE|ORDER)\s+(BY|B)\b/i)
+      if (match && (match[1].toUpperCase() !== 'ORDER' || match[2].toUpperCase() !== 'BY')) {
+        errors.push({
+          line: lineNum,
+          message: `Misspelled SQL clause '${match[0]}' on line ${lineNum}`,
+          severity: 'error',
+          suggestion: "Did you mean 'ORDER BY'?",
+        })
+      }
     }
 
-    // "GROP BY" / "GRP BY"
-    if (/\b(GROP|GRP|GROPU)\s+BY\b/i.test(codePart)) {
-      const match = codePart.match(/\b(GROP|GRP|GROPU)\s+BY\b/i)
-      errors.push({
-        line: lineNum,
-        message: `Misspelled SQL clause '${match ? match[1] : 'GROP'} BY' on line ${lineNum}`,
-        severity: 'error',
-        suggestion: "Did you mean 'GROUP BY'?",
-      })
+    // "GROP BY" / "GRP BY" / "GROP B" / "GROUP B"
+    if (/\b(GROP|GRP|GROPU|GROPP|GROUP)\s+(BY|B)\b/i.test(codePart)) {
+      const match = codePart.match(/\b(GROP|GRP|GROPU|GROPP|GROUP)\s+(BY|B)\b/i)
+      if (match && (match[1].toUpperCase() !== 'GROUP' || match[2].toUpperCase() !== 'BY')) {
+        errors.push({
+          line: lineNum,
+          message: `Misspelled SQL clause '${match[0]}' on line ${lineNum}`,
+          severity: 'error',
+          suggestion: "Did you mean 'GROUP BY'?",
+        })
+      }
     }
   })
 
-  // 4. Function typos check before "(" (e.g., "SM (o.amount)")
+  // 4. Function typos check before "(" (e.g., "SM (o.amount)", "COUN(oid)")
   lines.forEach((lineStr, idx) => {
     const lineNum = idx + 1
     const codePart = lineStr.split('--')[0]
@@ -778,7 +828,7 @@ export function validateSqlCode(sql: string, dialect: SqlDialect): SqlValidation
     }
   })
 
-  // 5. Specific clause checks (ON clauses, HAVING missing operators, ORDER BY direction tokens)
+  // 5. Specific clause checks (ON clauses, HAVING missing operators, ORDER BY direction tokens, WHERE missing operators)
   lines.forEach((lineStr, idx) => {
     const lineNum = idx + 1
     const codePart = lineStr.split('--')[0]
@@ -818,9 +868,9 @@ export function validateSqlCode(sql: string, dialect: SqlDialect): SqlValidation
       }
     }
 
-    // 5c. ORDER BY syntax check (e.g., "total_spentESC" missing space or invalid direction)
-    if (/\bORDER\s+BY\b/i.test(codePart)) {
-      const afterOrderBy = codePart.split(/\bORDER\s+BY\b/i)[1]?.trim() || ''
+    // 5c. ORDER BY syntax check (e.g., "total_spentESC" or "ORDE B ttal_spent DEC")
+    if (/\b(?:ORDER|ORDR|ODER|ORDRE|ORDE)\s+(?:BY|B)\b/i.test(codePart)) {
+      const afterOrderBy = codePart.split(/\b(?:ORDER|ORDR|ODER|ORDRE|ORDE)\s+(?:BY|B)\b/i)[1]?.trim() || ''
       const combinedDir = /([a-zA-Z_][a-zA-Z0-9_]*)ESC\b/i.exec(afterOrderBy)
       if (combinedDir && !/DESC\b/i.test(combinedDir[0])) {
         errors.push({
@@ -829,6 +879,36 @@ export function validateSqlCode(sql: string, dialect: SqlDialect): SqlValidation
           severity: 'error',
           suggestion: `Did you mean '${combinedDir[1]} DESC' or '${combinedDir[1]} ASC'?`,
         })
+      }
+
+      // Check misspelled direction keywords
+      const dirMatch = /\b(DEC|DES|DESCC|DESNDING|DSESC|DSCE|DESSC|ASCC|ASSC|ASNDING)\b/i.exec(afterOrderBy)
+      if (dirMatch) {
+        const isDesc = /^D/i.test(dirMatch[1])
+        errors.push({
+          line: lineNum,
+          message: `Misspelled SQL sort direction '${dirMatch[1]}' on line ${lineNum}`,
+          severity: 'error',
+          suggestion: `Did you mean '${isDesc ? 'DESC' : 'ASC'}'?`,
+        })
+      }
+    }
+
+    // 5d. WHERE / condition syntax check (e.g., "AND created_at 2025-01-01'" or "WHERE age 25")
+    if (/\b(?:WHERE|AND|OR)\b/i.test(codePart)) {
+      const whereMissingOp = /\b(?:WHERE|AND|OR)\s+([a-zA-Z_][a-zA-Z0-9_.]*)\s+([0-9]{4}-[0-9]{2}-[0-9]{2}'?|[0-9]+)\b(?!\s*(?:AND|OR|GROUP|HAVING|ORDER|LIMIT|;|\)|,|=|>|<|!|LIKE|IN|IS|BETWEEN))/gi
+      let condMatch
+      while ((condMatch = whereMissingOp.exec(codePart)) !== null) {
+        const colIdent = condMatch[1]
+        const valLit = condMatch[2]
+        if (!/^(NOT|EXISTS|TRUE|FALSE|NULL|CASE|SELECT)$/i.test(colIdent)) {
+          errors.push({
+            line: lineNum,
+            message: `Syntax error in condition: Missing comparison operator between '${colIdent}' and '${valLit}' on line ${lineNum}`,
+            severity: 'error',
+            suggestion: `Add a comparison operator such as '${colIdent} >= \'${valLit.replace(/'/g, '')}\'' or '${colIdent} = \'${valLit.replace(/'/g, '')}\''.`,
+          })
+        }
       }
     }
   })
@@ -878,10 +958,11 @@ export function validateSqlCode(sql: string, dialect: SqlDialect): SqlValidation
 
       // Check known keyword typos dictionary
       if (KNOWN_TYPOS[upperWord]) {
-        // Skip if already reported as part of a multi-word combo (e.g. LET before JOIN, ORDR before BY)
+        // Skip if already reported as part of a multi-word combo (e.g. LET before JOIN, ORDR before BY, DEC in ORDER BY)
         if (upperWord === 'LET' && /\bLET\s+(\r?\n\s*)?JOIN\b/i.test(sql)) continue
-        if (['ORDR', 'ODER', 'ORDRE'].includes(upperWord) && /\b(?:ORDR|ODER|ORDRE)\s+BY\b/i.test(sql)) continue
-        if (['GROP', 'GRP'].includes(upperWord) && /\b(?:GROP|GRP)\s+BY\b/i.test(sql)) continue
+        if (['ORDR', 'ODER', 'ORDRE', 'ORDE', 'ORD'].includes(upperWord) && /\b(?:ORDR|ODER|ORDRE|ORDE|ORDER)\s+(?:BY|B)\b/i.test(sql)) continue
+        if (['GROP', 'GRP', 'GROPU', 'GROPP'].includes(upperWord) && /\b(?:GROP|GRP|GROPU|GROPP|GROUP)\s+(?:BY|B)\b/i.test(sql)) continue
+        if (['DEC', 'DES', 'DESCC', 'ASCC', 'ASSC'].includes(upperWord) && /\b(?:ORDER|ORDR|ODER|ORDRE|ORDE)\s+(?:BY|B)\b/i.test(codePart)) continue
 
         errors.push({
           line: lineNum,
@@ -1114,6 +1195,25 @@ export function SqlValidatorTool() {
   const [copied, setCopied] = useState<boolean>(false)
   const [history, setHistory] = useState<SqlValidatorHistoryItem[]>([])
   const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor')
+
+  // Check for transferred SQL from Formatter via sessionStorage
+  useEffect(() => {
+    try {
+      const transferred = sessionStorage.getItem('digitalmix_transfer_sql_to_validator')
+      if (transferred) {
+        setSqlInput(transferred)
+        sessionStorage.removeItem('digitalmix_transfer_sql_to_validator')
+        toast.info(isAr ? 'تم استيراد استعلام SQL من المنسق للفحص والتدقيق' : 'Imported SQL from Formatter for debugging')
+      }
+      const transferredDialect = sessionStorage.getItem('digitalmix_transfer_sql_dialect')
+      if (transferredDialect) {
+        setDialect(transferredDialect as SqlDialect)
+        sessionStorage.removeItem('digitalmix_transfer_sql_dialect')
+      }
+    } catch {
+      // ignore
+    }
+  }, [isAr])
 
   // Load history from localStorage
   useEffect(() => {

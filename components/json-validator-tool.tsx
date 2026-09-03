@@ -398,10 +398,24 @@ export function JsonValidatorTool() {
   const { t, language } = useLanguage()
   const isAr = language === 'ar'
 
-  const [jsonInput, setJsonInput] = useState<string>(SAMPLE_PAYLOADS[0].json)
+  const [jsonInput, setJsonInput] = useState<string>('')
   const [copied, setCopied] = useState<boolean>(false)
   const [history, setHistory] = useState<JsonValidatorHistoryItem[]>([])
   const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor')
+
+  // Check for transferred JSON from Formatter via sessionStorage
+  useEffect(() => {
+    try {
+      const transferred = sessionStorage.getItem('digitalmix_transfer_json_to_validator')
+      if (transferred) {
+        setJsonInput(transferred)
+        sessionStorage.removeItem('digitalmix_transfer_json_to_validator')
+        toast.info(isAr ? 'تم استيراد كود JSON من المنسق للفحص والتدقيق' : 'Imported JSON from Formatter for debugging')
+      }
+    } catch {
+      // ignore
+    }
+  }, [isAr])
 
   // Load history from localStorage
   useEffect(() => {

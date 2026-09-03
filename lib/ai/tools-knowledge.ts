@@ -723,6 +723,67 @@ export const DIGITALMIX_TOOLS_KNOWLEDGE: ToolKnowledgeItem[] = [
     relatedTools: ['image-converter', 'image-and-file-compressor'],
   },
   {
+    id: 'image-color-palette',
+    name: 'Image Color Palette Extractor',
+    slug: 'image-color-palette',
+    href: '/tools/image-color-palette',
+    categoryId: 'files',
+    categoryNameEn: 'File Utilities',
+    categoryNameAr: 'أدوات الملفات والمستندات',
+    descriptionEn: 'Extract dominant color palettes, HEX/RGB/HSL swatches, WCAG contrast scores, and export design tokens from any image in your browser.',
+    descriptionAr: 'استخراج لوحات الألوان والدرجات السائدة (HEX/RGB/HSL) ودرجات التباين وتصدير كود CSS و Tailwind من أي صورة فورياً.',
+    capabilitiesEn: [
+      'Extract dominant color palettes using Median Cut, K-Means, Octree, or Vibrant quantization',
+      'Interactive Loupe & Eyedropper to sample exact pixel colors with zoom and lock controls',
+      'Generate complementary, analogous, triadic, tetradic, and monochromatic color harmonies',
+      'WCAG contrast checker & colorblindness simulator (Protanopia, Deuteranopia, Tritanopia, Achromatopsia)',
+      'Export design tokens as CSS Variables, Tailwind Config, SCSS, JSON, or downloadable Palette Card PNG',
+      '100% Client-side local processing — image files are never uploaded to any server',
+    ],
+    capabilitiesAr: [
+      'استخراج لوحات الألوان السائدة بخوارزميات Median Cut و K-Means و Octree و Vibrant',
+      'عدسة مكبرة وأداة قطارة تفاعلية (Eyedropper) لاختيار لون أي بكسل مع التكبير والتثبيت',
+      'توليد تناغمات وتناسقات الألوان (تكميلي، متجاور، ثلاثي، رباعي، وأحادي اللون)',
+      'فحص تباين الألوان لمعايير WCAG ومحاكاة درجات عمى الألوان المختلفة',
+      'تصدير الأكواد بصيغ CSS Variables و Tailwind Config و SCSS و JSON أو بطاقة لوحة ألوان PNG',
+      'معالجة محلية بالكامل داخل المتصفح 100% لضمان أقصى درجات الخصوصية والأمان',
+    ],
+    howToUseEn: [
+      'Upload an image (PNG, JPG, WebP, SVG, AVIF) or choose a sample photo.',
+      'Select your preferred palette size (4 to 12 colors) and extraction algorithm.',
+      'Use the interactive eyedropper on the photo to pick custom colors.',
+      'Inspect color harmonies, WCAG accessibility contrast, and colorblind simulations.',
+      'Copy color HEX/RGB/HSL codes or export CSS/Tailwind/JSON/PNG palette card.',
+    ],
+    howToUseAr: [
+      'ارفع صورة (PNG, JPG, WebP, SVG, AVIF) أو اختر صورة تجريبية.',
+      'حدد عدد الألوان المطلوبة في اللوحة (من 4 إلى 12 لوناً) واختر خوارزمية الاستخراج.',
+      'استخدم القطارة التفاعلية فوق الصورة لالتقاط ألوان محددة بدقة.',
+      'استعرض التناسقات اللونية، وفحص تباين إمكانية الوصول WCAG، ومحاكاة عمى الألوان.',
+      'انسخ أكواد الألوان (HEX, RGB, HSL) أو صدّر كود CSS أو Tailwind أو بطاقة PNG.',
+    ],
+    keywords: [
+      'color palette',
+      'color extractor',
+      'extract colors',
+      'image colors',
+      'eyedropper',
+      'hex colors',
+      'rgb',
+      'hsl',
+      'color harmonies',
+      'color generator',
+      'wcag contrast',
+      'colorblind simulator',
+      'tailwind colors',
+      'css variables',
+      'swatches',
+      'palette card',
+      'design tokens',
+    ],
+    relatedTools: ['image-converter', 'image-resizer', 'qr-code-generator'],
+  },
+  {
     id: 'kpi-calculator',
     name: 'CAC & LTV Calculator',
     slug: 'kpi-calculator',
@@ -966,6 +1027,9 @@ export function findRecommendedTools(
     }
     if (q.includes('convert image') || q.includes('webp') || q.includes('avif') || q.includes('png to jpg') || q.includes('psd') || q.includes('ico')) {
       if (tool.id === 'image-converter') score += 80
+    }
+    if (q.includes('palette') || q.includes('color') || q.includes('extract color') || q.includes('eyedropper') || q.includes('swatch') || q.includes('ألوان') || q.includes('باليت')) {
+      if (tool.id === 'image-color-palette') score += 80
     }
     if (q.includes('cac') || q.includes('ltv') || q.includes('saas') || q.includes('churn')) {
       if (tool.id === 'kpi-calculator') score += 80
