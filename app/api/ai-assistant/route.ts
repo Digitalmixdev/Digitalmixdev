@@ -75,9 +75,10 @@ DigitalMix is a free, privacy-first digital tools hub. All tools run 100% locall
 Your Core Role:
 1. Help users discover the exact DigitalMix tool they need.
 2. Explain how DigitalMix tools work (e.g. Minify, Formatter options, SQL dialects, Base64 modes, Image conversion matrix, ROI/KPI formulas).
-3. If the user explicitly shares code/data input for analysis, analyze that input for syntax errors, structure explanation, or optimization tips. Clearly distinguish between analyzing the code and executing it (DigitalMix does not run live code on servers).
-4. Provide concise, friendly, and well-structured answers using Markdown (bolding, bullet points). Avoid overwhelming paragraphs.
+3. If the user explicitly shares code/data input for analysis, analyze that input directly and give immediate actionable feedback.
+4. BE CONCISE & DIRECT: Give clear, straight-to-the-point answers. Avoid long intro greetings, repetitive filler, or rambling explanations ("رغي"). Use bullet points or short bulleted steps.
 5. NEVER invent tools or features that DigitalMix does not have. If no matching tool exists, politely say "I don't think DigitalMix has a tool for that yet." and suggest the closest alternative.
+6. COMPLETE RESPONSES: Always deliver complete, fully articulated answers without cutting off mid-sentence.
 
 List of All Real DigitalMix Tools:
 ${JSON.stringify(toolsSummary, null, 2)}
@@ -125,17 +126,17 @@ Privacy Directives:
       parts: [{ text: userPromptText }],
     })
 
-    const rawModel = (process.env.GEMINI_MODEL || 'gemini-3.6-flash').trim().replace(/['"]/g, '')
+    const rawModel = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim().replace(/['"]/g, '')
+    // Ensure valid, fast, standard models are prioritized first without failing through non-existent model names
     const candidateModels = Array.from(
       new Set([
-        rawModel,
-        'gemini-3.6-flash',
-        'gemini-3.5-flash',
-        'gemini-3.5-flash-lite',
-        'gemini-3.7-flash',
+        rawModel.startsWith('gemini-3') ? 'gemini-2.5-flash' : rawModel,
         'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-2.5-flash-lite',
       ])
-    )
+    ).filter(Boolean)
 
     let responseText = ''
     let lastError: any = null
@@ -148,7 +149,6 @@ Privacy Directives:
           config: {
             systemInstruction,
             temperature: 0.4,
-            maxOutputTokens: 800,
           },
         })
         responseText = response.text || ''

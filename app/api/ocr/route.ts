@@ -20,7 +20,8 @@ export async function POST(req: NextRequest) {
     const mimeType = imageFile.type || 'image/jpeg'
 
     const ai = new GoogleGenAI({ apiKey: rawApiKey })
-    const rawModel = (process.env.GEMINI_MODEL || 'gemini-3.6-flash').trim().replace(/['"]/g, '')
+    const rawModel = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim().replace(/['"]/g, '')
+    const selectedModel = rawModel.startsWith('gemini-3') ? 'gemini-2.5-flash' : rawModel
 
     const prompt = `You are an expert document reconstruction and OCR engine.
 Extract ALL text and visual document structure from this document/image into clean HTML markup.
@@ -34,7 +35,7 @@ Rules for HTML output:
 6. Return ONLY the HTML markup inside <body>...</body>.`
 
     const response = await ai.models.generateContent({
-      model: rawModel,
+      model: selectedModel,
       contents: [
         {
           role: 'user',
