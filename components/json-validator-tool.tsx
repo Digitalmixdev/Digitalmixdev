@@ -398,24 +398,10 @@ export function JsonValidatorTool() {
   const { t, language } = useLanguage()
   const isAr = language === 'ar'
 
-  const [jsonInput, setJsonInput] = useState<string>('')
+  const [jsonInput, setJsonInput] = useState<string>(SAMPLE_PAYLOADS[0].json)
   const [copied, setCopied] = useState<boolean>(false)
   const [history, setHistory] = useState<JsonValidatorHistoryItem[]>([])
   const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor')
-
-  // Check for transferred JSON from Formatter via sessionStorage
-  useEffect(() => {
-    try {
-      const transferred = sessionStorage.getItem('digitalmix_transfer_json_to_validator')
-      if (transferred) {
-        setJsonInput(transferred)
-        sessionStorage.removeItem('digitalmix_transfer_json_to_validator')
-        toast.info(isAr ? 'تم استيراد كود JSON من المنسق للفحص والتدقيق' : 'Imported JSON from Formatter for debugging')
-      }
-    } catch {
-      // ignore
-    }
-  }, [isAr])
 
   // Load history from localStorage
   useEffect(() => {
@@ -492,10 +478,11 @@ export function JsonValidatorTool() {
   }
 
   // Auto-Fix JSON Algorithm (Missing opening/closing braces, missing commas, trailing commas, unquoted keys, single quotes, unclosed brackets, comments)
+  // Fixes syntax in-place while strictly preserving original formatting and indentation
   const handleAutoFix = () => {
     if (!jsonInput.trim()) return
 
-    const repairResult = autoRepairJson(jsonInput, 2)
+    const repairResult = autoRepairJson(jsonInput, { format: false })
     if (repairResult.success) {
       setJsonInput(repairResult.output)
       const fixesSummary = repairResult.fixesApplied.length > 0
@@ -503,8 +490,8 @@ export function JsonValidatorTool() {
         : ''
       toast.success(
         isAr
-          ? `تم إصلاح أخطاء الصياغة وهيكل JSON وتنسيقه بنجاح!`
-          : `Auto-fixed syntax & formatted JSON successfully!${fixesSummary}`
+          ? `تم تصحيح أخطاء الصياغة بنجاح مع الحفاظ على التنسيق!`
+          : `Auto-fixed syntax errors successfully!${fixesSummary}`
       )
     } else {
       if (repairResult.output && repairResult.output !== jsonInput) {

@@ -34,9 +34,8 @@ import { markToolUsed } from '@/actions/toolUsage'
 import { useLanguage } from '@/lib/i18n/context'
 import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities } from '@/lib/history-service'
 import { registerToolInputGetter } from '@/lib/ai/tool-input-bus'
+import { validateSqlCode, autoFixSqlCode } from '@/lib/sql-validator-engine'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { validateSqlCode } from '@/components/sql-validator-tool'
 
 type SqlDialect = 'sql' | 'mysql' | 'postgresql' | 'sqlite' | 'plsql'
 
@@ -164,7 +163,6 @@ const DIALECTS: { value: SqlDialect; label: string }[] = [
 ]
 
 export default function SqlFormatterTool() {
-  const router = useRouter()
   const { language } = useLanguage()
   const isArabic = language === 'ar'
 
@@ -439,14 +437,13 @@ export default function SqlFormatterTool() {
     const cleanSql = sql.trim()
     if (!cleanSql) return null
 
-    // Use comprehensive SQL Validator logic
-    const validation = validateSqlCode(cleanSql, dialect)
-    if (!validation.isValid && validation.errors.length > 0) {
-      const firstErr = validation.errors[0]
-      const sug = firstErr.suggestion ? ` (${firstErr.suggestion})` : ''
-      return isArabic
-        ? `خطأ صياغة SQL في السطر ${firstErr.line}: ${firstErr.message}${sug}`
-        : `SQL Syntax Error on line ${firstErr.line}: ${firstErr.message}${sug}`
+    // Comprehensive validation using the validator engine
+    const valResult = validateSqlCode(sql, dialect === 'plsql' ? 'plsql' : dialect)
+    if (!valResult.isValid && valResult.errors.length > 0) {
+      const topErr = valResult.errors[0]
+      return topErr.column
+        ? `Line ${topErr.line}, Col ${topErr.column}: ${topErr.message}`
+        : `Line ${topErr.line}: ${topErr.message}`
     }
 
     return null
@@ -455,89 +452,100 @@ export default function SqlFormatterTool() {
   const handleFormat = () => {
     if (!inputSql.trim()) return
 
-    const validation = validateSqlCode(inputSql.trim(), dialect)
+    const warning = validateSqlSyntax(inputSql)
+    if (warning) {
+      setSyntaxWarning(warning)
+      setOutputSql('')
+      toast.error(isArabic ? 'تم اكتشاف خطأ في صياغة SQL يمنع التنسيق' : 'SQL syntax error prevented formatting')
+      return
+    }
 
-    // Attempt formatting
-    let formattedResult = ''
     try {
-      formattedResult = format(inputSql, {
+      const formatted = format(inputSql, {
         language: dialect === 'plsql' ? 'plsql' : dialect,
         tabWidth: 2,
         keywordCase: 'upper',
         linesBetweenQueries: 2,
       })
-    } catch {
-      // Fallback clean indentation
-      formattedResult = inputSql
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0)
-        .join('\n')
-    }
-
-    setOutputSql(formattedResult)
-
-    if (!validation.isValid && validation.errors.length > 0) {
-      const firstErr = validation.errors[0]
-      const sug = firstErr.suggestion ? ` (${firstErr.suggestion})` : ''
-      setSyntaxWarning(
-        isArabic
-          ? `خطأ في صياغة SQL في السطر ${firstErr.line}: ${firstErr.message}${sug}`
-          : `SQL Syntax Error on line ${firstErr.line}: ${firstErr.message}${sug}`
-      )
-    } else {
+      setOutputSql(formatted)
       setSyntaxWarning('')
+      saveToHistory(inputSql, formatted, dialect, 'format')
+      recordUsage()
       toast.success(isArabic ? 'تم تنسيق استعلام SQL بنجاح' : 'SQL query formatted successfully')
+    } catch (err: unknown) {
+      setOutputSql('')
+      const msg = err instanceof Error ? err.message : 'Could not parse SQL input'
+      setSyntaxWarning(isArabic ? `خطأ في صياغة SQL: ${msg}` : `Invalid SQL Syntax: ${msg}`)
+      toast.error(isArabic ? 'فشل تنسيق الاستعلام بسبب خطأ في الصياغة' : 'Formatting failed due to syntax error')
     }
-
-    saveToHistory(inputSql, formattedResult, dialect, 'format')
-    recordUsage()
   }
 
   const handleMinify = () => {
     if (!inputSql.trim()) return
 
-    const validation = validateSqlCode(inputSql.trim(), dialect)
-
-    const minified = inputSql
-      .replace(/\s+/g, ' ')
-      .replace(/\s*([,;()=><])\s*/g, '$1')
-      .trim()
-
-    setOutputSql(minified)
-
-    if (!validation.isValid && validation.errors.length > 0) {
-      const firstErr = validation.errors[0]
-      const sug = firstErr.suggestion ? ` (${firstErr.suggestion})` : ''
-      setSyntaxWarning(
-        isArabic
-          ? `خطأ في صياغة SQL في السطر ${firstErr.line}: ${firstErr.message}${sug}`
-          : `SQL Syntax Error on line ${firstErr.line}: ${firstErr.message}${sug}`
-      )
-    } else {
-      setSyntaxWarning('')
-      toast.success(isArabic ? 'تم ضغط استعلام SQL' : 'SQL query minified')
+    const warning = validateSqlSyntax(inputSql)
+    if (warning) {
+      setSyntaxWarning(warning)
+      setOutputSql('')
+      toast.error(isArabic ? 'تم اكتشاف خطأ في صياغة SQL يمنع الضغط' : 'SQL syntax error prevented minification')
+      return
     }
 
-    saveToHistory(inputSql, minified, dialect, 'minify')
-    recordUsage()
-  }
-
-  const handleDebugWithValidator = () => {
-    if (!inputSql.trim()) return
     try {
-      sessionStorage.setItem('digitalmix_transfer_sql_to_validator', inputSql)
-      sessionStorage.setItem('digitalmix_transfer_sql_dialect', dialect)
-    } catch {
-      // ignore
+      const minified = inputSql
+        .replace(/\s+/g, ' ')
+        .replace(/\s*([,;()=><])\s*/g, '$1')
+        .trim()
+      setOutputSql(minified)
+      setSyntaxWarning('')
+      saveToHistory(inputSql, minified, dialect, 'minify')
+      recordUsage()
+      toast.success(isArabic ? 'تم ضغط استعلام SQL' : 'SQL query minified')
+    } catch (err: unknown) {
+      setOutputSql('')
+      const msg = err instanceof Error ? err.message : 'Could not minify SQL query'
+      setSyntaxWarning(isArabic ? `خطأ في صياغة SQL: ${msg}` : `Invalid SQL Syntax: ${msg}`)
     }
-    router.push('/tools/sql-validator')
   }
 
   const handleClear = () => {
     setInputSql('')
     setOutputSql('')
     setSyntaxWarning('')
+  }
+
+  const handleAutoFix = () => {
+    if (!inputSql.trim()) return
+    const { fixedSql, fixCount } = autoFixSqlCode(inputSql, dialect === 'plsql' ? 'plsql' : dialect)
+    setInputSql(fixedSql)
+    if (fixCount > 0) {
+      toast.success(
+        isArabic
+          ? `تم الإصلاح التلقائي بنجاح (${fixCount} أخطاء تم تصحيحها)! جاري التنسيق...`
+          : `Auto-fixed ${fixCount} issue(s)! Formatting now...`
+      )
+      // Try to format the fixed SQL
+      try {
+        const formatted = format(fixedSql, {
+          language: dialect === 'plsql' ? 'plsql' : dialect,
+          tabWidth: 2,
+          keywordCase: 'upper',
+          linesBetweenQueries: 2,
+        })
+        setOutputSql(formatted)
+        setSyntaxWarning('')
+        saveToHistory(fixedSql, formatted, dialect, 'format')
+        recordUsage()
+      } catch {
+        const valRes = validateSqlCode(fixedSql, dialect === 'plsql' ? 'plsql' : dialect)
+        if (!valRes.isValid && valRes.errors.length > 0) {
+          const topErr = valRes.errors[0]
+          setSyntaxWarning(topErr.column ? `Line ${topErr.line}, Col ${topErr.column}: ${topErr.message}` : `Line ${topErr.line}: ${topErr.message}`)
+        }
+      }
+    } else {
+      toast.info(isArabic ? 'لم يتم العثور على إصلاحات تلقائية.' : 'No auto-fixable issues detected.')
+    }
   }
 
   const handleCopy = async () => {
@@ -658,15 +666,24 @@ export default function SqlFormatterTool() {
             <span className="text-xs sm:text-sm font-mono font-medium break-all">{syntaxWarning}</span>
           </div>
 
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={handleDebugWithValidator}
-            className="rounded-xl text-xs gap-1.5 shrink-0 font-bold shadow-xs cursor-pointer"
-          >
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            {isArabic ? 'افحص وصلّح بـ مدقق SQL' : 'Debug with SQL Validator'}
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="default"
+              onClick={handleAutoFix}
+              className="rounded-xl text-xs gap-1.5 font-bold shadow-xs bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {isArabic ? 'إصلاح تلقائي وتنسيق' : 'Auto Fix & Format'}
+            </Button>
+
+            <Link href="/tools/sql-validator">
+              <Button size="sm" variant="outline" className="rounded-xl text-xs gap-1.5 font-bold shadow-xs border-destructive/30 text-destructive hover:bg-destructive/10">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {isArabic ? 'مدقق SQL' : 'SQL Validator'}
+              </Button>
+            </Link>
+          </div>
         </div>
       )}
 
