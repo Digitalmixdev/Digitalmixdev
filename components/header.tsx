@@ -35,6 +35,8 @@ import {
   Star,
   ScanLine,
   Palette,
+  CheckCircle2,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -74,6 +76,8 @@ const toolIconMap: Record<string, LucideIcon> = {
   Image: ImageIcon,
   ScanLine,
   Palette,
+  CheckCircle2,
+  ShieldCheck,
 }
 
 function showComingSoon() {

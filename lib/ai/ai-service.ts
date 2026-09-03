@@ -139,7 +139,17 @@ export function generateIntelligentFallback(payload: AiRequestPayload): AiRespon
     }
   }
 
-  // 4. Privacy & General DigitalMix questions
+  // 4. Open-ended discussions & general advice
+  if (q.includes('نجاح') || q.includes('انجح') || q.includes('تطوير') || q.includes('مناقشة') || q.includes('دراسة') || q.includes('نصيحة') || q.includes('succeed') || q.includes('success') || q.includes('discuss')) {
+    return {
+      content: isAr
+        ? `**خطوات عمليّة وشاملة للنجاح والتميّز:**\n\n1. **تحديد الأهداف بوضوح (SMART Goals):** اجعل أهدافك محددة وقابلة للقياس والتحقيق.\n2. **الاستمرارية والانضباط:** الالتزام اليومي البسيط يحقق نتائج أضخم من الجهد العشوائي.\n3. **تطوير المهارات باستمرار:** احرص على تعلم أدوات وتقنيات جديدة وتطبيقها عملاً.\n4. **إدارة الوقت بذكاء:** رتب أولوياتك واستخدم الأدوات الرقمية لتسهيل مهامك اليومية.\n\nويسعدني جداً أن نناقش أي موضوع تود الخوض فيه بشيء من التفصيل! ما هي الفكرة أو المجال الذي تريد التركيز عليه؟`
+        : `**Key Practical Strategies for Success:**\n\n1. **Clear Goal Setting (SMART):** Define measurable and actionable goals.\n2. **Consistency & Discipline:** Small daily actions outperform random bursts of effort.\n3. **Continuous Skill Building:** Learn and apply modern skills and tools practically.\n4. **Time Management:** Prioritize tasks effectively to maximize productivity.\n\nI'm happy to discuss any specific topic or idea with you in depth! What area would you like to focus on?`,
+      source: 'fallback',
+    }
+  }
+
+  // 5. Privacy & General DigitalMix questions
   if (q.includes('privacy') || q.includes('خصوصية') || q.includes('free') || q.includes('مجاني') || q.includes('safe') || q.includes('أمان')) {
     return {
       content: isAr

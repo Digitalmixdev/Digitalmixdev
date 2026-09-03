@@ -222,11 +222,15 @@ export const translations: Record<Language, TranslationDictionary> = {
     'dashboard.history_item_deleted': 'History record deleted',
     'dashboard.history_all_cleared': 'All activity history has been cleared',
 
-    // 18 Tool Names & Descriptions
+    // 20 Tool Names & Descriptions
     'tool.sql_formatter': 'SQL Formatter',
     'tool.sql_formatter_desc': 'Format, beautify, and minify SQL queries instantly with dialect support.',
+    'tool.sql_validator': 'SQL Validator',
+    'tool.sql_validator_desc': 'Validate SQL query syntax, detect errors, verify clause structures, and lint queries in real time.',
     'tool.json_formatter': 'JSON Formatter',
-    'tool.json_formatter_desc': 'Validate, format, parse, and minify JSON data with instant error highlighting.',
+    'tool.json_formatter_desc': 'Format, beautify, structure, and minify JSON data with custom indentation and tree view.',
+    'tool.json_validator': 'JSON Validator',
+    'tool.json_validator_desc': 'Validate JSON syntax, pinpoint line and column errors, auto-fix trailing commas, and audit JSON payloads.',
     'tool.csv_json': 'CSV to JSON Converter',
     'tool.csv_json_desc': 'Convert Excel CSV data into clean structured JSON arrays with automatic type detection.',
     'tool.base64': 'Base64 Encoder/Decoder',
@@ -614,11 +618,15 @@ export const translations: Record<Language, TranslationDictionary> = {
     'dashboard.history_item_deleted': 'تم حذف هذا السجل بنجاح',
     'dashboard.history_all_cleared': 'تم مسح كامل سجل النشاطات بنجاح',
 
-    // 18 Tool Names & Descriptions
+    // 20 Tool Names & Descriptions
     'tool.sql_formatter': 'منسق ومجمل استعلامات SQL',
     'tool.sql_formatter_desc': 'تنسيق وتجميل وضغط استعلامات SQL فورياً مع دعم لغات وقواعد البيانات المختلفة.',
-    'tool.json_formatter': 'منسق ومدقق بيانات JSON',
-    'tool.json_formatter_desc': 'فحص وتنسيق وضغط كود JSON مع إبراز الأخطاء اللحظية بدقة.',
+    'tool.sql_validator': 'مدقق ومحلل استعلامات SQL',
+    'tool.sql_validator_desc': 'تدقيق وفحص صحة استعلامات SQL واكتشاف الأخطاء النحوية والأقواس المفقودة فورياً.',
+    'tool.json_formatter': 'منسق ومجمل بيانات JSON',
+    'tool.json_formatter_desc': 'تنسيق وتجميل وعرض الهيكل الشجري وضغط بيانات JSON فورياً مع التحكم في المسافات البادئة.',
+    'tool.json_validator': 'مدقق ومحلل بيانات JSON',
+    'tool.json_validator_desc': 'تدقيق وفحص صحة كود JSON واكتشاف أخطاء الأسطر والأعمدة وإصلاح الفواصل تلقائياً.',
     'tool.csv_json': 'محول جداول CSV إلى JSON',
     'tool.csv_json_desc': 'تحويل ملفات وجداول CSV إلى كود JSON منظم مع التعرف التلقائي على أنواع البيانات.',
     'tool.base64': 'مشفر ومفكك Base64 للنصوص والصور',

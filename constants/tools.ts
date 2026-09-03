@@ -1,6 +1,8 @@
 export type ToolId =
   | 'sql-formatter'
+  | 'sql-validator'
   | 'json-formatter'
+  | 'json-validator'
   | 'csv-json'
   | 'base64'
   | 'jwt'
@@ -62,15 +64,37 @@ export const ALL_TOOLS: ToolDefinition[] = [
     keywords: ['sql', 'format', 'beautify', 'query', 'database', 'minify', 'postgres', 'mysql'],
   },
   {
+    id: 'sql-validator',
+    name: 'SQL Validator',
+    slug: 'sql-validator',
+    href: '/tools/sql-validator',
+    description: 'Validate SQL query syntax, detect errors, verify clause structures, and lint queries in real time.',
+    categoryId: 'database',
+    icon: 'CheckCircle2',
+    active: true,
+    keywords: ['sql', 'validator', 'syntax', 'check', 'lint', 'query', 'database', 'errors', 'postgres', 'mysql'],
+  },
+  {
     id: 'json-formatter',
     name: 'JSON Formatter',
     slug: 'json-formatter',
     href: '/tools/json-formatter',
-    description: 'Validate, format, parse, and minify JSON data with instant error highlighting.',
+    description: 'Format, beautify, structure, and minify JSON data with custom indentation and tree view.',
     categoryId: 'database',
     icon: 'FileCode',
     active: true,
-    keywords: ['json', 'format', 'beautify', 'validate', 'parse', 'minify'],
+    keywords: ['json', 'format', 'beautify', 'prettify', 'structure', 'minify', 'tree view'],
+  },
+  {
+    id: 'json-validator',
+    name: 'JSON Validator',
+    slug: 'json-validator',
+    href: '/tools/json-validator',
+    description: 'Validate JSON syntax, pinpoint line and column errors, auto-fix trailing commas, and audit JSON payloads.',
+    categoryId: 'database',
+    icon: 'ShieldCheck',
+    active: true,
+    keywords: ['json', 'validator', 'syntax', 'check', 'lint', 'errors', 'fix', 'audit'],
   },
   {
     id: 'csv-json',

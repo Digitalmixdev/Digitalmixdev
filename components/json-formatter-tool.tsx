@@ -30,6 +30,7 @@ import { markToolUsed } from '@/actions/toolUsage'
 import { useLanguage } from '@/lib/i18n/context'
 import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities } from '@/lib/history-service'
 import { registerToolInputGetter } from '@/lib/ai/tool-input-bus'
+import Link from 'next/link'
 
 interface JsonStats {
   lines: number
@@ -564,9 +565,18 @@ export default function JsonFormatterTool() {
 
       {/* Syntax Warning Banner */}
       {syntaxWarning && (
-        <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex items-center gap-3 animate-in fade-in-0 duration-200">
-          <AlertTriangle className="h-5 w-5 shrink-0" />
-          <span className="text-xs sm:text-sm font-mono font-medium">{syntaxWarning}</span>
+        <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex flex-wrap items-center justify-between gap-3 animate-in fade-in-0 duration-200">
+          <div className="flex items-center gap-3 min-w-0">
+            <AlertTriangle className="h-5 w-5 shrink-0" />
+            <span className="text-xs sm:text-sm font-mono font-medium break-all">{syntaxWarning}</span>
+          </div>
+
+          <Link href="/tools/json-validator">
+            <Button size="sm" variant="destructive" className="rounded-xl text-xs gap-1.5 shrink-0 font-bold">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              {isArabic ? 'افحص الكود بـ مدقق JSON' : 'Debug with JSON Validator'}
+            </Button>
+          </Link>
         </div>
       )}
 
