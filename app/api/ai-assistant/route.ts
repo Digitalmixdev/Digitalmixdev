@@ -126,17 +126,16 @@ Privacy Directives:
       parts: [{ text: userPromptText }],
     })
 
-    const rawModel = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim().replace(/['"]/g, '')
-    // Ensure valid, fast, standard models are prioritized first without failing through non-existent model names
+    const envModel = process.env.GEMINI_MODEL?.trim().replace(/['"]/g, '')
     const candidateModels = Array.from(
       new Set([
-        rawModel.startsWith('gemini-3') ? 'gemini-2.5-flash' : rawModel,
-        'gemini-2.5-flash',
+        envModel && !envModel.includes('2.5') && !envModel.includes('3.') ? envModel : null,
         'gemini-2.0-flash',
         'gemini-1.5-flash',
-        'gemini-2.5-flash-lite',
+        'gemini-2.0-flash-lite',
+        'gemini-1.5-pro',
       ])
-    ).filter(Boolean)
+    ).filter(Boolean) as string[]
 
     let responseText = ''
     let lastError: any = null
@@ -151,23 +150,15 @@ Privacy Directives:
             temperature: 0.4,
           },
         })
-        responseText = response.text || ''
-        lastError = null
-        break
+        if (response.text && response.text.trim().length > 0) {
+          responseText = response.text
+          lastError = null
+          break
+        }
       } catch (err: any) {
         lastError = err
-        // If 404 (model not found) or 503 (high demand), try next model candidate
-        if (
-          err?.status === 404 ||
-          err?.status === 503 ||
-          err?.message?.includes('not found') ||
-          err?.message?.includes('404') ||
-          err?.message?.includes('503')
-        ) {
-          console.warn(`Model ${modelName} returned ${err?.status || 'error'}, attempting next candidate...`)
-          continue
-        }
-        throw err
+        console.warn(`[AI Assistant] Model ${modelName} failed:`, err?.message || err)
+        continue
       }
     }
 

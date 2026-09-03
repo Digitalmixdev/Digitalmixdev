@@ -159,6 +159,17 @@ export function generateIntelligentFallback(payload: AiRequestPayload): AiRespon
     }
   }
 
+  const hasHistory = Array.isArray(payload.history) && payload.history.length > 0
+  if (hasHistory) {
+    return {
+      content: isAr
+        ? `أنا مساعد **DigitalMix** المتخصص في أدوات المنصة. يسعدني إجابتك عن أي سؤال يخص أدواتنا (تحويل المستندات، تنسيق البيانات، أدوات الصور، وحساب المؤشرات). ما الأداة أو المهمة التي تحتاج المساعدة فيها؟`
+        : `I am the **DigitalMix** assistant. I can answer any questions about our tools (document converters, data formatters, image tools, and calculators). What task or tool do you need help with?`,
+      recommendedTools: findRecommendedTools(message, undefined, 2).map((r) => r.tool),
+      source: 'fallback',
+    }
+  }
+
   return {
     content: isAr
       ? `أهلاً بك! أنا مساعد **DigitalMix AI** 🤖\n\nيمكنني مساعدتك في العثور على الأداة المناسبة لمهامك (مثل تحويل الملفات، فحص JWT، تنسيق JSON أو SQL، دمج الـ PDF، وحساب المؤشرات المالية). كيف يمكنني خدمتك اليوم؟`
