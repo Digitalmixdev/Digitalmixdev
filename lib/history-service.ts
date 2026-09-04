@@ -194,12 +194,12 @@ export function syncHistoryWithServer(serverActivities: ToolActivityItem[] = [])
 
       if (map.has(item.id)) return
 
-      // Check if another server item represents the same action within 15 seconds
+      // Check if another server item represents the same action
       const itemTime = new Date(item.createdAt).getTime()
       const isDuplicate = Array.from(map.values()).some((s) => {
         if (s.toolId === item.toolId && s.actionTitle === item.actionTitle) {
           const sTime = new Date(s.createdAt).getTime()
-          return Math.abs(sTime - itemTime) < 15000
+          return Math.abs(sTime - itemTime) < 30000 || (Boolean(s.inputSnippet) && s.inputSnippet === item.inputSnippet)
         }
         return false
       })
@@ -290,7 +290,7 @@ export function deleteActivityItem(id: string): ToolActivityItem[] {
 /**
  * Clear all activity history records locally & on server DB, and clean up tool-specific storages.
  */
-export function clearAllActivities(): void {
+export async function clearAllActivities(): Promise<void> {
   if (typeof window === 'undefined') return
 
   // 1. Clear primary activity storage
@@ -313,7 +313,11 @@ export function clearAllActivities(): void {
   })
 
   // 3. Sync clear action to server database
-  clearAllHistoryAction().catch(() => {})
+  try {
+    await clearAllHistoryAction()
+  } catch {
+    // ignore
+  }
 
   // 4. Notify all components
   notifyHistoryUpdated([])

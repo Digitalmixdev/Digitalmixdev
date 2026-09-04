@@ -46,10 +46,28 @@ export async function logActivityAction(activity: {
 }
 
 /**
- * Fetch all history items for the logged-in user and sync any local items to server.
+ * Fetch all history items for the logged-in user.
  */
 export async function fetchUserHistoryAction(
   limit: number = 100,
+  _unusedLocalItems?: ToolActivityItem[]
+): Promise<ToolActivityItem[]> {
+  try {
+    const session = await getSession()
+    if (!session?.user?.id) return []
+
+    const userId = session.user.id
+    return await getUserActivities(userId, limit)
+  } catch (error) {
+    console.error('Error in fetchUserHistoryAction:', error)
+    return []
+  }
+}
+
+/**
+ * Sync local activity items to server and return fresh history.
+ */
+export async function syncLocalActivitiesToServerAction(
   localItems?: ToolActivityItem[]
 ): Promise<ToolActivityItem[]> {
   try {
@@ -59,14 +77,14 @@ export async function fetchUserHistoryAction(
     const userId = session.user.id
 
     if (localItems && localItems.length > 0) {
-      const serverActivities = await getUserActivities(userId, 50)
+      const serverActivities = await getUserActivities(userId, 100)
       for (const item of localItems) {
         if (!item || !item.toolId) continue
         const exists = serverActivities.some(
           (s) =>
             s.toolId === item.toolId &&
             s.actionTitle === item.actionTitle &&
-            Math.abs(new Date(s.createdAt).getTime() - new Date(item.createdAt).getTime()) < 15000
+            (s.inputSnippet === item.inputSnippet || s.id === item.id)
         )
         if (!exists) {
           await recordUserActivity(userId, {
@@ -83,20 +101,11 @@ export async function fetchUserHistoryAction(
       }
     }
 
-    return await getUserActivities(userId, limit)
+    return await getUserActivities(userId, 100)
   } catch (error) {
-    console.error('Error in fetchUserHistoryAction:', error)
+    console.error('Error in syncLocalActivitiesToServerAction:', error)
     return []
   }
-}
-
-/**
- * Sync local activity items to server and return fresh history.
- */
-export async function syncLocalActivitiesToServerAction(
-  localItems?: ToolActivityItem[]
-): Promise<ToolActivityItem[]> {
-  return fetchUserHistoryAction(100, localItems)
 }
 
 /**

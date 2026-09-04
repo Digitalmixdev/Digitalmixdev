@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react'
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import {
   Database,
   Code,
@@ -66,7 +66,7 @@ const toolMeta: ToolMetadata = {
     name: 'Database Tools',
     slug: 'database',
   },
-  icon: ShieldCheck,
+  icon: CheckCircle2,
   privacyBadge: '100% Client-Side • Multi-Dialect Syntax Audit',
   privacyBadge_ar: 'معالجة محلية 100% • تدقيق نحوي متعدد اللهجات',
   features: [
@@ -194,6 +194,7 @@ export function SqlValidatorTool() {
   const [copied, setCopied] = useState<boolean>(false)
   const [history, setHistory] = useState<SqlValidatorHistoryItem[]>([])
   const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor')
+  const lastValidatedInputRef = useRef<string>('')
 
   const handleOpenInFormatter = () => {
     if (!sqlInput.trim()) return
@@ -203,8 +204,8 @@ export function SqlValidatorTool() {
     router.push(`/tools/sql-formatter?code=${encodeURIComponent(sqlInput)}&dialect=${dialect}`)
   }
 
-  // Load history from localStorage
-  useEffect(() => {
+  // Load history from local/server store
+  const refreshHistory = useCallback(() => {
     const stored = getToolHistoryFromActivities('sql-validator')
     if (stored && stored.length > 0) {
       const parsed: SqlValidatorHistoryItem[] = stored.map((item) => {
@@ -221,8 +222,17 @@ export function SqlValidatorTool() {
         }
       })
       setHistory(parsed)
+    } else {
+      setHistory([])
     }
   }, [])
+
+  useEffect(() => {
+    refreshHistory()
+    const handleUpdate = () => refreshHistory()
+    window.addEventListener('digitalmix_history_updated', handleUpdate)
+    return () => window.removeEventListener('digitalmix_history_updated', handleUpdate)
+  }, [refreshHistory])
 
   // Register AI tool input getter
   useEffect(() => {
@@ -255,16 +265,24 @@ export function SqlValidatorTool() {
   }, [sqlInput, dialect])
 
   // Log activity on validation
-  const handleValidate = useCallback(() => {
-    if (!sqlInput.trim()) return
+  const handleValidate = useCallback((overrideCode?: string) => {
+    const code = overrideCode !== undefined ? overrideCode : sqlInput
+    if (!code.trim()) return
+
+    const validationKey = `${dialect}_${code.trim()}`
+    if (lastValidatedInputRef.current === validationKey) {
+      return
+    }
+    lastValidatedInputRef.current = validationKey
+
     markToolUsed('sql-validator')
     incrementToolUsage()
 
-    const res = validateSqlCode(sqlInput, dialect)
+    const res = validateSqlCode(code, dialect)
     const newHistItem: SqlValidatorHistoryItem = {
       id: Date.now().toString(),
       title: `${res.statementType} Query (${dialect.toUpperCase()})`,
-      input: sqlInput,
+      input: code,
       dialect,
       isValid: res.isValid,
       errorCount: res.errors.length,
@@ -278,9 +296,9 @@ export function SqlValidatorTool() {
       category: 'database',
       actionTitle: `${res.statementType} Query (${dialect.toUpperCase()})`,
       details: `${res.statementType} query validated in ${dialect.toUpperCase()} (${res.isValid ? 'Valid' : 'Errors found'})`,
-      inputSnippet: sqlInput.slice(0, 300),
+      inputSnippet: code.slice(0, 300),
       metadata: {
-        input: sqlInput,
+        input: code,
         dialect,
         isValid: res.isValid,
         errorCount: res.errors.length,
@@ -289,7 +307,7 @@ export function SqlValidatorTool() {
       },
     })
 
-    setHistory((prev) => [newHistItem, ...prev.filter((h) => h.input !== sqlInput).slice(0, 19)])
+    setHistory((prev) => [newHistItem, ...prev.filter((h) => h.input !== code).slice(0, 29)])
   }, [sqlInput, dialect])
 
   // Copy to clipboard
@@ -322,6 +340,7 @@ export function SqlValidatorTool() {
     }
 
     setSqlInput(fixedSql)
+    handleValidate(fixedSql)
   }
 
   // Download SQL File
@@ -480,6 +499,19 @@ export function SqlValidatorTool() {
                         <RotateCcw className="h-3 w-3" />
                         {isAr ? 'استعادة' : 'Load Query'}
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          deleteActivityItem(item.id)
+                          setHistory((prev) => prev.filter((it) => it.id !== item.id))
+                          toast.success(isAr ? 'تم حذف العنصر من السجل' : 'Removed from history')
+                        }}
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                        title={isAr ? 'حذف من السجل' : 'Delete item'}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -563,6 +595,20 @@ export function SqlValidatorTool() {
                 {/* Bottom Action Bar */}
                 <div className="flex flex-wrap items-center justify-between p-3 bg-muted/20 border-t border-border/60 gap-2">
                   <div className="flex items-center gap-2">
+                    <Button
+                      onClick={() => {
+                        handleValidate()
+                        toast.success(isAr ? 'تم تدقيق الاستعلام وتحديث السجل' : 'Query validated and saved to history')
+                      }}
+                      variant="default"
+                      size="sm"
+                      disabled={!sqlInput.trim()}
+                      className="rounded-xl text-xs gap-1.5 font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      {isAr ? 'فحص الاستعلام' : 'Validate Query'}
+                    </Button>
+
                     <Button
                       onClick={handleAutoFix}
                       variant="secondary"

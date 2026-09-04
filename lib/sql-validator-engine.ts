@@ -383,10 +383,12 @@ export function tokenizeSql(sql: string, dialect: SqlDialect = 'sql'): SqlToken[
 
       if (hasBackslash) {
         tokenType = 'corrupted_token'
-      } else if (isFollowedByParen && (funcSet.has(upperWord) || /^[A-Z_]+$/.test(upperWord))) {
-        tokenType = funcSet.has(upperWord) ? 'function_call' : 'identifier'
+      } else if (funcSet.has(upperWord)) {
+        tokenType = 'function_call'
       } else if (dialectKw.has(upperWord)) {
         tokenType = 'keyword'
+      } else if (isFollowedByParen && /^[A-Za-z_][A-Za-z0-9_]*$/.test(word)) {
+        tokenType = 'function_call'
       } else {
         tokenType = 'identifier'
       }
@@ -1240,6 +1242,11 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect = 'sql'): {
     'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'CROSS', 'FULL', 'INSERT', 'INTO',
     'UPDATE', 'SET', 'DELETE', 'VALUES', 'DISTINCT', 'BETWEEN', 'DESC', 'ASC', 'AS', 'ON'
   ]
+  const dialectKw = new Set([
+    ...STANDARD_SQL_KEYWORDS,
+    ...(DIALECT_SPECIFIC_KEYWORDS[dialect] || []),
+  ])
+  const funcSet = new Set(COMMON_SQL_FUNCTIONS)
 
   for (let i = 0; i < initialTokens.length; i++) {
     const tok = initialTokens[i]
@@ -1288,6 +1295,11 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect = 'sql'): {
     if (tok.type === 'identifier') {
       const upperVal = tok.value.toUpperCase()
 
+      // Guard if it's already a valid dialect keyword or built-in function
+      if (dialectKw.has(upperVal) || funcSet.has(upperVal)) {
+        continue
+      }
+
       // Guard against common user column/table identifiers unless specifically in clause position
       if (COMMON_USER_IDENTIFIERS.has(upperVal)) {
         continue
@@ -1301,13 +1313,19 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect = 'sql'): {
 
       // Check context clues
       let contextClues: { isFunctionPosition?: boolean; isClauseStart?: boolean; expectedKeyword?: string } = {}
+      const prevUpper = prev?.value?.toUpperCase()
+      const isGroupOrOrder = Boolean(
+        prevUpper &&
+          ['ORDER', 'GROUP', 'ORDRE', 'GROP', 'GROUPE'].includes(prevUpper)
+      )
+
       if (next && next.value === '(') {
         contextClues.isFunctionPosition = true
       } else if (i === 0 || (prev && prev.value === ';')) {
         contextClues.isClauseStart = true
       } else if (prev && ['LEFT', 'RIGHT', 'INNER', 'OUTER', 'CROSS', 'FULL'].includes(prev.value.toUpperCase())) {
         contextClues.expectedKeyword = 'JOIN'
-      } else if (prev && (prev.value.toUpperCase() === 'ORDER' || prev.value.toUpperCase() === 'GROUP')) {
+      } else if (isGroupOrOrder) {
         contextClues.expectedKeyword = 'BY'
       }
 
@@ -1329,8 +1347,8 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect = 'sql'): {
 
       const match = findBestKeywordMatch(upperVal, targetVocab, contextClues)
 
-      // Dynamic confidence threshold (>= 0.75 for context-backed, >= 0.85 for general)
-      const requiredConfidence = contextClues.expectedKeyword || isOrderByContext || contextClues.isClauseStart ? 0.72 : 0.84
+      // Dynamic confidence threshold (>= 0.65 for context-backed expectedKeyword, >= 0.72 for clause context, >= 0.84 for general)
+      const requiredConfidence = contextClues.expectedKeyword ? 0.65 : (isOrderByContext || contextClues.isClauseStart ? 0.72 : 0.84)
       if (match && match.confidence >= requiredConfidence && match.keyword !== upperVal) {
         const startInFixed = tok.start + offsetShift
         const endInFixed = tok.end + offsetShift
@@ -1360,6 +1378,106 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect = 'sql'): {
       fixed = fixed.slice(0, startInFixed) + fixed.slice(endInFixed)
       pass2Shift -= tok.value.length
       fixesApplied.push('Removed trailing comma before clause keyword')
+      fixCount++
+    }
+  }
+
+  // 5. Parentheses & Brackets Balance Repair (e.g. IN (18, 21, 25, 30 missing closing paren before ORDER BY or ;)
+  const pass3Tokens = tokenizeSql(fixed, dialect)
+  interface ParenRecord {
+    start: number
+    end: number
+    line: number
+    isSubquery: boolean
+    keywordBefore?: string
+  }
+  const parenStack: ParenRecord[] = []
+  const parenFixOperations: { index: number; removeLength: number; insertText: string; desc: string }[] = []
+
+  const CLAUSE_TERMINATORS = new Set([
+    'ORDER', 'GROUP', 'HAVING', 'LIMIT', 'OFFSET', 'UNION', 'FETCH'
+  ])
+
+  for (let k = 0; k < pass3Tokens.length; k++) {
+    const tok = pass3Tokens[k]
+    const prevTok = pass3Tokens[k - 1]
+    const nextTok = pass3Tokens[k + 1]
+
+    if (tok.type === 'string_literal' || tok.type === 'comment') {
+      continue
+    }
+
+    if (tok.value === '(') {
+      const isSub = nextTok && nextTok.type === 'keyword' && nextTok.value.toUpperCase() === 'SELECT'
+      parenStack.push({
+        start: tok.start,
+        end: tok.end,
+        line: tok.line,
+        isSubquery: Boolean(isSub),
+        keywordBefore: prevTok?.value?.toUpperCase(),
+      })
+    } else if (tok.value === ')') {
+      if (parenStack.length > 0) {
+        parenStack.pop()
+      } else {
+        // Unmatched extra closing parenthesis
+        parenFixOperations.push({
+          index: tok.start,
+          removeLength: tok.end - tok.start,
+          insertText: '',
+          desc: `Removed unmatched extra closing parenthesis ')' at line ${tok.line}`,
+        })
+      }
+    } else if (
+      tok.value === ';' ||
+      (tok.type === 'keyword' && CLAUSE_TERMINATORS.has(tok.value.toUpperCase()))
+    ) {
+      if (parenStack.length > 0) {
+        // Semicolon closes all unclosed parens. Clause terminators like ORDER/GROUP close non-subquery parens.
+        let countToClose = 0
+        if (tok.value === ';') {
+          countToClose = parenStack.length
+          parenStack.length = 0
+        } else {
+          while (parenStack.length > 0 && !parenStack[parenStack.length - 1].isSubquery) {
+            parenStack.pop()
+            countToClose++
+          }
+        }
+
+        if (countToClose > 0) {
+          const insertPos = prevTok ? prevTok.end : tok.start
+          parenFixOperations.push({
+            index: insertPos,
+            removeLength: 0,
+            insertText: ')'.repeat(countToClose),
+            desc: `Added ${countToClose} missing closing parenthesis ')' before ${tok.value.toUpperCase()}`,
+          })
+        }
+      }
+    }
+  }
+
+  // Check end of query for any remaining unclosed parens
+  if (parenStack.length > 0) {
+    const countToClose = parenStack.length
+    const lastTok = pass3Tokens[pass3Tokens.length - 1]
+    const insertPos = lastTok ? lastTok.end : fixed.length
+    parenFixOperations.push({
+      index: insertPos,
+      removeLength: 0,
+      insertText: ')'.repeat(countToClose),
+      desc: `Added ${countToClose} missing closing parenthesis ')' at end of query`,
+    })
+    parenStack.length = 0
+  }
+
+  // Apply parenFixOperations from back to front (descending by index)
+  if (parenFixOperations.length > 0) {
+    parenFixOperations.sort((a, b) => b.index - a.index)
+    for (const op of parenFixOperations) {
+      fixed = fixed.slice(0, op.index) + op.insertText + fixed.slice(op.index + op.removeLength)
+      fixesApplied.push(op.desc)
       fixCount++
     }
   }

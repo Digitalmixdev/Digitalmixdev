@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react'
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import {
   FileCode,
   Copy,
@@ -404,6 +404,7 @@ export function JsonValidatorTool() {
   const [copied, setCopied] = useState<boolean>(false)
   const [history, setHistory] = useState<JsonValidatorHistoryItem[]>([])
   const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor')
+  const lastValidatedInputRef = useRef<string>('')
 
   // Check for pre-filled JSON payload from URL search param or sessionStorage
   useEffect(() => {
@@ -421,8 +422,8 @@ export function JsonValidatorTool() {
     }
   }, [])
 
-  // Load history from localStorage
-  useEffect(() => {
+  // Load history from store
+  const refreshHistory = useCallback(() => {
     const stored = getToolHistoryFromActivities('json-validator')
     if (stored && stored.length > 0) {
       const parsed: JsonValidatorHistoryItem[] = stored.map((item) => {
@@ -438,8 +439,17 @@ export function JsonValidatorTool() {
         }
       })
       setHistory(parsed)
+    } else {
+      setHistory([])
     }
   }, [])
+
+  useEffect(() => {
+    refreshHistory()
+    const handleUpdate = () => refreshHistory()
+    window.addEventListener('digitalmix_history_updated', handleUpdate)
+    return () => window.removeEventListener('digitalmix_history_updated', handleUpdate)
+  }, [refreshHistory])
 
   // Register AI tool input getter
   useEffect(() => {
@@ -452,16 +462,24 @@ export function JsonValidatorTool() {
   }, [jsonInput])
 
   // Log activity on validation
-  const handleValidate = useCallback(() => {
-    if (!jsonInput.trim()) return
+  const handleValidate = useCallback((overrideJson?: string) => {
+    const code = overrideJson !== undefined ? overrideJson : jsonInput
+    if (!code.trim()) return
+
+    const validationKey = code.trim()
+    if (lastValidatedInputRef.current === validationKey) {
+      return
+    }
+    lastValidatedInputRef.current = validationKey
+
     markToolUsed('json-validator')
     incrementToolUsage()
 
-    const res = validateJsonPayload(jsonInput)
+    const res = validateJsonPayload(code)
     const newHistItem: JsonValidatorHistoryItem = {
       id: Date.now().toString(),
       title: `${res.rootType} Payload (${res.isValid ? 'Valid' : 'Syntax Error'})`,
-      input: jsonInput,
+      input: code,
       isValid: res.isValid,
       rootType: res.rootType,
       errorLine: res.error?.line,
@@ -474,16 +492,16 @@ export function JsonValidatorTool() {
       category: 'database',
       actionTitle: `${res.rootType} Payload (${res.isValid ? 'Valid' : 'Syntax Error'})`,
       details: `${res.rootType} JSON validation (${res.isValid ? 'Valid' : 'Invalid'})`,
-      inputSnippet: jsonInput.slice(0, 300),
+      inputSnippet: code.slice(0, 300),
       metadata: {
-        input: jsonInput,
+        input: code,
         isValid: res.isValid,
         rootType: res.rootType,
         errorLine: res.error?.line,
       },
     })
 
-    setHistory((prev) => [newHistItem, ...prev.filter((h) => h.input !== jsonInput).slice(0, 19)])
+    setHistory((prev) => [newHistItem, ...prev.filter((h) => h.input !== code).slice(0, 29)])
   }, [jsonInput])
 
   // Copy to clipboard
@@ -522,7 +540,7 @@ export function JsonValidatorTool() {
       )
     }
 
-    handleValidate()
+    handleValidate(repairResult.output)
   }
 
   // Download JSON File
@@ -682,6 +700,19 @@ export function JsonValidatorTool() {
                         <RotateCcw className="h-3 w-3" />
                         {isAr ? 'استعادة' : 'Load Payload'}
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          deleteActivityItem(item.id)
+                          setHistory((prev) => prev.filter((it) => it.id !== item.id))
+                          toast.success(isAr ? 'تم حذف العنصر من السجل' : 'Removed from history')
+                        }}
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                        title={isAr ? 'حذف من السجل' : 'Delete item'}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -764,6 +795,20 @@ export function JsonValidatorTool() {
                 {/* Bottom Bar */}
                 <div className="flex flex-wrap items-center justify-between p-3 bg-muted/20 border-t border-border/60 gap-2">
                   <div className="flex items-center gap-2">
+                    <Button
+                      onClick={() => {
+                        handleValidate()
+                        toast.success(isAr ? 'تم تدقيق كود JSON وتحديث السجل' : 'JSON validated and saved to history')
+                      }}
+                      variant="default"
+                      size="sm"
+                      disabled={!jsonInput.trim()}
+                      className="rounded-xl text-xs gap-1.5 font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      {isAr ? 'فحص كود JSON' : 'Validate JSON'}
+                    </Button>
+
                     <Button
                       onClick={handleAutoFix}
                       variant="secondary"

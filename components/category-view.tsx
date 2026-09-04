@@ -24,6 +24,8 @@ import {
   File,
   ScanLine,
   Palette,
+  CheckCircle2,
+  ShieldCheck,
   ArrowRight,
   ChevronRight,
   type LucideIcon,
@@ -61,6 +63,8 @@ const toolIcons: Record<string, LucideIcon> = {
   Image: ImageIcon,
   ScanLine,
   Palette,
+  CheckCircle2,
+  ShieldCheck,
 }
 
 interface CategoryViewProps {

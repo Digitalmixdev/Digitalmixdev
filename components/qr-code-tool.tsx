@@ -282,6 +282,7 @@ function QRCodeToolContent() {
   const [errorLevel, setErrorLevel] = useState<'L' | 'M' | 'Q' | 'H'>('M')
   const [copied, setCopied] = useState(false)
   const qrRef = useRef<HTMLDivElement>(null)
+  const lastRecordedUsageKeyRef = useRef<string>('')
 
   // WiFi States
   const [wifiSSID, setWifiSSID] = useState('')
@@ -449,6 +450,13 @@ function QRCodeToolContent() {
   }, [cardTheme, cardBgStart, cardBgEnd, cardTextColor, cardAccentColor, cardBorderColor])
 
   const recordUsage = async () => {
+    const currentPayload = getEncodedPayload()
+    const key = `${qrType}_${currentPayload}_${fgColor}_${bgColor}`
+    if (lastRecordedUsageKeyRef.current === key) {
+      return
+    }
+    lastRecordedUsageKeyRef.current = key
+
     try {
       await Promise.all([
         incrementToolUsage(),
@@ -642,51 +650,46 @@ function QRCodeToolContent() {
       },
     }
 
-    setHistory((prev) => {
-      // De-duplication: If the latest item already matches this exact payload and settings, skip adding duplicates
-      const isImmediateDuplicate =
-        prev.length > 0 &&
-        prev[0].payload === currentPayload &&
-        prev[0].type === qrType &&
-        prev[0].fgColor === fgColor &&
-        prev[0].bgColor === bgColor
+    // Check if the latest item already matches this exact payload and settings
+    if (
+      history.length > 0 &&
+      history[0].payload === currentPayload &&
+      history[0].type === qrType &&
+      history[0].fgColor === fgColor &&
+      history[0].bgColor === bgColor
+    ) {
+      return
+    }
 
-      if (isImmediateDuplicate) {
-        return prev
-      }
+    const filtered = history.filter(
+      (p) => !(p.payload === currentPayload && p.type === qrType)
+    )
+    const updated = [newItem, ...filtered.slice(0, 49)]
+    setHistory(updated)
+    try {
+      localStorage.setItem('digitalmix_qr_history', JSON.stringify(updated))
+    } catch {
+      // storage full
+    }
 
-      // If identical payload already exists elsewhere in history, remove older entry to keep only 1 clean copy at the top
-      const filtered = prev.filter(
-        (p) => !(p.payload === currentPayload && p.type === qrType)
-      )
-      const updated = [newItem, ...filtered.slice(0, 49)]
-      try {
-        localStorage.setItem('digitalmix_qr_history', JSON.stringify(updated))
-      } catch {
-        // storage full
-      }
-
-      // Universal dashboard activity logging
-      logToolActivity({
-        toolId: 'qr-code-generator',
-        toolName: isArabic ? 'مولد ومصمم رموز QR' : 'QR Code Generator & Designer',
-        category: 'files',
-        actionTitle: `Generated ${qrType.toUpperCase()} QR Code`,
-        details: isArabic
-          ? `قام بتوليد رمز استجابة سريعة QR من نوع (${qrType.toUpperCase()}): "${itemTitle}"`
-          : `Generated ${qrType.toUpperCase()} QR code for: "${itemTitle}" (${errorLevel} error correction)`,
-        inputSnippet: currentPayload.slice(0, 500),
-        outputSnippet: `Type: ${qrType.toUpperCase()}\nColors: ${fgColor} on ${bgColor}\nCorrection: ${errorLevel}`,
-        metadata: {
-          qrType,
-          fgColor,
-          bgColor,
-          errorLevel,
-          title: itemTitle,
-        },
-      })
-
-      return updated
+    // Universal dashboard activity logging
+    logToolActivity({
+      toolId: 'qr-code-generator',
+      toolName: isArabic ? 'مولد ومصمم رموز QR' : 'QR Code Generator & Designer',
+      category: 'files',
+      actionTitle: `Generated ${qrType.toUpperCase()} QR Code`,
+      details: isArabic
+        ? `قام بتوليد رمز استجابة سريعة QR من نوع (${qrType.toUpperCase()}): "${itemTitle}"`
+        : `Generated ${qrType.toUpperCase()} QR code for: "${itemTitle}" (${errorLevel} error correction)`,
+      inputSnippet: currentPayload.slice(0, 500),
+      outputSnippet: `Type: ${qrType.toUpperCase()}\nColors: ${fgColor} on ${bgColor}\nCorrection: ${errorLevel}`,
+      metadata: {
+        qrType,
+        fgColor,
+        bgColor,
+        errorLevel,
+        title: itemTitle,
+      },
     })
   }, [
     qrType,

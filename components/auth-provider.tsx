@@ -50,7 +50,7 @@ export function AuthProvider({
       if (currentUser) {
         setUser(currentUser)
         // Background sync user activity history from PostgreSQL database to local device cache
-        fetchUserHistoryAction(100, getLocalActivityHistory())
+        fetchUserHistoryAction(100)
           .then((serverItems) => {
             if (serverItems && Array.isArray(serverItems)) {
               syncHistoryWithServer(serverItems)

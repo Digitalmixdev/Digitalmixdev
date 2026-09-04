@@ -160,12 +160,17 @@ export function HistoryView({ initialActivities = [], onCountChange }: HistoryVi
   // Clear all items
   const handleClearAll = async () => {
     setIsClearing(true)
-    clearAllActivities()
-    setActivities([])
-    if (onCountChange) onCountChange(0)
-    setIsClearModalOpen(false)
-    showToast(t('dashboard.history_all_cleared'))
-    setIsClearing(false)
+    try {
+      await clearAllActivities()
+      setActivities([])
+      if (onCountChange) onCountChange(0)
+      showToast(t('dashboard.history_all_cleared'))
+    } catch {
+      // ignore
+    } finally {
+      setIsClearModalOpen(false)
+      setIsClearing(false)
+    }
   }
 
   const handleCopyText = (text: string, id: string, e?: React.MouseEvent) => {
@@ -210,7 +215,7 @@ export function HistoryView({ initialActivities = [], onCountChange }: HistoryVi
   // Helper for icon per tool
   const getToolIcon = (toolId: string) => {
     const id = (toolId || '').toLowerCase()
-    if (id.includes('sql-validator')) return <ShieldCheck className="w-5 h-5 text-emerald-400" />
+    if (id.includes('sql-validator')) return <CheckCircle2 className="w-5 h-5 text-emerald-400" />
     if (id.includes('json-validator')) return <ShieldCheck className="w-5 h-5 text-emerald-400" />
     if (id.includes('sql')) return <Code className="w-5 h-5 text-sky-400" />
     if (id.includes('doc') || id.includes('office') || id.includes('word'))
@@ -584,28 +589,37 @@ export function HistoryView({ initialActivities = [], onCountChange }: HistoryVi
         </div>
       )}
 
-      {/* Clear All Confirmation Modal */}
+      {/* Clear All Confirmation Modal - Positioned top center */}
       {isClearModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="w-12 h-12 rounded-xl bg-red-950/60 border border-red-800/40 text-red-400 flex items-center justify-center">
-              <AlertTriangle className="w-6 h-6" />
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-8 sm:pt-14 md:pt-16 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
+          onClick={() => !isClearing && setIsClearModalOpen(false)}
+        >
+          <div
+            className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-md w-full p-6 shadow-2xl shadow-black/80 space-y-4 animate-in slide-in-from-top-6 duration-200 text-start"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3.5">
+              <div className="w-11 h-11 shrink-0 rounded-xl bg-red-950/70 border border-red-800/50 text-red-400 flex items-center justify-center shadow-inner">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+
+              <div className="space-y-1.5 flex-1">
+                <h3 className="text-base font-bold text-slate-100">
+                  {t('dashboard.history_clear_confirm_title')}
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  {t('dashboard.history_clear_confirm_desc')}
+                </p>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-base font-bold text-slate-100">
-                {t('dashboard.history_clear_confirm_title')}
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                {t('dashboard.history_clear_confirm_desc')}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800/80">
               <button
                 type="button"
                 onClick={() => setIsClearModalOpen(false)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-xl transition-all"
+                disabled={isClearing}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-xl transition-all disabled:opacity-50"
               >
                 {language === 'ar' ? 'إلغاء' : 'Cancel'}
               </button>
@@ -614,7 +628,7 @@ export function HistoryView({ initialActivities = [], onCountChange }: HistoryVi
                 id="confirm-clear-history-action"
                 onClick={handleClearAll}
                 disabled={isClearing}
-                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 shadow-md shadow-red-950"
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 shadow-md shadow-red-950/60 disabled:opacity-50"
               >
                 {isClearing ? (
                   <RotateCcw className="w-3.5 h-3.5 animate-spin" />

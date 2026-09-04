@@ -42,7 +42,7 @@ interface RecentToolActivityListProps {
 function getToolIcon(toolId?: string, category?: string) {
   switch (toolId) {
     case 'sql-validator':
-      return ShieldCheck
+      return CheckCircle2
     case 'json-validator':
       return ShieldCheck
     case 'sql-formatter':

@@ -669,7 +669,7 @@ export default function SqlFormatterTool() {
               size="sm"
               className="h-10 px-3.5 gap-2 text-xs font-semibold border-border/80 hover:border-primary/50 text-foreground"
             >
-              <ShieldCheck className="h-4 w-4 text-emerald-500" />
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
               <span>{isArabic ? 'مدقق استعلامات SQL' : 'SQL Validator'}</span>
               <ExternalLink className="h-3 w-3 opacity-60" />
             </Button>

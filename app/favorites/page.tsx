@@ -18,6 +18,11 @@ import {
   Flame,
   FileArchive,
   Image as ImageIcon,
+  CheckCircle2,
+  ShieldCheck,
+  Database,
+  FileSpreadsheet,
+  Palette,
   ArrowLeft,
   Sparkles,
 } from "lucide-react"
@@ -43,6 +48,11 @@ const iconMap: Record<string, any> = {
   Flame,
   FileArchive,
   Image: ImageIcon,
+  CheckCircle2,
+  ShieldCheck,
+  Database,
+  FileSpreadsheet,
+  Palette,
 }
 
 export default async function FavoritesPage() {

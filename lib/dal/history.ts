@@ -19,14 +19,17 @@ export async function recordUserActivity(
   if (!userId) return null
 
   try {
-    // Check for recent duplicate within 3 seconds to prevent double-logging from React StrictMode / multi-triggers
-    const recentThreshold = new Date(Date.now() - 3000)
+    // Check for duplicate within 30 seconds OR identical action & input snippet within last 10 minutes
+    const recentThreshold = new Date(Date.now() - 30000)
     const existing = await prisma.activityHistory.findFirst({
       where: {
         userId,
         toolId: activity.toolId,
         actionTitle: activity.actionTitle,
-        createdAt: { gte: recentThreshold },
+        OR: [
+          { createdAt: { gte: recentThreshold } },
+          { inputSnippet: activity.inputSnippet?.slice(0, 2000) ?? null },
+        ],
       },
       orderBy: { createdAt: 'desc' },
     })
