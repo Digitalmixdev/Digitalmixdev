@@ -310,6 +310,15 @@ export function SqlValidatorTool() {
     setHistory((prev) => [newHistItem, ...prev.filter((h) => h.input !== code).slice(0, 29)])
   }, [sqlInput, dialect])
 
+  // Auto-record to history and dashboard on debounce
+  useEffect(() => {
+    if (!sqlInput.trim()) return
+    const timer = setTimeout(() => {
+      handleValidate(sqlInput)
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [sqlInput, handleValidate])
+
   // Copy to clipboard
   const handleCopy = () => {
     if (!sqlInput.trim()) return
@@ -596,28 +605,14 @@ export function SqlValidatorTool() {
                 <div className="flex flex-wrap items-center justify-between p-3 bg-muted/20 border-t border-border/60 gap-2">
                   <div className="flex items-center gap-2">
                     <Button
-                      onClick={() => {
-                        handleValidate()
-                        toast.success(isAr ? 'تم تدقيق الاستعلام وتحديث السجل' : 'Query validated and saved to history')
-                      }}
+                      onClick={handleAutoFix}
                       variant="default"
                       size="sm"
                       disabled={!sqlInput.trim()}
                       className="rounded-xl text-xs gap-1.5 font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      {isAr ? 'فحص الاستعلام' : 'Validate Query'}
-                    </Button>
-
-                    <Button
-                      onClick={handleAutoFix}
-                      variant="secondary"
-                      size="sm"
-                      disabled={!sqlInput.trim()}
-                      className="rounded-xl text-xs gap-1.5 font-bold hover:bg-primary/10 hover:text-primary transition-all shadow-xs"
                       title={isAr ? 'إصلاح الأخطاء الإملائية وعلامات الترقيم تلقائياً دون إعادة تنسيق' : 'Auto-fix typos, invalid colons, and syntax errors without reformatting'}
                     >
-                      <Wand2 className="h-3.5 w-3.5 text-primary" />
+                      <Wand2 className="h-3.5 w-3.5" />
                       {isAr ? 'إصلاح تلقائي' : 'Auto Fix'}
                     </Button>
 

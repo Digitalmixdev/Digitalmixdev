@@ -138,6 +138,7 @@ export interface SqlToken {
   isQualified?: boolean
   isQuoted?: boolean
   quoteChar?: string
+  isUnclosed?: boolean
 }
 
 export function tokenizeSql(sql: string, dialect: SqlDialect = 'sql'): SqlToken[] {
@@ -232,6 +233,7 @@ export function tokenizeSql(sql: string, dialect: SqlDialect = 'sql'): SqlToken[
       i++ // skip opening quote
       col++
       let strVal = ''
+      let isUnclosed = false
       while (i < len) {
         if (sql[i] === "'") {
           if (sql[i + 1] === "'") {
@@ -248,6 +250,12 @@ export function tokenizeSql(sql: string, dialect: SqlDialect = 'sql'): SqlToken[
           }
         }
         if (sql[i] === '\n') {
+          // If the next line starts with a SQL statement or clause, do NOT consume it as a string
+          const restAfterNewline = sql.slice(i + 1)
+          if (/^\s*(SELECT|FROM|WHERE|GROUP|HAVING|ORDER|LIMIT|JOIN|LEFT|RIGHT|INNER|OUTER|UNION|INSERT|UPDATE|DELETE|SET|VALUES)\b/i.test(restAfterNewline)) {
+            isUnclosed = true
+            break
+          }
           line++
           col = 1
         } else {
@@ -255,6 +263,9 @@ export function tokenizeSql(sql: string, dialect: SqlDialect = 'sql'): SqlToken[
         }
         strVal += sql[i]
         i++
+      }
+      if (i >= len && sql[i - 1] !== "'") {
+        isUnclosed = true
       }
       tokens.push({
         type: 'string_literal',
@@ -266,6 +277,7 @@ export function tokenizeSql(sql: string, dialect: SqlDialect = 'sql'): SqlToken[
         end: i,
         isQuoted: true,
         quoteChar: "'",
+        isUnclosed: isUnclosed || undefined,
       })
       continue
     }
@@ -642,6 +654,17 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
   for (let i = 0; i < tokens.length; i++) {
     const tok = tokens[i]
 
+    // Check unclosed string literals
+    if (tok.type === 'string_literal' && tok.isUnclosed) {
+      errors.push({
+        line: tok.line,
+        column: tok.column,
+        message: `Syntax error: Unclosed string literal starting on line ${tok.line}`,
+        severity: 'error',
+        suggestion: "Add a closing single quote \"'\" to properly terminate the string literal.",
+      })
+    }
+
     // Check corrupted tokens with backslashes
     if (tok.type === 'corrupted_token' || (tok.value.includes('\\') && !tok.isQuoted)) {
       const cleanVal = tok.value.replace(/[\\\/]/g, '')
@@ -721,6 +744,34 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
         message: `Syntax error: Invalid trailing colon ':' found at line ${lineNum}`,
         severity: 'error',
         suggestion: "SQL statements do not terminate with a colon ':'. Use a semicolon ';' or remove it.",
+      })
+    }
+
+    // Check missing comparison operator and unclosed quote in condition (e.g. "u.status 'active AND ...")
+    const missingOpQuoteMatch = codePart.match(/\b([a-zA-Z0-9_.]+)\s+'([a-zA-Z0-9_ -]+?)\s+(AND|OR)\b/i)
+    if (missingOpQuoteMatch) {
+      const col = missingOpQuoteMatch[1]
+      const val = missingOpQuoteMatch[2]
+      const op = missingOpQuoteMatch[3]
+      const upperCol = col.toUpperCase()
+      if (!['IN', 'LIKE', 'ILIKE', 'IS', 'NOT', 'BETWEEN', 'AS'].includes(upperCol)) {
+        errors.push({
+          line: lineNum,
+          message: `Syntax error: Missing comparison operator and closing quote in condition '${col} '${val}'`,
+          severity: 'error',
+          suggestion: `Did you mean '${col} = '${val}' ${op}'?`,
+        })
+      }
+    }
+
+    // Check missing comparison operator in HAVING clause before number literal (e.g. "HAVING COUNT(oid)  2")
+    const havingMissingOpMatch = codePart.match(/\bHAVING\s+([A-Za-z0-9_.]+(?:\([^)]*\))?)\s+([0-9]+)\b/i)
+    if (havingMissingOpMatch) {
+      errors.push({
+        line: lineNum,
+        message: `Syntax error: Missing comparison operator in HAVING clause before '${havingMissingOpMatch[2]}'`,
+        severity: 'error',
+        suggestion: `Did you mean 'HAVING ${havingMissingOpMatch[1]} > ${havingMissingOpMatch[2]}'?`,
       })
     }
   })
@@ -822,11 +873,12 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
       continue
     }
 
-    // 4a. Function Call Typo check (e.g. SM(o.amount) or COUN(o.id) or COTod))
-    if (current.type === 'identifier') {
-      if (next && next.value === '(') {
+    // 4a. Function Call Typo check (e.g. SM(o.amount) or COUN(o.id) or OUNT(oid))
+    if (current.type === 'identifier' || current.type === 'function_call') {
+      const isFnCall = current.type === 'function_call' || (next && next.value === '(')
+      if (isFnCall) {
         const fnMatch = findBestKeywordMatch(upperVal, COMMON_SQL_FUNCTIONS, { isFunctionPosition: true })
-        if (fnMatch && fnMatch.confidence >= 0.70) {
+        if (fnMatch && fnMatch.confidence >= 0.70 && fnMatch.keyword !== upperVal) {
           errors.push({
             line: current.line,
             column: current.column,
@@ -840,7 +892,7 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
       } else if (next && next.value === ')' && (!prev || prev.value !== '(')) {
         // e.g. "COTod)" where opening paren was omitted
         const fnMatch = findBestKeywordMatch(upperVal, COMMON_SQL_FUNCTIONS, { isFunctionPosition: true })
-        if (fnMatch && fnMatch.confidence >= 0.70) {
+        if (fnMatch && fnMatch.confidence >= 0.70 && fnMatch.keyword !== upperVal) {
           errors.push({
             line: current.line,
             column: current.column,
@@ -1231,9 +1283,78 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect = 'sql'): {
   const fixesApplied: string[] = []
   let fixCount = 0
 
-  // We operate purely on tokens to protect strings, comments, and qualified identifiers!
-  const initialTokens = tokenizeSql(sql, dialect)
-  let fixed = sql
+  let currentSql = sql
+
+  // ---------------------------------------------------------------------------
+  // PHASE 1: Pre-tokenization syntax & structural repair
+  // ---------------------------------------------------------------------------
+
+  // 1a. Missing operator and closing quote in conditions: u.status 'active AND -> u.status = 'active' AND
+  const condQuoteRegex = /\b([a-zA-Z0-9_.]+)\s+'([a-zA-Z0-9_ -]+?)\s+(AND|OR)\b/gi
+  currentSql = currentSql.replace(condQuoteRegex, (m, col, val, op) => {
+    const upperCol = col.toUpperCase()
+    if (['IN', 'LIKE', 'ILIKE', 'IS', 'NOT', 'BETWEEN', 'AS'].includes(upperCol)) return m
+    fixesApplied.push(`Added missing '=' operator and closing quote in condition: ${col} = '${val}' ${op}`)
+    fixCount++
+    return `${col} = '${val}' ${op}`
+  })
+
+  // 1b. Missing operator with closed quotes: u.status 'active' AND -> u.status = 'active' AND
+  const condClosedQuoteRegex = /\b([a-zA-Z0-9_.]+)\s+('([^'\\]|\\.)*')\s+(AND|OR|WHERE|HAVING|ORDER|GROUP|LIMIT)\b/gi
+  currentSql = currentSql.replace(condClosedQuoteRegex, (m, col, val, op) => {
+    const upperCol = col.toUpperCase()
+    if (['IN', 'LIKE', 'ILIKE', 'IS', 'NOT', 'BETWEEN', 'AS', 'CASE', 'WHEN', 'THEN', 'ELSE'].includes(upperCol)) return m
+    fixesApplied.push(`Added missing '=' operator: ${col} = ${val} ${op}`)
+    fixCount++
+    return `${col} = ${val} ${op}`
+  })
+
+  // 1c. Missing comparison operator in HAVING or WHERE before number: HAVING COUNT(...)  2 -> HAVING COUNT(...) > 2
+  const havingMissingOpRegex = /\bHAVING\s+([A-Za-z0-9_.]+(?:\([^)]*\))?)\s+([0-9]+)\b/gi
+  currentSql = currentSql.replace(havingMissingOpRegex, (m, expr, val) => {
+    fixesApplied.push(`Added missing comparison operator '>' in HAVING clause: HAVING ${expr} > ${val}`)
+    fixCount++
+    return `HAVING ${expr} > ${val}`
+  })
+
+  // 1d. Missing dot in column references (e.g. oid when o.id exists in query)
+  const qualCols: { full: string; alias: string; col: string; joint: string }[] = []
+  const qualRegex = /\b([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)\b/g
+  let qm: RegExpExecArray | null
+  while ((qm = qualRegex.exec(currentSql)) !== null) {
+    qualCols.push({ full: qm[0], alias: qm[1], col: qm[2], joint: (qm[1] + qm[2]).toLowerCase() })
+  }
+  qualCols.forEach((qc) => {
+    const jointRegex = new RegExp(`\\b(${qc.joint})\\b(?![.])`, 'gi')
+    currentSql = currentSql.replace(jointRegex, (match) => {
+      fixesApplied.push(`Restored missing dot: '${match}' -> '${qc.full}'`)
+      fixCount++
+      return qc.full
+    })
+  })
+
+  // 1e. Check unclosed single quotes on individual lines when followed by a SQL clause
+  const lines = currentSql.split('\n')
+  const SQL_CLAUSE_START = /^\s*(SELECT|FROM|WHERE|GROUP|HAVING|ORDER|LIMIT|JOIN|LEFT|RIGHT|INNER|OUTER|UNION|INSERT|UPDATE|DELETE|SET|VALUES)\b/i
+  for (let l = 0; l < lines.length; l++) {
+    const lineStr = lines[l]
+    const quoteMatches = lineStr.match(/'/g)
+    if (quoteMatches && quoteMatches.length % 2 !== 0) {
+      if (l < lines.length - 1 && SQL_CLAUSE_START.test(lines[l + 1])) {
+        lines[l] = lineStr + "'"
+        fixesApplied.push(`Closed unclosed string quote at line ${l + 1}`)
+        fixCount++
+      }
+    }
+  }
+  currentSql = lines.join('\n')
+
+  // ---------------------------------------------------------------------------
+  // PHASE 2: Token-level keyword, function, and typo corrections
+  // ---------------------------------------------------------------------------
+
+  const initialTokens = tokenizeSql(currentSql, dialect)
+  let fixed = currentSql
   let offsetShift = 0
 
   // All valid standard keywords for dynamic matching
@@ -1248,11 +1369,19 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect = 'sql'): {
   ])
   const funcSet = new Set(COMMON_SQL_FUNCTIONS)
 
+  let inOrderBy = false
+
   for (let i = 0; i < initialTokens.length; i++) {
     const tok = initialTokens[i]
     const prev = initialTokens[i - 1]
     const prev2 = initialTokens[i - 2]
     const next = initialTokens[i + 1]
+
+    if (tok.type === 'keyword') {
+      const kw = tok.value.toUpperCase()
+      if (kw === 'ORDER') inOrderBy = true
+      else if (['LIMIT', 'OFFSET', 'UNION', ';', 'SELECT'].includes(kw)) inOrderBy = false
+    }
 
     // Skip string literals, comments, numbers, quoted identifiers, and qualified tokens
     if (
@@ -1291,8 +1420,8 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect = 'sql'): {
       continue
     }
 
-    // 3. Dynamic Typo Detection on Identifiers
-    if (tok.type === 'identifier') {
+    // 3. Dynamic Typo Detection on Identifiers and Function Calls
+    if (tok.type === 'identifier' || tok.type === 'function_call') {
       const upperVal = tok.value.toUpperCase()
 
       // Guard if it's already a valid dialect keyword or built-in function
@@ -1300,8 +1429,8 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect = 'sql'): {
         continue
       }
 
-      // Guard against common user column/table identifiers unless specifically in clause position
-      if (COMMON_USER_IDENTIFIERS.has(upperVal)) {
+      // Guard against common user column/table identifiers unless specifically in clause or sort position
+      if (COMMON_USER_IDENTIFIERS.has(upperVal) && !inOrderBy) {
         continue
       }
 
@@ -1319,7 +1448,9 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect = 'sql'): {
           ['ORDER', 'GROUP', 'ORDRE', 'GROP', 'GROUPE'].includes(prevUpper)
       )
 
-      if (next && next.value === '(') {
+      const isFn = tok.type === 'function_call' || (next && next.value === '(')
+
+      if (isFn) {
         contextClues.isFunctionPosition = true
       } else if (i === 0 || (prev && prev.value === ';')) {
         contextClues.isClauseStart = true
@@ -1327,11 +1458,7 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect = 'sql'): {
         contextClues.expectedKeyword = 'JOIN'
       } else if (isGroupOrOrder) {
         contextClues.expectedKeyword = 'BY'
-      }
-
-      // Special sort direction context (ORDER BY name DSE / DEC / etc.)
-      const isOrderByContext = (prev && prev.value.toUpperCase() === 'BY') || (prev2 && prev2.value.toUpperCase() === 'BY')
-      if (isOrderByContext && !contextClues.expectedKeyword) {
+      } else if (inOrderBy) {
         if (upperVal.startsWith('D')) {
           contextClues.expectedKeyword = 'DESC'
         } else if (upperVal.startsWith('A')) {
@@ -1341,14 +1468,21 @@ export function autoFixSqlCode(sql: string, dialect: SqlDialect = 'sql'): {
 
       const targetVocab = contextClues.isFunctionPosition
         ? COMMON_SQL_FUNCTIONS
-        : isOrderByContext
+        : inOrderBy
         ? ['DESC', 'ASC', ...majorVocabulary]
         : majorVocabulary
 
       const match = findBestKeywordMatch(upperVal, targetVocab, contextClues)
 
-      // Dynamic confidence threshold (>= 0.65 for context-backed expectedKeyword, >= 0.72 for clause context, >= 0.84 for general)
-      const requiredConfidence = contextClues.expectedKeyword ? 0.65 : (isOrderByContext || contextClues.isClauseStart ? 0.72 : 0.84)
+      // Dynamic confidence threshold
+      const requiredConfidence = contextClues.expectedKeyword
+        ? 0.65
+        : contextClues.isFunctionPosition || inOrderBy
+        ? 0.70
+        : contextClues.isClauseStart
+        ? 0.72
+        : 0.76
+
       if (match && match.confidence >= requiredConfidence && match.keyword !== upperVal) {
         const startInFixed = tok.start + offsetShift
         const endInFixed = tok.end + offsetShift

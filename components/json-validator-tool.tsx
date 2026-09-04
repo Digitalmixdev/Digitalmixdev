@@ -504,6 +504,15 @@ export function JsonValidatorTool() {
     setHistory((prev) => [newHistItem, ...prev.filter((h) => h.input !== code).slice(0, 29)])
   }, [jsonInput])
 
+  // Auto-record to history and dashboard on debounce
+  useEffect(() => {
+    if (!jsonInput.trim()) return
+    const timer = setTimeout(() => {
+      handleValidate(jsonInput)
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [jsonInput, handleValidate])
+
   // Copy to clipboard
   const handleCopy = () => {
     if (!jsonInput.trim()) return
@@ -796,28 +805,14 @@ export function JsonValidatorTool() {
                 <div className="flex flex-wrap items-center justify-between p-3 bg-muted/20 border-t border-border/60 gap-2">
                   <div className="flex items-center gap-2">
                     <Button
-                      onClick={() => {
-                        handleValidate()
-                        toast.success(isAr ? 'تم تدقيق كود JSON وتحديث السجل' : 'JSON validated and saved to history')
-                      }}
+                      onClick={handleAutoFix}
                       variant="default"
                       size="sm"
                       disabled={!jsonInput.trim()}
                       className="rounded-xl text-xs gap-1.5 font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      {isAr ? 'فحص كود JSON' : 'Validate JSON'}
-                    </Button>
-
-                    <Button
-                      onClick={handleAutoFix}
-                      variant="secondary"
-                      size="sm"
-                      disabled={!jsonInput.trim()}
-                      className="rounded-xl text-xs gap-1.5 font-bold hover:bg-primary/10 hover:text-primary transition-all shadow-xs"
                       title={isAr ? 'إصلاح الفواصل المفقودة والزائدة والأقواس والاقتباسات تلقائياً' : 'Auto-fix missing commas, trailing commas, brackets & quotes'}
                     >
-                      <Wand2 className="h-3.5 w-3.5 text-primary" />
+                      <Wand2 className="h-3.5 w-3.5" />
                       {isAr ? 'إصلاح تلقائي' : 'Auto Fix'}
                     </Button>
 
