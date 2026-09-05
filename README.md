@@ -1,72 +1,55 @@
-# DigitalMixDev
+# DigitalMix — Developer & Utility Web Platform
 
-**DigitalMix** is an open-source collection of practical developer and productivity tools designed to make everyday technical tasks faster, simpler, and more accessible.
+DigitalMix is a modern, privacy-first web application providing a comprehensive suite of developer utilities, image processing tools, document converters, financial/business calculators, and database helper tools. Built with Next.js 15, React, TypeScript, and Tailwind CSS.
 
-🌐 Website: www.digitalmix.dev
+---
 
-## ✨ What is DigitalMix?
+## 🚀 Key Features & Tool Suites
 
-DigitalMix brings together useful web-based utilities for developers, students, and tech enthusiasts in one place.
+### 🛠️ Developer & Database Tools
+- **JSON Validator & Auto-Repair**: Real-time syntax validation with line/column error coordinates and 1-click auto-repair for unquoted keys, trailing commas, and quote formatting.
+- **JSON Formatter & Tree Viewer**: Format, minify, and interactively explore complex JSON structures.
+- **SQL Validator**: Multi-dialect SQL syntax checking (PostgreSQL, MySQL, SQLite, T-SQL, Oracle) with destructive query warnings (`DELETE` without `WHERE`, `DROP TABLE`).
+- **SQL Formatter**: Pretty-print and format raw SQL queries into clean, readable statements.
+- **CSV to JSON & JSON to CSV Converter**: High-performance bidirectional converter with column mapping and custom delimiters.
+- **Binary & Base Translator**: Convert strings and numbers across Binary, Hexadecimal, Octal, Decimal, and ASCII/UTF-8.
+- **JWT Debugger**: Decode and inspect JSON Web Tokens (Header, Payload, Signature) with expiration validation.
+- **Hash Generator**: Generate instant MD5, SHA-1, SHA-256, and SHA-512 cryptographic checksums.
+- **UUID Generator**: Bulk-generate RFC 4122 v4 compliant unique identifiers.
+- **Regex Tester**: Test regular expressions in real-time with pattern highlighting, flag toggles, and regex cheat-sheet.
 
-Instead of searching for a different website for every small task, DigitalMix provides lightweight tools that can be accessed directly from a single platform.
+### 🎨 Design & Media Tools
+- **Image Color Palette Extractor**: Extract dominant, vibrant, muted, pastel, and dark swatches using K-Means Centroid clustering, Median Cut quantization, or Histogram frequency. Includes WCAG 2.1 contrast matrix, colorblindness simulation (Protanopia, Deuteranopia, Tritanopia, Achromatopsia), live UI mockup mapping, and export options (PNG poster, CSS, SCSS, Tailwind, JSON).
+- **Image & File Compressor**: Client-side image compression (PNG, JPEG, WebP) with target quality sliders and side-by-side preview.
+- **Image Converter**: Convert images between PNG, JPEG, WebP, AVIF, and ICO formats.
+- **Image Resizer**: Resize and crop images with aspect ratio locking, preset dimensions, and rotation controls.
+- **QR Code Generator**: Create customizable QR codes for URLs, WiFi passwords, vCards, Email, SMS, and plain text with SVG and PNG exports.
+- **QR & Barcode Scanner**: Scan 1D and 2D barcodes (UPC, EAN-13, Code 128, Data Matrix, QR Code) using webcam, drag-and-drop file upload, or direct clipboard pasting.
 
-## 🛠️ Available Tools
+### 📄 Document & PDF Tools
+- **Document Converter**: Convert documents between PDF, Word (DOCX), HTML, Markdown, and TXT formats.
+- **PDF Merger & Organizer**: Combine multiple PDF files into a single document or organize your file(s).
 
-DigitalMix currently includes tools such as:
+### 📊 Calculators
+- **KPI & ROI Calculator**: Calculate key business metrics (Customer Acquisition Cost, Lifetime Value, Churn Rate, ROI).
+- **Calorie & BMR Calculator**: Estimate daily caloric needs based on Mifflin-St Jeor and Harris-Benedict formulas.
 
-- 📊 KPI Calculator — Calculate and understand common business and performance metrics.
-- 📄 PDF Tools — Merge and organize PDF files.
-- 🗃️ SQL Formatter — Format SQL queries for better readability.
-- 🧩 JSON Formatter — Format and validate JSON data.
-- 🔄 CSV to JSON Converter — Convert CSV data into JSON.
-- 🔍 Regex Tester — Test and debug regular expressions.
-- 🔐 UUID & Hash Generator — Generate UUIDs and common hashes.
-- 🔤 Base64 Tools — Encode and decode Base64 data.
+---
 
-The platform is continuously evolving, with new tools and improvements being added over time.
+## 🌟 Platform Highlights
 
-## 🎯 Why DigitalMix?
+- **100% Client-Side Privacy**: File processing, image conversions, QR scanning, and data parsing happen entirely in the user's browser.
+- **Bilingual Internationalization (i18n)**: Native English and Arabic support with full RTL (Right-to-Left) and LTR layout adaptations.
+- **Content Security Policy (CSP)**: Hardened security headers supporting Google AdSense, Clarity, Google Analytics, and Ad Traffic Quality (`ep1`/`ep2.adtrafficquality.google`) endpoints.
+- **Developer Blog & Knowledge Hub**: Technical articles on algorithms, databases, encoding, and web security with real-time client-side search and category filtering.
 
-DigitalMix focuses on three main principles:
+---
 
-**Simple**
-Tools should be straightforward and easy to use.
+## 🛠️ Tech Stack
 
-**Practical**
-Every tool should solve a real-world problem.
-
-**Accessible**
-Useful developer utilities should be available without unnecessary complexity.
-
-## 🔓 Open Source
-
-DigitalMix is open source, and contributions are welcome.
-
-You can:
- 
-- 🐛 Report bugs
-- 💡 Suggest new tools
-- ✨ Submit improvements
-- 🔧 Contribute new features
-📚 Improve documentation
-
-## 📌 Roadmap
-
-DigitalMix is still growing. Future plans may include:
-
-- More developer utilities
-* More data-related tools
-+ Improved user accounts and personalization
-- Saved tools and favorites
-- Better performance and accessibility
-- Community-driven tools
-- Additional productivity features
-🤝 Community
-
-Have an idea for a useful tool?
-
-Open an issue and share it with the community. DigitalMix is built to grow through real-world needs and open-source collaboration.
-
-Built with ❤️ for developers, students, and curious minds.
-
-**🌐 digitalmix.dev**
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **UI & Styling**: React, Tailwind CSS v4, Lucide Icons, Framer Motion
+- **Component Primitives**: Radix UI / shadcn primitives
+- **Database & Auth**: Prisma ORM, PostgreSQL (Cloud SQL), NextAuth
+- **PWA & Caching**: Service Worker with Network-First strategy and offline fallback

@@ -7,9 +7,12 @@
  * Layer 4: Structural SQL Validation (bracket/quote balance, clause order, statement rules, comma syntax)
  * Layer 5: Dialect Awareness (ANSI SQL, PostgreSQL, MySQL, SQLite, PL/SQL, T-SQL)
  * Layer 6: Contextual Auto-Fix with Post-Validation Verification
+ *
+ * Note: Syntax validity (isValid/errors) is now backed by a real SQL parser (node-sql-parser), while the remaining heuristics are advisory suggestions layered on top.
  */
 
 import { format } from 'sql-formatter'
+import { Parser } from 'node-sql-parser'
 
 export type SqlDialect = 'sql' | 'mysql' | 'postgresql' | 'sqlite' | 'plsql' | 'tsql'
 
@@ -43,6 +46,58 @@ export interface SqlValidationResult {
     lines: number
     chars: number
     words: number
+  }
+}
+
+/**
+ * Uses node-sql-parser as the authoritative source of truth for SQL syntax validity.
+ */
+function checkRealSyntax(sql: string, dialect: SqlDialect): SqlValidationError[] {
+  try {
+    const parser = new Parser()
+    // Map SqlDialect to node-sql-parser database options:
+    // node-sql-parser supports: 'postgresql', 'mysql', 'sqlite', 'transactsql', 'mariadb', 'flinksql', 'bigquery'
+    // For 'sql' (generic ANSI) and 'plsql' (Oracle PL/SQL), fallback to 'mysql' as the closest general syntax equivalent.
+    let dbOption = 'mysql'
+    if (dialect === 'postgresql') {
+      dbOption = 'postgresql'
+    } else if (dialect === 'mysql') {
+      dbOption = 'mysql'
+    } else if (dialect === 'sqlite') {
+      dbOption = 'sqlite'
+    } else if (dialect === 'tsql') {
+      dbOption = 'transactsql'
+    } else {
+      // Fallback for 'sql' and 'plsql' which do not have direct equivalents in node-sql-parser
+      dbOption = 'mysql'
+    }
+
+    parser.astify(sql, { database: dbOption })
+    return []
+  } catch (err: any) {
+    const errMsg = err?.message || 'SQL Syntax Error'
+    let errLine = 1
+    let errCol: number | undefined = undefined
+
+    if (err?.loc?.start?.line !== undefined) {
+      errLine = err.loc.start.line
+      errCol = err.loc.start.column
+    } else {
+      const lineMatch = /line\s+(\d+)(?:\s+column\s+(\d+))?/i.exec(errMsg)
+      if (lineMatch) {
+        errLine = parseInt(lineMatch[1], 10)
+        if (lineMatch[2]) errCol = parseInt(lineMatch[2], 10)
+      }
+    }
+
+    return [
+      {
+        line: errLine,
+        column: errCol,
+        message: `Syntax Error: ${errMsg}`,
+        severity: 'error',
+      },
+    ]
   }
 }
 
@@ -642,6 +697,10 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
     }
   }
 
+  // 0. Authoritative syntax check via node-sql-parser
+  const realSyntaxErrors = checkRealSyntax(sql, dialect)
+  errors.push(...realSyntaxErrors)
+
   // Tokenize the SQL input into structured stream
   const tokens = tokenizeSql(sql, dialect)
 
@@ -824,7 +883,6 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
     const prev = tokens[i - 1]
     const prev2 = tokens[i - 2]
     const next = tokens[i + 1]
-    const next2 = tokens[i + 2]
 
     // Skip string literals, comments, numbers, quoted identifiers, and qualified tokens
     if (
@@ -1062,25 +1120,6 @@ export function validateSqlCode(sql: string, dialect: SqlDialect = 'sql'): SqlVa
           })
           reportedTokenIndices.add(i)
           continue
-        }
-      }
-
-      // General fuzzy check against major keywords for unknown identifiers that are NOT common column names
-      if (!COMMON_USER_IDENTIFIERS.has(upperVal) && upperVal.length >= 4) {
-        const generalMatch = findBestKeywordMatch(upperVal, STANDARD_SQL_KEYWORDS)
-        if (generalMatch && generalMatch.confidence >= 0.85) {
-          // Verify it's not preceded by AS or FROM/JOIN/INTO (where valid table/column is expected)
-          const isPrecededByDefKeyword = prev && ['AS', 'FROM', 'JOIN', 'INTO', 'UPDATE', 'TABLE'].includes(prev.value.toUpperCase())
-          if (!isPrecededByDefKeyword) {
-            errors.push({
-              line: current.line,
-              column: current.column,
-              message: `Potentially misspelled SQL keyword '${current.value}' on line ${current.line}`,
-              severity: 'error',
-              suggestion: `Did you mean '${generalMatch.keyword}'?`,
-            })
-            reportedTokenIndices.add(i)
-          }
         }
       }
     }
