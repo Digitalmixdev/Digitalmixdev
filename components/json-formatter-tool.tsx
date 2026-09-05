@@ -22,6 +22,7 @@ import {
   RotateCcw,
   X,
   Wand2,
+  ExternalLink,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -157,11 +158,15 @@ export default function JsonFormatterTool() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleDebugInValidator = () => {
-    if (!inputJson.trim()) return
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('json_validator_code', inputJson)
+    const codeToPass = inputJson.trim() || outputJson.trim()
+    if (codeToPass) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('json_validator_code', codeToPass)
+      }
+      router.push(`/tools/json-validator?code=${encodeURIComponent(codeToPass)}`)
+    } else {
+      router.push('/tools/json-validator')
     }
-    router.push(`/tools/json-validator?code=${encodeURIComponent(inputJson)}`)
   }
 
   // Read incoming payload from URL search params or sessionStorage
@@ -612,16 +617,17 @@ export default function JsonFormatterTool() {
           </Button>
 
           {/* Quick link to JSON Validator */}
-          <Link href="/tools/json-validator">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-10 px-3.5 gap-2 text-xs font-semibold border-border/80 hover:border-primary/50 text-foreground"
-            >
-              <ShieldCheck className="h-4 w-4 text-emerald-500" />
-              <span>{isArabic ? 'مدقق بيانات JSON' : 'JSON Validator'}</span>
-            </Button>
-          </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDebugInValidator}
+            className="h-10 px-3.5 gap-2 text-xs font-semibold border-border/80 hover:border-primary/50 text-foreground"
+            title={isArabic ? 'فتح البيانات في مدقق JSON' : 'Open in JSON Validator'}
+          >
+            <ShieldCheck className="h-4 w-4 text-emerald-500" />
+            <span>{isArabic ? 'مدقق بيانات JSON' : 'JSON Validator'}</span>
+            <ExternalLink className="h-3 w-3 opacity-60" />
+          </Button>
         </div>
 
         <Button

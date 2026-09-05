@@ -229,7 +229,7 @@ export function HistoryView({ initialActivities = [], onCountChange }: HistoryVi
       return <Calculator className="w-5 h-5 text-teal-400" />
     if (id.includes('jwt') || id.includes('hash'))
       return <ShieldCheck className="w-5 h-5 text-indigo-400" />
-    if (id.includes('uuid') || id.includes('base64'))
+    if (id.includes('uuid') || id.includes('base64') || id.includes('binary'))
       return <Binary className="w-5 h-5 text-purple-400" />
     if (id.includes('csv')) return <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
     return <Sparkles className="w-5 h-5 text-cyan-400" />
@@ -269,6 +269,7 @@ export function HistoryView({ initialActivities = [], onCountChange }: HistoryVi
       'calorie-calculator': '/tools/calorie-calculator',
       'kpi-roi-calculator': '/tools/kpi-roi-calculator',
       'base64-encoder-decoder': '/tools/base64-encoder-decoder',
+      'binary-translator': '/tools/binary-translator',
       'hash-generator': '/tools/hash-generator',
       'uuid-generator': '/tools/uuid-generator',
       'csv-to-json': '/tools/csv-to-json',

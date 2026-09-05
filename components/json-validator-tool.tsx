@@ -567,11 +567,14 @@ export function JsonValidatorTool() {
 
   // Open in JSON Formatter
   const handleOpenInFormatter = () => {
-    if (!jsonInput.trim()) return
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('json_formatter_code', jsonInput)
+    if (jsonInput.trim()) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('json_formatter_code', jsonInput)
+      }
+      router.push(`/tools/json-formatter?code=${encodeURIComponent(jsonInput)}`)
+    } else {
+      router.push('/tools/json-formatter')
     }
-    router.push(`/tools/json-formatter?code=${encodeURIComponent(jsonInput)}`)
   }
 
   // Clear Input
@@ -600,43 +603,29 @@ export function JsonValidatorTool() {
     <ToolLayout metadata={toolMeta}>
       <div className="space-y-6">
         {/* Navigation Tabs */}
-        <div className="flex items-center justify-between border-b border-border/60 pb-3">
-          <div className="flex items-center gap-2">
-            <Button
-              variant={activeTab === 'editor' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveTab('editor')}
-              className="rounded-xl gap-2 text-xs font-semibold"
-            >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              {isAr ? 'محرر التدقيق' : 'Validator Editor'}
-            </Button>
-            <Button
-              variant={activeTab === 'history' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveTab('history')}
-              className="rounded-xl gap-2 text-xs font-semibold relative"
-            >
-              <History className="h-3.5 w-3.5" />
-              {isAr ? 'سجل التدقيق' : 'Validation History'}
-              {history.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 bg-primary/20 text-primary text-[10px] font-bold rounded-full">
-                  {history.length}
-                </span>
-              )}
-            </Button>
-          </div>
-
+        <div className="flex items-center justify-start border-b border-border/60 pb-3 gap-2">
           <Button
-            onClick={handleOpenInFormatter}
-            variant="outline"
+            variant={activeTab === 'editor' ? 'default' : 'ghost'}
             size="sm"
-            disabled={!jsonInput.trim()}
-            className="rounded-xl gap-1.5 text-xs font-semibold"
+            onClick={() => setActiveTab('editor')}
+            className="rounded-xl gap-2 text-xs font-semibold"
           >
-            <FileCode className="h-3.5 w-3.5 text-primary" />
-            {isAr ? 'منسق ومجمل JSON' : 'JSON Formatter'}
-            <ExternalLink className="h-3 w-3 opacity-60" />
+            <ShieldCheck className="h-3.5 w-3.5" />
+            {isAr ? 'محرر التدقيق' : 'Validator Editor'}
+          </Button>
+          <Button
+            variant={activeTab === 'history' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTab('history')}
+            className="rounded-xl gap-2 text-xs font-semibold relative"
+          >
+            <History className="h-3.5 w-3.5" />
+            {isAr ? 'سجل التدقيق' : 'Validation History'}
+            {history.length > 0 && (
+              <span className="ml-1 px-1.5 py-0.2 bg-primary/20 text-primary text-[10px] font-bold rounded-full">
+                {history.length}
+              </span>
+            )}
           </Button>
         </div>
 
@@ -816,16 +805,16 @@ export function JsonValidatorTool() {
                       {isAr ? 'إصلاح تلقائي' : 'Auto Fix'}
                     </Button>
 
-                    <Link href={`/tools/json-formatter`}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="rounded-xl text-xs gap-1 font-semibold text-muted-foreground hover:text-foreground"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        {isAr ? 'منسق JSON' : 'JSON Formatter'}
-                      </Button>
-                    </Link>
+                    <Button
+                      onClick={handleOpenInFormatter}
+                      variant="ghost"
+                      size="sm"
+                      className="rounded-xl text-xs gap-1 font-semibold text-muted-foreground hover:text-foreground"
+                      title={isAr ? 'فتح في منسق ومجمل JSON' : 'Open in JSON Formatter'}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                      {isAr ? 'منسق JSON' : 'JSON Formatter'}
+                    </Button>
                   </div>
 
                   <div className="flex items-center gap-2">

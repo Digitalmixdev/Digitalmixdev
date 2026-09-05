@@ -78,6 +78,7 @@ function getToolIcon(toolId?: string, category?: string) {
     case 'hash-generator':
       return Hash
     case 'base64':
+    case 'binary-translator':
     case 'uuid-generator':
     case 'regex-tester':
       return Binary

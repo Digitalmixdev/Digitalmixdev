@@ -5,6 +5,8 @@ import { ToolDefinition, ToolId, getToolById, getToolBySlug } from '@/constants/
 const LEGACY_SLUG_MAP: Record<string, ToolId> = {
   'base64-tool': 'base64',
   'base64': 'base64',
+  'binary-translator': 'binary-translator',
+  'binary-translator-tool': 'binary-translator',
   'jwt-tool': 'jwt',
   'jwt': 'jwt',
   'hash-tool': 'hash-generator',

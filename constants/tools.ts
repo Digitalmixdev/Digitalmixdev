@@ -5,6 +5,7 @@ export type ToolId =
   | 'json-validator'
   | 'csv-json'
   | 'base64'
+  | 'binary-translator'
   | 'jwt'
   | 'uuid-generator'
   | 'hash-generator'
@@ -119,6 +120,17 @@ export const ALL_TOOLS: ToolDefinition[] = [
     icon: 'Binary',
     active: true,
     keywords: ['base64', 'encode', 'decode', 'ascii', 'binary', 'string'],
+  },
+  {
+    id: 'binary-translator',
+    name: 'Binary Translator',
+    slug: 'binary-translator',
+    href: '/tools/binary-translator',
+    description: 'Translate text to binary and binary back to text, byte by byte with bit-level inspection.',
+    categoryId: 'developer',
+    icon: 'Binary',
+    active: true,
+    keywords: ['binary', 'translator', 'text to binary', 'binary to text', 'bits', 'bytes', 'ascii', 'utf8', 'hex', 'decode', 'encode'],
   },
   {
     id: 'jwt',

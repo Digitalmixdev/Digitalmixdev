@@ -176,11 +176,15 @@ export default function SqlFormatterTool() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleDebugInValidator = () => {
-    if (!inputSql.trim()) return
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('sql_validator_code', inputSql)
+    const codeToPass = inputSql.trim() || outputSql.trim()
+    if (codeToPass) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('sql_validator_code', codeToPass)
+      }
+      router.push(`/tools/sql-validator?code=${encodeURIComponent(codeToPass)}&dialect=${dialect}`)
+    } else {
+      router.push('/tools/sql-validator')
     }
-    router.push(`/tools/sql-validator?code=${encodeURIComponent(inputSql)}&dialect=${dialect}`)
   }
 
   // Read incoming query/dialect from URL params or sessionStorage
@@ -663,17 +667,17 @@ export default function SqlFormatterTool() {
           </Button>
 
           {/* Quick link to SQL Validator */}
-          <Link href="/tools/sql-validator">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-10 px-3.5 gap-2 text-xs font-semibold border-border/80 hover:border-primary/50 text-foreground"
-            >
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              <span>{isArabic ? 'مدقق استعلامات SQL' : 'SQL Validator'}</span>
-              <ExternalLink className="h-3 w-3 opacity-60" />
-            </Button>
-          </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDebugInValidator}
+            className="h-10 px-3.5 gap-2 text-xs font-semibold border-border/80 hover:border-primary/50 text-foreground"
+            title={isArabic ? 'فتح الاستعلام في مدقق SQL' : 'Open query in SQL Validator'}
+          >
+            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            <span>{isArabic ? 'مدقق استعلامات SQL' : 'SQL Validator'}</span>
+            <ExternalLink className="h-3 w-3 opacity-60" />
+          </Button>
         </div>
 
         <Button

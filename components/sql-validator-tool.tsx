@@ -197,11 +197,14 @@ export function SqlValidatorTool() {
   const lastValidatedInputRef = useRef<string>('')
 
   const handleOpenInFormatter = () => {
-    if (!sqlInput.trim()) return
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('sql_formatter_code', sqlInput)
+    if (sqlInput.trim()) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('sql_formatter_code', sqlInput)
+      }
+      router.push(`/tools/sql-formatter?code=${encodeURIComponent(sqlInput)}&dialect=${dialect}`)
+    } else {
+      router.push('/tools/sql-formatter')
     }
-    router.push(`/tools/sql-formatter?code=${encodeURIComponent(sqlInput)}&dialect=${dialect}`)
   }
 
   // Load history from local/server store
@@ -391,51 +394,30 @@ export function SqlValidatorTool() {
     <ToolLayout metadata={toolMeta}>
       <div className="space-y-6">
         {/* Navigation Tabs */}
-        <div className="flex items-center justify-between border-b border-border/60 pb-3">
-          <div className="flex items-center gap-2">
-            <Button
-              variant={activeTab === 'editor' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveTab('editor')}
-              className="rounded-xl gap-2 text-xs font-semibold"
-            >
-              <Code className="h-3.5 w-3.5" />
-              {isAr ? 'محرر التدقيق' : 'Validator Editor'}
-            </Button>
-            <Button
-              variant={activeTab === 'history' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveTab('history')}
-              className="rounded-xl gap-2 text-xs font-semibold relative"
-            >
-              <History className="h-3.5 w-3.5" />
-              {isAr ? 'سجل التدقيق' : 'Validation History'}
-              {history.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 bg-primary/20 text-primary text-[10px] font-bold rounded-full">
-                  {history.length}
-                </span>
-              )}
-            </Button>
-          </div>
-
-          {/* Dialect Selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-muted-foreground hidden sm:inline">
-              {isAr ? 'قاعدة البيانات / اللهجة:' : 'SQL Dialect:'}
-            </span>
-            <select
-              value={dialect}
-              onChange={(e) => setDialect(e.target.value as SqlDialect)}
-              className="h-9 rounded-xl border border-border/80 bg-background px-3 py-1 text-xs font-semibold text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-            >
-              <option value="postgresql">PostgreSQL</option>
-              <option value="mysql">MySQL / MariaDB</option>
-              <option value="sql">Standard ANSI SQL</option>
-              <option value="sqlite">SQLite</option>
-              <option value="plsql">Oracle (PL/SQL)</option>
-              <option value="tsql">MS SQL Server (T-SQL)</option>
-            </select>
-          </div>
+        <div className="flex items-center justify-start border-b border-border/60 pb-3 gap-2">
+          <Button
+            variant={activeTab === 'editor' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTab('editor')}
+            className="rounded-xl gap-2 text-xs font-semibold"
+          >
+            <Code className="h-3.5 w-3.5" />
+            {isAr ? 'محرر التدقيق' : 'Validator Editor'}
+          </Button>
+          <Button
+            variant={activeTab === 'history' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTab('history')}
+            className="rounded-xl gap-2 text-xs font-semibold relative"
+          >
+            <History className="h-3.5 w-3.5" />
+            {isAr ? 'سجل التدقيق' : 'Validation History'}
+            {history.length > 0 && (
+              <span className="ml-1 px-1.5 py-0.2 bg-primary/20 text-primary text-[10px] font-bold rounded-full">
+                {history.length}
+              </span>
+            )}
+          </Button>
         </div>
 
         {activeTab === 'history' ? (
@@ -531,7 +513,29 @@ export function SqlValidatorTool() {
           /* Editor & Validator Main View */
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left Column: Editor & Controls */}
-            <div className="lg:col-span-7 space-y-4">
+            <div className="lg:col-span-7 space-y-3.5">
+              {/* Dialect Selector (Above Samples) */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex items-center gap-1.5 text-primary">
+                  <Database className="h-3.5 w-3.5" />
+                  <span className="text-xs font-bold text-foreground">
+                    {isAr ? 'قاعدة البيانات / اللهجة:' : 'SQL Dialect:'}
+                  </span>
+                </div>
+                <select
+                  value={dialect}
+                  onChange={(e) => setDialect(e.target.value as SqlDialect)}
+                  className="h-8 rounded-xl border border-border/80 bg-background px-2.5 py-1 text-xs font-semibold text-foreground shadow-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  <option value="postgresql">PostgreSQL</option>
+                  <option value="mysql">MySQL / MariaDB</option>
+                  <option value="sql">Standard ANSI SQL</option>
+                  <option value="sqlite">SQLite</option>
+                  <option value="plsql">Oracle (PL/SQL)</option>
+                  <option value="tsql">MS SQL Server (T-SQL)</option>
+                </select>
+              </div>
+
               {/* Sample Queries Bar */}
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-xs font-semibold text-muted-foreground mr-1">
@@ -620,8 +624,8 @@ export function SqlValidatorTool() {
                       onClick={handleOpenInFormatter}
                       variant="ghost"
                       size="sm"
-                      disabled={!sqlInput.trim()}
                       className="rounded-xl text-xs gap-1 font-semibold text-muted-foreground hover:text-foreground"
+                      title={isAr ? 'فتح في منسق SQL' : 'Open in SQL Formatter'}
                     >
                       <ExternalLink className="h-3.5 w-3.5 text-primary" />
                       {isAr ? 'منسق SQL' : 'SQL Formatter'}

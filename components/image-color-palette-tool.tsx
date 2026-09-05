@@ -545,11 +545,8 @@ export default function ImageColorPaletteTool() {
               <Palette className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <h2 className="text-lg font-bold text-foreground">
                 {t('tool.image_color_palette', 'Image Color Palette Studio')}
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
-                  {t('tool_layout.privacy_badge', '100% In-Browser')}
-                </span>
               </h2>
               <p className="text-xs text-muted-foreground">
                 {t('palette.subtitle', 'Extract dominant color harmonies, copy HEX/RGB/HSL codes, and inspect WCAG contrast.')}
