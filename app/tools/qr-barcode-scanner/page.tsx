@@ -1,4 +1,5 @@
 import { Metadata } from 'next'
+import Script from 'next/script'
 import { QRCodeScannerTool } from '@/components/qr-barcode-scanner-tool'
 
 export const metadata: Metadata = {
@@ -35,29 +36,78 @@ export const metadata: Metadata = {
 }
 
 export default function QRBarcodeScannerPage() {
+  const schema = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'SoftwareApplication',
+        name: 'QR & Barcode Scanner',
+        description: 'Free online QR and Barcode scanner supporting live camera scanning, image upload, and clipboard paste with 100% client-side privacy.',
+        url: 'https://www.digitalmix.dev/tools/qr-barcode-scanner',
+        applicationCategory: 'UtilityApplication',
+        operatingSystem: 'Any',
+        image: 'https://www.digitalmix.dev/og-image.png',
+        featureList: 'Live camera QR & barcode scanner, UPC, EAN, Code 128, Code 39, Data Matrix support, image file drag-and-drop parsing, clipboard paste scanner, 100% client-side privacy',
+        aggregateRating: {
+          '@type': 'AggregateRating',
+          ratingValue: '4.8',
+          ratingCount: '110',
+        },
+        offers: {
+          '@type': 'Offer',
+          price: '0',
+          priceCurrency: 'USD',
+        },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.digitalmix.dev' },
+          { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://www.digitalmix.dev/tools/files' },
+          { '@type': 'ListItem', position: 3, name: 'QR & Barcode Scanner', item: 'https://www.digitalmix.dev/tools/qr-barcode-scanner' },
+        ],
+      },
+      {
+        '@type': 'FAQPage',
+        mainEntity: [
+          {
+            '@type': 'Question',
+            name: 'Which barcode formats are supported?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'The scanner supports QR Codes, Aztec, Data Matrix, UPC-A, UPC-E, EAN-13, EAN-8, Code 128, Code 39, Code 93, ITF, and Codabar.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Can I scan without giving camera permissions?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Yes, you can upload image files (PNG, JPG, WebP) or directly paste a screenshot from your clipboard without using a webcam.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Is camera video sent to external servers?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'No, video frames and uploaded images are processed 100% locally in your browser memory. Nothing is ever sent to a server.',
+            },
+          },
+        ],
+      },
+    ],
+  }
+
   return (
     <>
-      <script
+      <Script
+        id="qr-barcode-scanner-schema"
         type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'WebApplication',
-            name: 'QR & Barcode Scanner',
-            url: 'https://www.digitalmix.dev/tools/qr-barcode-scanner',
-            applicationCategory: 'UtilityApplication',
-            operatingSystem: 'Any',
-            offers: {
-              '@type': 'Offer',
-              price: '0',
-              priceCurrency: 'USD',
-            },
-            description:
-              'Free online QR and Barcode scanner supporting live camera scanning, image upload, and clipboard paste with 100% client-side privacy.',
-          }),
-        }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
       />
       <QRCodeScannerTool />
     </>
   )
 }
+

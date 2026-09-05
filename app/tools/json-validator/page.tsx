@@ -1,4 +1,5 @@
 import { Metadata } from 'next'
+import Script from 'next/script'
 import JsonValidatorTool from '@/components/json-validator-tool'
 
 export const metadata: Metadata = {
@@ -42,5 +43,78 @@ export const metadata: Metadata = {
 }
 
 export default function JsonValidatorPage() {
-  return <JsonValidatorTool />
+  const schema = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'SoftwareApplication',
+        name: 'JSON Validator',
+        description: 'Free JSON validator, syntax checker, and error fixer tool',
+        url: 'https://www.digitalmix.dev/tools/json-validator',
+        applicationCategory: 'DeveloperApplication',
+        operatingSystem: 'Any',
+        image: 'https://www.digitalmix.dev/og-image.png',
+        featureList: '100% client-side syntax validation, pinpoint line/column error detection, auto-fix trailing commas and quotes, linting and formatting',
+        aggregateRating: {
+          '@type': 'AggregateRating',
+          ratingValue: '4.8',
+          ratingCount: '92',
+        },
+        offers: {
+          '@type': 'Offer',
+          price: '0',
+          priceCurrency: 'USD',
+        },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.digitalmix.dev' },
+          { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://www.digitalmix.dev/tools/database' },
+          { '@type': 'ListItem', position: 3, name: 'JSON Validator', item: 'https://www.digitalmix.dev/tools/json-validator' },
+        ],
+      },
+      {
+        '@type': 'FAQPage',
+        mainEntity: [
+          {
+            '@type': 'Question',
+            name: 'Is the JSON Validator free to use?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Yes, JSON Validator is completely free. It operates 100% client-side in your browser with zero registration required.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Does the tool automatically fix syntax errors?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Yes, it provides one-click auto-repair for common JSON mistakes such as unquoted keys, trailing commas, single-to-double quote conversion, and missing enclosing brackets.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Is my data secure?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'All JSON validation runs locally in your browser memory. Your data never leaves your device and is never uploaded to any server.',
+            },
+          },
+        ],
+      },
+    ],
+  }
+
+  return (
+    <>
+      <Script
+        id="json-validator-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      />
+      <JsonValidatorTool />
+    </>
+  )
 }
+

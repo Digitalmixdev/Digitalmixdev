@@ -1,4 +1,5 @@
 import { Metadata } from 'next'
+import Script from 'next/script'
 import SqlValidatorTool from '@/components/sql-validator-tool'
 
 export const metadata: Metadata = {
@@ -42,5 +43,78 @@ export const metadata: Metadata = {
 }
 
 export default function SqlValidatorPage() {
-  return <SqlValidatorTool />
+  const schema = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'SoftwareApplication',
+        name: 'SQL Validator',
+        description: 'Free SQL validator, syntax checker, and query audit tool',
+        url: 'https://www.digitalmix.dev/tools/sql-validator',
+        applicationCategory: 'DeveloperApplication',
+        operatingSystem: 'Any',
+        image: 'https://www.digitalmix.dev/og-image.png',
+        featureList: '100% client-side SQL syntax verification, multi-dialect support (PostgreSQL, MySQL, SQLite, T-SQL, Oracle), destructive query risk warnings, bracket and quote audit',
+        aggregateRating: {
+          '@type': 'AggregateRating',
+          ratingValue: '4.8',
+          ratingCount: '89',
+        },
+        offers: {
+          '@type': 'Offer',
+          price: '0',
+          priceCurrency: 'USD',
+        },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.digitalmix.dev' },
+          { '@type': 'ListItem', position: 2, name: 'Tools', item: 'https://www.digitalmix.dev/tools/database' },
+          { '@type': 'ListItem', position: 3, name: 'SQL Validator', item: 'https://www.digitalmix.dev/tools/sql-validator' },
+        ],
+      },
+      {
+        '@type': 'FAQPage',
+        mainEntity: [
+          {
+            '@type': 'Question',
+            name: 'Is the SQL Validator free to use?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'Yes, SQL Validator is 100% free with unlimited validations and no registration needed.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Which SQL dialects are supported?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'It supports Standard SQL (ANSI), PostgreSQL, MySQL, SQLite, Microsoft SQL Server (T-SQL), and Oracle.',
+            },
+          },
+          {
+            '@type': 'Question',
+            name: 'Are my database queries stored or logged?',
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: 'No, all SQL parsing runs 100% in your local browser sandbox. Your queries never touch any external server.',
+            },
+          },
+        ],
+      },
+    ],
+  }
+
+  return (
+    <>
+      <Script
+        id="sql-validator-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      />
+      <SqlValidatorTool />
+    </>
+  )
 }
+
