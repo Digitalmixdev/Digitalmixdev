@@ -32,6 +32,7 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
+import { useLanguage } from '@/lib/i18n/context'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
 import { logToolActivity } from '@/lib/history-service'
@@ -159,6 +160,9 @@ const toolMeta: ToolMetadata = {
 }
 
 export default function ImageAndFileCompressorTool() {
+  const { language } = useLanguage()
+  const isAr = language === 'ar'
+
   const [activeTab, setActiveTab] = useState<'image' | 'file'>('image')
   const [items, setItems] = useState<CompressedItem[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
@@ -367,8 +371,12 @@ export default function ImageAndFileCompressorTool() {
     })
 
     setItems((prev) => [...prev, ...newItems])
-    toast.success(`Added ${newItems.length} file${newItems.length > 1 ? 's' : ''}`)
-  }, [])
+    toast.success(
+      isAr
+        ? `تمت إضافة ${newItems.length} ملف بنجاح`
+        : `Added ${newItems.length} file${newItems.length > 1 ? 's' : ''}`
+    )
+  }, [isAr])
 
   // Process all items
   const processItems = useCallback(async () => {
@@ -414,7 +422,7 @@ export default function ImageAndFileCompressorTool() {
 
     setIsProcessing(false)
     recordUsage()
-    toast.success('Compression completed!')
+    toast.success(isAr ? 'اكتملت عملية الضغط بنجاح!' : 'Compression completed!')
 
     // Activity Logging
     const doneItems = updated.filter((it) => it.status === 'done')
@@ -426,10 +434,12 @@ export default function ImageAndFileCompressorTool() {
 
       logToolActivity({
         toolId: 'file-compressor',
-        toolName: 'Smart Image & File Compressor',
+        toolName: isAr ? 'ضاغط الصور والملفات الذكي' : 'Smart Image & File Compressor',
         category: 'files',
-        actionTitle: `Compressed ${doneItems.length} File(s) (-${savedPct}%)`,
-        details: `Compressed ${doneItems.length} file(s) (${fileNames}) from ${formatBytes(totalOrig)} down to ${formatBytes(totalComp)} (Saved ${savedPct}%)`,
+        actionTitle: isAr ? `تم ضغط ${doneItems.length} ملف (-${savedPct}%)` : `Compressed ${doneItems.length} File(s) (-${savedPct}%)`,
+        details: isAr
+          ? `تم ضغط ${doneItems.length} ملف (${fileNames}) من ${formatBytes(totalOrig)} إلى ${formatBytes(totalComp)} (توفير ${savedPct}%)`
+          : `Compressed ${doneItems.length} file(s) (${fileNames}) from ${formatBytes(totalOrig)} down to ${formatBytes(totalComp)} (Saved ${savedPct}%)`,
         inputSnippet: fileNames,
         outputSnippet: `Saved: ${savedPct}%\nOriginal: ${formatBytes(totalOrig)}\nCompressed: ${formatBytes(totalComp)}`,
         metadata: {
@@ -442,7 +452,7 @@ export default function ImageAndFileCompressorTool() {
         },
       })
     }
-  }, [items, compressImage, compressGenericFile, recordUsage, imageQuality, imageFormat])
+  }, [items, compressImage, compressGenericFile, recordUsage, imageQuality, imageFormat, isAr])
 
   // Download single item
   const downloadSingle = (item: CompressedItem) => {
@@ -472,7 +482,7 @@ export default function ImageAndFileCompressorTool() {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
     recordUsage()
-    toast.success(`Downloaded ${a.download}`)
+    toast.success(isAr ? `تم تنزيل ${a.download}` : `Downloaded ${a.download}`)
   }
 
   // Download all as a single ZIP
@@ -516,7 +526,7 @@ export default function ImageAndFileCompressorTool() {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
     recordUsage()
-    toast.success(`Archive downloaded: ${a.download}`)
+    toast.success(isAr ? `تم تنزيل الأرشيف: ${a.download}` : `Archive downloaded: ${a.download}`)
   }
 
   // Remove item
@@ -530,7 +540,7 @@ export default function ImageAndFileCompressorTool() {
       if (i.previewUrl) URL.revokeObjectURL(i.previewUrl)
     })
     setItems([])
-    toast.info('Cleared all items')
+    toast.info(isAr ? 'تم مسح جميع العناصر' : 'Cleared all items')
   }
 
   // Totals
@@ -546,32 +556,37 @@ export default function ImageAndFileCompressorTool() {
 
   return (
     <ToolLayout metadata={toolMeta}>
-      <div className="space-y-6 overflow-x-hidden w-full max-w-full">
+      <div className="space-y-6 overflow-x-hidden w-full max-w-full" dir={isAr ? 'rtl' : 'ltr'}>
         {/* Compression Mode Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'image' | 'file')} className="w-full">
           <div className="flex flex-col gap-4 mb-4">
             <TabsList className="w-full grid grid-cols-1 sm:grid-cols-2 bg-secondary/60 p-1.5 rounded-xl h-auto gap-1">
               <TabsTrigger value="image" className="rounded-lg gap-2 data-[state=active]:bg-background py-2 text-xs sm:text-sm justify-center truncate">
                 <ImageIcon className="h-4 w-4 shrink-0" />
-                <span className="truncate">Image Compressor <span className="hidden md:inline">(PNG/JPG/WebP)</span></span>
+                <span className="truncate">
+                  {isAr ? 'ضاغط ومقلل حجم الصور' : 'Image Compressor'}{' '}
+                  <span className="hidden md:inline">(PNG/JPG/WebP)</span>
+                </span>
               </TabsTrigger>
               <TabsTrigger value="file" className="rounded-lg gap-2 data-[state=active]:bg-background py-2 text-xs sm:text-sm justify-center truncate">
                 <FileArchive className="h-4 w-4 shrink-0" />
-                <span className="truncate">File Compressor</span>
+                <span className="truncate">{isAr ? 'ضاغط الملفات والأرشيف' : 'File Compressor'}</span>
               </TabsTrigger>
             </TabsList>
 
             {/* Quick Presets */}
             {activeTab === 'image' && (
               <div className="flex flex-wrap items-center gap-1.5 bg-secondary/40 p-2 rounded-xl border border-border/50 text-xs w-full justify-start sm:justify-end">
-                <span className="text-muted-foreground px-1.5 font-medium">Presets:</span>
+                <span className="text-muted-foreground px-1.5 font-medium">
+                  {isAr ? 'الأنماط الجاهزة:' : 'Presets:'}
+                </span>
                 <Button
                   size="sm"
                   variant={preset === 'high_compression' ? 'default' : 'ghost'}
                   onClick={() => applyPreset('high_compression')}
                   className="h-7 text-xs rounded-lg px-2.5"
                 >
-                  Max Shrink
+                  {isAr ? 'أقصى تقليص' : 'Max Shrink'}
                 </Button>
                 <Button
                   size="sm"
@@ -579,7 +594,7 @@ export default function ImageAndFileCompressorTool() {
                   onClick={() => applyPreset('balanced')}
                   className="h-7 text-xs rounded-lg px-2.5"
                 >
-                  Balanced
+                  {isAr ? 'متوازن' : 'Balanced'}
                 </Button>
                 <Button
                   size="sm"
@@ -587,7 +602,7 @@ export default function ImageAndFileCompressorTool() {
                   onClick={() => applyPreset('high_quality')}
                   className="h-7 text-xs rounded-lg px-2.5"
                 >
-                  High Quality
+                  {isAr ? 'جودة فائقة' : 'High Quality'}
                 </Button>
               </div>
             )}
@@ -598,7 +613,9 @@ export default function ImageAndFileCompressorTool() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Sliders className="h-4 w-4 text-primary" />
-                {activeTab === 'image' ? 'Image Compression Settings' : 'File Compression Settings'}
+                {activeTab === 'image'
+                  ? isAr ? 'إعدادات ضغط الصور' : 'Image Compression Settings'
+                  : isAr ? 'إعدادات ضغط الملفات والأرشيف' : 'File Compression Settings'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -607,9 +624,15 @@ export default function ImageAndFileCompressorTool() {
                   {/* Quality Slider */}
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <Label className="text-xs font-semibold text-foreground">Quality: {imageQuality}%</Label>
+                      <Label className="text-xs font-semibold text-foreground">
+                        {isAr ? `مستوى الجودة: ${imageQuality}%` : `Quality: ${imageQuality}%`}
+                      </Label>
                       <span className="text-xs text-muted-foreground">
-                        {imageQuality < 60 ? 'High Compression' : imageQuality < 85 ? 'Optimal' : 'Crisp Quality'}
+                        {imageQuality < 60
+                          ? isAr ? 'أقصى ضغط' : 'High Compression'
+                          : imageQuality < 85
+                          ? isAr ? 'متوازن ومثالي' : 'Optimal'
+                          : isAr ? 'وضوح ونقاء فائق' : 'Crisp Quality'}
                       </span>
                     </div>
                     <input
@@ -630,7 +653,7 @@ export default function ImageAndFileCompressorTool() {
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <Label className="text-xs font-semibold text-foreground">
-                        Max Width / Height: {maxDimension}px
+                        {isAr ? `أقصى أبعاد (عرض/ارتفاع): ${maxDimension}px` : `Max Width / Height: ${maxDimension}px`}
                       </Label>
                     </div>
                     <select
@@ -641,16 +664,18 @@ export default function ImageAndFileCompressorTool() {
                       }}
                       className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none"
                     >
-                      <option value="1280">1280px (HD - Compact)</option>
-                      <option value="1920">1920px (Full HD - Recommended)</option>
-                      <option value="2560">2560px (2K QHD)</option>
-                      <option value="3840">3840px (4K Original scale)</option>
+                      <option value="1280">{isAr ? '1280 بكسل (HD - حجم مدمج)' : '1280px (HD - Compact)'}</option>
+                      <option value="1920">{isAr ? '1920 بكسل (Full HD - موصى به)' : '1920px (Full HD - Recommended)'}</option>
+                      <option value="2560">{isAr ? '2560 بكسل (2K QHD)' : '2560px (2K QHD)'}</option>
+                      <option value="3840">{isAr ? '3840 بكسل (4K القياس الأصلي)' : '3840px (4K Original scale)'}</option>
                     </select>
                   </div>
 
                   {/* Output Format */}
                   <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-foreground">Output Format</Label>
+                    <Label className="text-xs font-semibold text-foreground">
+                      {isAr ? 'صيغة الإخراج' : 'Output Format'}
+                    </Label>
                     <select
                       value={imageFormat}
                       onChange={(e) => {
@@ -659,17 +684,19 @@ export default function ImageAndFileCompressorTool() {
                       }}
                       className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none"
                     >
-                      <option value="image/png">PNG (Lossless / Transparency)</option>
-                      <option value="image/webp">WebP (Best size & modern web)</option>
-                      <option value="image/jpeg">JPEG (Universal compatibility)</option>
-                      <option value="original">Preserve Original Format</option>
+                      <option value="image/png">{isAr ? 'PNG (بدون فقدان / شفافية)' : 'PNG (Lossless / Transparency)'}</option>
+                      <option value="image/webp">{isAr ? 'WebP (أفضل حجم للويب الحديث)' : 'WebP (Best size & modern web)'}</option>
+                      <option value="image/jpeg">{isAr ? 'JPEG (توافق شامل)' : 'JPEG (Universal compatibility)'}</option>
+                      <option value="original">{isAr ? 'الحفاظ على الصيغة الأصلية' : 'Preserve Original Format'}</option>
                     </select>
                   </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-foreground">Archive Name</Label>
+                    <Label className="text-xs font-semibold text-foreground">
+                      {isAr ? 'اسم ملف الأرشيف' : 'Archive Name'}
+                    </Label>
                     <input
                       type="text"
                       value={zipFileName}
@@ -681,10 +708,12 @@ export default function ImageAndFileCompressorTool() {
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <Label className="text-xs font-semibold text-foreground">
-                        Deflate Level: {zipCompressionLevel}/9
+                        {isAr ? `مستوى ضغط Deflate: ${zipCompressionLevel}/9` : `Deflate Level: ${zipCompressionLevel}/9`}
                       </Label>
                       <span className="text-xs text-muted-foreground">
-                        {zipCompressionLevel > 7 ? 'Maximum' : 'Balanced'}
+                        {zipCompressionLevel > 7
+                          ? isAr ? 'أقصى ضغط' : 'Maximum'
+                          : isAr ? 'متوازن' : 'Balanced'}
                       </span>
                     </div>
                     <input
@@ -741,16 +770,23 @@ export default function ImageAndFileCompressorTool() {
             </div>
             <div>
               <h3 className="font-semibold text-base text-foreground">
-                Drag & Drop {activeTab === 'image' ? 'Images' : 'Files'} here or Click to Browse
+                {isAr
+                  ? `اسحب وأفلت ${activeTab === 'image' ? 'الصور' : 'الملفات'} هنا أو انقر للاختيار`
+                  : `Drag & Drop ${activeTab === 'image' ? 'Images' : 'Files'} here or Click to Browse`}
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
                 {activeTab === 'image'
-                  ? 'Supports PNG, JPG, WebP, GIF, SVG. Bulk processing available.'
+                  ? isAr
+                    ? 'يدعم PNG, JPG, WebP, GIF, SVG. إمكانية تحديد ومعالجة مجموعات ملفات دفعة واحدة.'
+                    : 'Supports PNG, JPG, WebP, GIF, SVG. Bulk processing available.'
+                  : isAr
+                  ? 'يدعم الأكواد والمستندات والنصوص والصور والبيانات. تنزيل بالصيغة الأصلية أو كملف ZIP.'
                   : 'Supports code, documents, text, images, and data. Download in original format or bundle as ZIP.'}
               </p>
             </div>
             <Button size="sm" className="rounded-xl font-bold gap-2 pointer-events-none mt-1">
-              <Plus className="h-4 w-4" /> Choose Files
+              <Plus className="h-4 w-4" />
+              {isAr ? 'اختيار الملفات' : 'Choose Files'}
             </Button>
           </div>
         </div>
@@ -762,15 +798,15 @@ export default function ImageAndFileCompressorTool() {
               {/* Summary Stats */}
               <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm w-full md:w-auto">
                 <div>
-                  <div className="text-xs text-muted-foreground">Files Selected</div>
+                  <div className="text-xs text-muted-foreground">{isAr ? 'الملفات المحددة' : 'Files Selected'}</div>
                   <div className="font-bold text-foreground">{items.length}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-muted-foreground">Original Total</div>
+                  <div className="text-xs text-muted-foreground">{isAr ? 'الحجم الأصلي' : 'Original Total'}</div>
                   <div className="font-bold text-foreground">{formatBytes(totalOriginalSize)}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-muted-foreground">Compressed Total</div>
+                  <div className="text-xs text-muted-foreground">{isAr ? 'الحجم بعد الضغط' : 'Compressed Total'}</div>
                   <div className="font-bold text-emerald-500">{formatBytes(totalCompressedSize)}</div>
                 </div>
                 {totalSavings > 0 && (
@@ -778,7 +814,9 @@ export default function ImageAndFileCompressorTool() {
                     variant="secondary"
                     className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-xs py-1 px-2.5"
                   >
-                    Saved {totalSavings}% ({formatBytes(totalOriginalSize - totalCompressedSize)})
+                    {isAr
+                      ? `تم توفير ${totalSavings}% (${formatBytes(totalOriginalSize - totalCompressedSize)})`
+                      : `Saved ${totalSavings}% (${formatBytes(totalOriginalSize - totalCompressedSize)})`}
                   </Badge>
                 )}
               </div>
@@ -792,8 +830,8 @@ export default function ImageAndFileCompressorTool() {
                   disabled={isProcessing}
                   className="rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 text-xs"
                 >
-                  <Trash2 className="h-4 w-4 mr-1.5" />
-                  Clear All
+                  <Trash2 className={`h-4 w-4 ${isAr ? 'ml-1.5' : 'mr-1.5'}`} />
+                  {isAr ? 'مسح الكل' : 'Clear All'}
                 </Button>
                 <Button
                   variant="default"
@@ -802,8 +840,10 @@ export default function ImageAndFileCompressorTool() {
                   disabled={isProcessing || items.length === 0}
                   className="rounded-xl shadow-sm text-xs"
                 >
-                  <RefreshCw className={`h-4 w-4 mr-1.5 ${isProcessing ? 'animate-spin' : ''}`} />
-                  {isProcessing ? 'Compressing...' : 'Start Compression'}
+                  <RefreshCw className={`h-4 w-4 ${isAr ? 'ml-1.5' : 'mr-1.5'} ${isProcessing ? 'animate-spin' : ''}`} />
+                  {isProcessing
+                    ? isAr ? 'جارٍ الضغط...' : 'Compressing...'
+                    : isAr ? 'بدء الضغط' : 'Start Compression'}
                 </Button>
                 <Button
                   variant="secondary"
@@ -812,8 +852,8 @@ export default function ImageAndFileCompressorTool() {
                   disabled={isProcessing || items.length === 0}
                   className="rounded-xl shadow-sm text-xs"
                 >
-                  <Download className="h-4 w-4 mr-1.5" />
-                  Download ZIP
+                  <Download className={`h-4 w-4 ${isAr ? 'ml-1.5' : 'mr-1.5'}`} />
+                  {isAr ? 'تنزيل الكل (ZIP)' : 'Download ZIP'}
                 </Button>
               </div>
             </CardContent>
@@ -868,7 +908,7 @@ export default function ImageAndFileCompressorTool() {
                         <span>{formatBytes(item.originalSize)}</span>
                         {item.status === 'done' && (
                           <>
-                            <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                            <ArrowRight className={`h-3 w-3 text-muted-foreground ${isAr ? 'rotate-180' : ''}`} />
                             <span className="font-medium text-emerald-500">
                               {formatBytes(item.compressedSize)}
                             </span>
@@ -887,24 +927,24 @@ export default function ImageAndFileCompressorTool() {
                   <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
                     {item.status === 'pending' && (
                       <Badge variant="outline" className="text-xs text-muted-foreground">
-                        Ready
+                        {isAr ? 'جاهز' : 'Ready'}
                       </Badge>
                     )}
                     {item.status === 'compressing' && (
                       <Badge variant="outline" className="text-xs text-primary animate-pulse">
-                        Compressing...
+                        {isAr ? 'جارٍ الضغط...' : 'Compressing...'}
                       </Badge>
                     )}
                     {item.status === 'done' && (
                       <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 text-xs">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Compressed
+                        <CheckCircle2 className={`h-3 w-3 ${isAr ? 'ml-1' : 'mr-1'}`} />
+                        {isAr ? 'تم الضغط' : 'Compressed'}
                       </Badge>
                     )}
                     {item.status === 'error' && (
                       <Badge variant="destructive" className="text-xs">
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                        Failed
+                        <AlertCircle className={`h-3 w-3 ${isAr ? 'ml-1' : 'mr-1'}`} />
+                        {isAr ? 'فشل' : 'Failed'}
                       </Badge>
                     )}
 
@@ -920,7 +960,7 @@ export default function ImageAndFileCompressorTool() {
                           })
                         }
                         className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"
-                        title="Preview Image"
+                        title={isAr ? 'معاينة الصورة' : 'Preview Image'}
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -932,7 +972,7 @@ export default function ImageAndFileCompressorTool() {
                         variant="ghost"
                         onClick={() => downloadSingle(item)}
                         className="h-8 w-8 p-0 rounded-lg text-primary hover:bg-primary/10"
-                        title="Download compressed item"
+                        title={isAr ? 'تنزيل الملف المضغوط' : 'Download compressed item'}
                       >
                         <Download className="h-4 w-4" />
                       </Button>
@@ -943,7 +983,7 @@ export default function ImageAndFileCompressorTool() {
                       variant="ghost"
                       onClick={() => removeItem(item.id)}
                       className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      title="Remove"
+                      title={isAr ? 'إزالة' : 'Remove'}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -957,10 +997,10 @@ export default function ImageAndFileCompressorTool() {
         {/* Modal Preview */}
         {activePreview && (
           <Dialog open={Boolean(activePreview)} onOpenChange={() => setActivePreview(null)}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl" dir={isAr ? 'rtl' : 'ltr'}>
               <DialogHeader>
-                <DialogTitle className="text-sm font-bold truncate">
-                  Preview: {activePreview.name} ({activePreview.size})
+                <DialogTitle className="text-sm font-bold truncate text-start">
+                  {isAr ? 'معاينة:' : 'Preview:'} {activePreview.name} ({activePreview.size})
                 </DialogTitle>
               </DialogHeader>
               <div className="max-h-[65vh] overflow-auto flex items-center justify-center p-4 bg-muted/20 rounded-xl border border-border/50">

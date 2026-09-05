@@ -44,14 +44,14 @@ export function UserMenu({ align = 'end', className }: UserMenuProps) {
         <Button
           variant="ghost"
           size="icon"
-          className={`relative h-9 w-9 rounded-full ring-offset-background transition-transform duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:scale-105 ${className || ''}`}
+          className={`relative h-9 w-9 rounded-full p-0 ring-offset-background transition-transform duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 hover:scale-105 ${className || ''}`}
           aria-label="User account menu"
         >
           <UserAvatar
             name={user.name}
             email={user.email}
             avatarData={user.avatarData}
-            className="h-9 w-9 text-xs"
+            className="h-9 w-9 text-xs ring-1 ring-primary/20 hover:ring-primary/40 transition-all"
           />
         </Button>
       </DropdownMenuTrigger>

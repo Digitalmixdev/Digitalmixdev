@@ -36,6 +36,7 @@ import {
 import { toast } from 'sonner'
 import JSZip from 'jszip'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
+import { useLanguage } from '@/lib/i18n/context'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
 import { logToolActivity } from '@/lib/history-service'
@@ -171,6 +172,9 @@ function formatFileSize(bytes: number): string {
 }
 
 export default function ImageConverterTool() {
+  const { language } = useLanguage()
+  const isAr = language === 'ar'
+
   const [targetFormat, setTargetFormat] = useState<SupportedImageFormat>('webp')
   const [quality, setQuality] = useState<number>(90)
   const [maxWidth, setMaxWidth] = useState<number | undefined>(undefined)
@@ -191,7 +195,11 @@ export default function ImageConverterTool() {
     // Filter out PDF files to keep logic strictly pure image converter
     const validFiles = fileArray.filter((f) => {
       if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
-        toast.warning(`Skipped "${f.name}": PDF files belong in Document Converter or PDF Merger.`)
+        toast.warning(
+          isAr
+            ? `تم تخطي "${f.name}": ملفات PDF تتبع أداة تحويل المستندات أو دمج PDF.`
+            : `Skipped "${f.name}": PDF files belong in Document Converter or PDF Merger.`
+        )
         return false
       }
       return true
@@ -306,7 +314,11 @@ export default function ImageConverterTool() {
     }
 
     setIsProcessing(false)
-    toast.success(`All conversions to ${targetFormat.toUpperCase()} completed!`)
+    toast.success(
+      isAr
+        ? `اكتملت كافة عمليات التحويل إلى ${targetFormat.toUpperCase()} بنجاح!`
+        : `All conversions to ${targetFormat.toUpperCase()} completed!`
+    )
 
     // Activity Logging
     const successfulItems = updatedItems.filter((it) => it.status === 'success')
@@ -316,12 +328,16 @@ export default function ImageConverterTool() {
 
       logToolActivity({
         toolId: 'image-converter',
-        toolName: 'Universal Image Converter',
+        toolName: isAr ? 'محول ومعدل صيغ الصور الشامل' : 'Universal Image Converter',
         category: 'files',
-        actionTitle: `Converted to ${targetFormat.toUpperCase()}`,
+        actionTitle: isAr ? `تم التحويل إلى ${targetFormat.toUpperCase()}` : `Converted to ${targetFormat.toUpperCase()}`,
         details:
           successfulItems.length === 1
-            ? `Converted image "${firstItem.name}" to ${targetFormat.toUpperCase()} (${firstItem.width || '?'}x${firstItem.height || '?'})`
+            ? isAr
+              ? `تحويل الصورة "${firstItem.name}" إلى ${targetFormat.toUpperCase()} (${firstItem.width || '?'}x${firstItem.height || '?'})`
+              : `Converted image "${firstItem.name}" to ${targetFormat.toUpperCase()} (${firstItem.width || '?'}x${firstItem.height || '?'})`
+            : isAr
+            ? `تحويل ${successfulItems.length} صور (${fileNames}) إلى ${targetFormat.toUpperCase()}`
             : `Converted ${successfulItems.length} images (${fileNames}) to ${targetFormat.toUpperCase()}`,
         inputSnippet: fileNames,
         outputSnippet: `Format: ${targetFormat.toUpperCase()}\nQuality: ${quality}%\nMax Width: ${maxWidth || 'Original'}`,
@@ -361,7 +377,7 @@ export default function ImageConverterTool() {
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    toast.success(`Downloaded ${downloadName}`)
+    toast.success(isAr ? `تم تنزيل ${downloadName}` : `Downloaded ${downloadName}`)
   }
 
   const handleDownloadAllZip = async () => {
@@ -383,7 +399,7 @@ export default function ImageConverterTool() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(zipUrl)
-    toast.success('Downloaded all converted files as ZIP!')
+    toast.success(isAr ? 'تم تنزيل جميع الملفات المحولة كأرشيف ZIP!' : 'Downloaded all converted files as ZIP!')
   }
 
   const openPreview = (item: ImageItem) => {
@@ -421,19 +437,24 @@ export default function ImageConverterTool() {
 
   return (
     <ToolLayout metadata={toolMeta}>
-      <div className="max-w-5xl mx-auto space-y-8">
+      <div className="max-w-5xl mx-auto space-y-8" dir={isAr ? 'rtl' : 'ltr'}>
         {/* Configuration Panel */}
         <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/80 pb-4">
             <div>
-              <h2 className="text-base font-bold text-foreground">Target Image Format (14 Formats)</h2>
+              <h2 className="text-base font-bold text-foreground">
+                {isAr ? 'صيغة الصورة الهدف (14 صيغة احترافية)' : 'Target Image Format (14 Formats)'}
+              </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Select your target format from the full matrix below to convert your graphics
+                {isAr
+                  ? 'اختر الصيغة المستهدفة من المصفوفة أدناه لتحويل صورك ورسوماتك فورياً'
+                  : 'Select your target format from the full matrix below to convert your graphics'}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-xs w-fit text-primary border-primary/30">
-                <Sparkles className="w-3 h-3 mr-1" /> 14 Formats Supported
+                <Sparkles className={`w-3 h-3 ${isAr ? 'ml-1' : 'mr-1'}`} />
+                {isAr ? '14 صيغة مدعومة بالكامل' : '14 Formats Supported'}
               </Badge>
             </div>
           </div>
@@ -442,11 +463,14 @@ export default function ImageConverterTool() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-                Convert To ({filteredFormats.length} Available)
+                {isAr
+                  ? `التحويل إلى (${filteredFormats.length} صيغة متاحة)`
+                  : `Convert To (${filteredFormats.length} Available)`}
               </label>
               {selectedFormatDef && (
                 <span className="text-xs text-primary font-medium">
-                  Active: <strong className="font-bold">{selectedFormatDef.name}</strong> ({selectedFormatDef.description})
+                  {isAr ? 'الصيغة المحددة:' : 'Active:'}{' '}
+                  <strong className="font-bold">{selectedFormatDef.name}</strong> ({selectedFormatDef.description})
                 </span>
               )}
             </div>
@@ -470,7 +494,7 @@ export default function ImageConverterTool() {
                       .{fmt.extension}
                     </span>
                     {isSelected && (
-                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary" />
+                      <span className={`absolute top-1.5 ${isAr ? 'left-1.5' : 'right-1.5'} w-2 h-2 rounded-full bg-primary`} />
                     )}
                   </button>
                 )
@@ -485,10 +509,14 @@ export default function ImageConverterTool() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Quality ({quality}%)
+                    {isAr ? `مستوى الجودة (${quality}%)` : `Quality (${quality}%)`}
                   </label>
                   <span className="text-xs text-muted-foreground">
-                    {quality > 85 ? 'High Fidelity' : quality > 65 ? 'Balanced' : 'High Compression'}
+                    {quality > 85
+                      ? isAr ? 'دقة فائقة' : 'High Fidelity'
+                      : quality > 65
+                      ? isAr ? 'متوازن' : 'Balanced'
+                      : isAr ? 'أقصى ضغط' : 'High Compression'}
                   </span>
                 </div>
                 <input
@@ -502,9 +530,15 @@ export default function ImageConverterTool() {
               </div>
             ) : (
               <div className="space-y-1 text-xs text-muted-foreground flex flex-col justify-center">
-                <span className="font-semibold text-foreground uppercase tracking-wider text-[11px]">Encoding Mode</span>
+                <span className="font-semibold text-foreground uppercase tracking-wider text-[11px]">
+                  {isAr ? 'نمط الترميز' : 'Encoding Mode'}
+                </span>
                 <p className="text-muted-foreground text-xs mt-1">
-                  Format <span className="font-bold text-foreground">{targetFormat.toUpperCase()}</span> uses lossless & structured container compression.
+                  {isAr ? (
+                    <>تعتمد صيغة <span className="font-bold text-foreground">{targetFormat.toUpperCase()}</span> على ضغط الحاويات المنظم وبدون فقدان للجودة.</>
+                  ) : (
+                    <>Format <span className="font-bold text-foreground">{targetFormat.toUpperCase()}</span> uses lossless & structured container compression.</>
+                  )}
                 </p>
               </div>
             )}
@@ -513,7 +547,7 @@ export default function ImageConverterTool() {
             {['jpg', 'bmp', 'eps', 'ps'].includes(targetFormat) && (
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-                  Transparency Fill Color
+                  {isAr ? 'لون تعبئة الشفافية' : 'Transparency Fill Color'}
                 </label>
                 <div className="flex items-center gap-3">
                   <input
@@ -530,7 +564,7 @@ export default function ImageConverterTool() {
             {/* Max Width Downscale */}
             <div className="space-y-2">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-                Max Resolution Constraint
+                {isAr ? 'أقصى حد للأبعاد والدقة' : 'Max Resolution Constraint'}
               </label>
               <select
                 value={maxWidth || 'original'}
@@ -540,13 +574,13 @@ export default function ImageConverterTool() {
                 }}
                 className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-medium focus:outline-hidden focus:ring-2 focus:ring-primary"
               >
-                <option value="original">Original Full Resolution</option>
-                <option value="2560">2K QHD (2560px)</option>
-                <option value="1920">Full HD (1920px)</option>
-                <option value="1280">HD (1280px)</option>
-                <option value="800">Web Standard (800px)</option>
-                <option value="512">Icon / Avatar (512px)</option>
-                <option value="256">Small Icon (256px)</option>
+                <option value="original">{isAr ? 'الدقة الكاملة الأصلية' : 'Original Full Resolution'}</option>
+                <option value="2560">{isAr ? '2K QHD (2560 بكسل)' : '2K QHD (2560px)'}</option>
+                <option value="1920">{isAr ? 'Full HD (1920 بكسل)' : 'Full HD (1920px)'}</option>
+                <option value="1280">{isAr ? 'HD (1280 بكسل)' : 'HD (1280px)'}</option>
+                <option value="800">{isAr ? 'قياسي للويب (800 بكسل)' : 'Web Standard (800px)'}</option>
+                <option value="512">{isAr ? 'أيقونة / صورة شخصية (512 بكسل)' : 'Icon / Avatar (512px)'}</option>
+                <option value="256">{isAr ? 'أيقونة صغيرة (256 بكسل)' : 'Small Icon (256px)'}</option>
               </select>
             </div>
           </div>
@@ -586,14 +620,16 @@ export default function ImageConverterTool() {
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">
-                Drop multiple images or click to select files
+                {isAr ? 'اسحب وأفلت عدة صور هنا أو انقر للاختيار' : 'Drop multiple images or click to select files'}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Select one or multiple images (PDF, JPG, PNG, WEBP, AVIF, PSD, TIFF, EPS, ICO, ICNS, BMP, XPS)
+                {isAr
+                  ? 'حدد صورة أو عدة صور (JPG, PNG, WEBP, AVIF, PSD, TIFF, EPS, ICO, ICNS, BMP, XPS)'
+                  : 'Select one or multiple images (PDF, JPG, PNG, WEBP, AVIF, PSD, TIFF, EPS, ICO, ICNS, BMP, XPS)'}
               </p>
             </div>
             <Button variant="outline" size="sm" className="rounded-xl pointer-events-none text-xs">
-              Select Image Files (Multi-Select Enabled)
+              {isAr ? 'اختيار ملفات الصور (تحديد متعدد متاح)' : 'Select Image Files (Multi-Select Enabled)'}
             </Button>
           </div>
         </div>
@@ -604,10 +640,11 @@ export default function ImageConverterTool() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
               <div>
                 <h3 className="text-sm font-bold text-foreground">
-                  Queued Files ({items.length})
+                  {isAr ? `الملفات في قائمة الانتظار (${items.length})` : `Queued Files (${items.length})`}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Ready to convert to <strong className="text-foreground">{targetFormat.toUpperCase()}</strong>
+                  {isAr ? 'جاهزة للتحويل إلى ' : 'Ready to convert to '}
+                  <strong className="text-foreground">{targetFormat.toUpperCase()}</strong>
                 </p>
               </div>
 
@@ -618,7 +655,8 @@ export default function ImageConverterTool() {
                   onClick={handleClearAll}
                   className="text-xs text-muted-foreground hover:text-destructive h-8"
                 >
-                  <Trash2 className="w-3.5 h-3.5 mr-1" /> Clear All
+                  <Trash2 className={`w-3.5 h-3.5 ${isAr ? 'ml-1' : 'mr-1'}`} />
+                  {isAr ? 'مسح الكل' : 'Clear All'}
                 </Button>
 
                 {items.some((it) => it.status === 'success') && (
@@ -628,7 +666,8 @@ export default function ImageConverterTool() {
                     onClick={handleDownloadAllZip}
                     className="text-xs h-9 rounded-xl gap-1.5"
                   >
-                    <FileArchive className="w-3.5 h-3.5" /> Download ZIP
+                    <FileArchive className="w-3.5 h-3.5" />
+                    {isAr ? 'تنزيل الكل (ZIP)' : 'Download ZIP'}
                   </Button>
                 )}
 
@@ -640,11 +679,13 @@ export default function ImageConverterTool() {
                 >
                   {isProcessing ? (
                     <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Converting...
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      {isAr ? 'جارٍ التحويل...' : 'Converting...'}
                     </>
                   ) : (
                     <>
-                      <RefreshCw className="w-3.5 h-3.5" /> Convert All to {targetFormat.toUpperCase()}
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      {isAr ? `تحويل الكل إلى ${targetFormat.toUpperCase()}` : `Convert All to ${targetFormat.toUpperCase()}`}
                     </>
                   )}
                 </Button>
@@ -669,7 +710,7 @@ export default function ImageConverterTool() {
                       <button
                         type="button"
                         onClick={() => openPreview(item)}
-                        title="Click to preview"
+                        title={isAr ? 'انقر للمعاينة' : 'Click to preview'}
                         className="relative w-14 h-14 rounded-lg bg-card border border-border/60 overflow-hidden flex items-center justify-center shrink-0 cursor-pointer group/thumb hover:ring-2 hover:ring-primary transition-all"
                       >
                         {displayThumbnail ? (
@@ -693,7 +734,7 @@ export default function ImageConverterTool() {
                           <span>{formatFileSize(item.originalSize)}</span>
                           {item.convertedSize && (
                             <>
-                              <ArrowRight className="w-3 h-3 text-muted-foreground/60" />
+                              <ArrowRight className={`w-3 h-3 text-muted-foreground/60 ${isAr ? 'rotate-180' : ''}`} />
                               <span className="font-semibold text-foreground">
                                 {formatFileSize(item.convertedSize)}
                               </span>
@@ -709,7 +750,8 @@ export default function ImageConverterTool() {
                         {item.status === 'success' && (
                           <div className="flex items-center gap-2 mt-1">
                             <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                              <CheckCircle2 className="w-3 h-3" /> Converted ({targetFormat.toUpperCase()})
+                              <CheckCircle2 className="w-3 h-3" />
+                              {isAr ? `تم التحويل (${targetFormat.toUpperCase()})` : `Converted (${targetFormat.toUpperCase()})`}
                             </span>
                             {item.width && item.height && (
                               <span className="text-[10px] text-muted-foreground">
@@ -720,12 +762,13 @@ export default function ImageConverterTool() {
                         )}
                         {item.status === 'converting' && (
                           <span className="inline-flex items-center gap-1 text-[10px] text-primary font-semibold mt-1">
-                            <Loader2 className="w-3 h-3 animate-spin" /> Processing
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            {isAr ? 'جارٍ المعالجة...' : 'Processing'}
                           </span>
                         )}
                         {item.status === 'error' && (
                           <span className="inline-flex items-center gap-1 text-[10px] text-destructive font-semibold mt-1 truncate">
-                            {item.error || 'Failed'}
+                            {item.error || (isAr ? 'فشل' : 'Failed')}
                           </span>
                         )}
                       </div>
@@ -736,7 +779,7 @@ export default function ImageConverterTool() {
                         onClick={() => handleRemoveItem(item.id)}
                         className="text-[11px] text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
                       >
-                        Remove
+                        {isAr ? 'إزالة' : 'Remove'}
                       </button>
 
                       <div className="flex items-center gap-1.5">
@@ -746,10 +789,10 @@ export default function ImageConverterTool() {
                           variant="ghost"
                           onClick={() => openPreview(item)}
                           className="h-7 text-xs px-2 rounded-lg gap-1 text-muted-foreground hover:text-foreground"
-                          title="Preview Result"
+                          title={isAr ? 'معاينة النتيجة' : 'Preview Result'}
                         >
                           <Eye className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">Preview</span>
+                          <span className="hidden sm:inline">{isAr ? 'معاينة' : 'Preview'}</span>
                         </Button>
 
                         {item.status === 'success' && (
@@ -773,11 +816,11 @@ export default function ImageConverterTool() {
 
         {/* High-Resolution Interactive Preview Modal */}
         <Dialog open={!!previewItem} onOpenChange={(open) => !open && setPreviewItem(null)}>
-          <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden border-border bg-card">
+          <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden border-border bg-card" dir={isAr ? 'rtl' : 'ltr'}>
             {previewItem && (
               <>
                 {/* Modal Header */}
-                <DialogHeader className="p-4 sm:p-5 border-b border-border bg-card/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left">
+                <DialogHeader className="p-4 sm:p-5 border-b border-border bg-card/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-start">
                   <div>
                     <div className="flex items-center gap-2">
                       <DialogTitle className="text-sm sm:text-base font-bold truncate max-w-md">
@@ -791,7 +834,11 @@ export default function ImageConverterTool() {
                     </div>
                     <DialogDescription className="text-xs text-muted-foreground mt-0.5">
                       {previewItem.status === 'success'
-                        ? `Converted to ${targetFormat.toUpperCase()} (${formatFileSize(previewItem.convertedSize || 0)})`
+                        ? isAr
+                          ? `تم التحويل إلى ${targetFormat.toUpperCase()} (${formatFileSize(previewItem.convertedSize || 0)})`
+                          : `Converted to ${targetFormat.toUpperCase()} (${formatFileSize(previewItem.convertedSize || 0)})`
+                        : isAr
+                        ? `الصورة الأصلية (${formatFileSize(previewItem.originalSize)})`
                         : `Original image (${formatFileSize(previewItem.originalSize)})`}
                     </DialogDescription>
                   </div>
@@ -808,7 +855,7 @@ export default function ImageConverterTool() {
                             : 'text-muted-foreground hover:text-foreground'
                         }`}
                       >
-                        Converted ({targetFormat.toUpperCase()})
+                        {isAr ? `النتيجة المحولة (${targetFormat.toUpperCase()})` : `Converted (${targetFormat.toUpperCase()})`}
                       </button>
                     )}
                     <button
@@ -820,7 +867,7 @@ export default function ImageConverterTool() {
                           : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
-                      Original
+                      {isAr ? 'الأصلية' : 'Original'}
                     </button>
                     {previewItem.status === 'success' && (
                       <button
@@ -832,7 +879,8 @@ export default function ImageConverterTool() {
                             : 'text-muted-foreground hover:text-foreground'
                         }`}
                       >
-                        <Columns className="w-3 h-3" /> Side-by-Side
+                        <Columns className="w-3 h-3" />
+                        {isAr ? 'جنباً إلى جنب' : 'Side-by-Side'}
                       </button>
                     )}
                   </div>
@@ -865,7 +913,7 @@ export default function ImageConverterTool() {
                         />
                       ) : (
                         <div className="p-8 text-center text-muted-foreground text-xs">
-                          Preview will appear here once converted.
+                          {isAr ? 'ستظهر المعاينة هنا بمجرد اكتمال التحويل.' : 'Preview will appear here once converted.'}
                         </div>
                       )}
                     </div>
@@ -886,7 +934,7 @@ export default function ImageConverterTool() {
                         />
                       ) : (
                         <div className="p-8 text-center text-muted-foreground text-xs">
-                          No preview available.
+                          {isAr ? 'لا تتوفر معاينة.' : 'No preview available.'}
                         </div>
                       )}
                     </div>
@@ -898,7 +946,7 @@ export default function ImageConverterTool() {
                       {/* Left: Original */}
                       <div className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-card border border-border/60">
                         <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                          Original ({formatFileSize(previewItem.originalSize)})
+                          {isAr ? 'الأصلية' : 'Original'} ({formatFileSize(previewItem.originalSize)})
                         </span>
                         <div className="flex-1 flex items-center justify-center overflow-hidden min-h-[180px] max-h-[38vh]">
                           {previewItem.previewUrl && (
@@ -921,7 +969,7 @@ export default function ImageConverterTool() {
                       <div className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-card border border-primary/30 ring-1 ring-primary/20">
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] font-bold text-primary uppercase tracking-wider">
-                            Converted {targetFormat.toUpperCase()} ({formatFileSize(previewItem.convertedSize || 0)})
+                            {isAr ? `المحولة (${targetFormat.toUpperCase()})` : `Converted ${targetFormat.toUpperCase()}`} ({formatFileSize(previewItem.convertedSize || 0)})
                           </span>
                           {previewItem.convertedSize && previewItem.originalSize && (
                             <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-none text-[10px] font-bold px-1.5 py-0">
@@ -952,12 +1000,12 @@ export default function ImageConverterTool() {
 
                   {/* Floating Zoom Controls (for single image view) */}
                   {previewTab !== 'compare' && (
-                    <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-card/90 backdrop-blur-sm border border-border p-1 rounded-xl shadow-md">
+                    <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-card/90 backdrop-blur-sm border border-border p-1 rounded-xl shadow-md" dir="ltr">
                       <button
                         type="button"
                         onClick={() => setZoomLevel((z) => Math.max(0.5, z - 0.25))}
                         className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-                        title="Zoom Out"
+                        title={isAr ? 'تصغير' : 'Zoom Out'}
                       >
                         <ZoomOut className="w-3.5 h-3.5" />
                       </button>
@@ -968,7 +1016,7 @@ export default function ImageConverterTool() {
                         type="button"
                         onClick={() => setZoomLevel((z) => Math.min(3, z + 0.25))}
                         className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-                        title="Zoom In"
+                        title={isAr ? 'تكبير' : 'Zoom In'}
                       >
                         <ZoomIn className="w-3.5 h-3.5" />
                       </button>
@@ -976,7 +1024,7 @@ export default function ImageConverterTool() {
                         type="button"
                         onClick={() => setZoomLevel(1)}
                         className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-                        title="Reset Zoom"
+                        title={isAr ? 'إعادة ضبط التكبير' : 'Reset Zoom'}
                       >
                         <Maximize2 className="w-3.5 h-3.5" />
                       </button>
@@ -995,10 +1043,13 @@ export default function ImageConverterTool() {
                       disabled={currentPreviewIndex <= 0}
                       className="h-8 text-xs rounded-xl gap-1"
                     >
-                      <ChevronLeft className="w-3.5 h-3.5" /> Previous
+                      <ChevronLeft className={`w-3.5 h-3.5 ${isAr ? 'rotate-180' : ''}`} />
+                      {isAr ? 'السابق' : 'Previous'}
                     </Button>
                     <span className="text-xs text-muted-foreground">
-                      {currentPreviewIndex + 1} of {convertedItems.length}
+                      {isAr
+                        ? `${currentPreviewIndex + 1} من ${convertedItems.length}`
+                        : `${currentPreviewIndex + 1} of ${convertedItems.length}`}
                     </span>
                     <Button
                       variant="outline"
@@ -1007,7 +1058,8 @@ export default function ImageConverterTool() {
                       disabled={currentPreviewIndex >= convertedItems.length - 1}
                       className="h-8 text-xs rounded-xl gap-1"
                     >
-                      Next <ChevronRight className="w-3.5 h-3.5" />
+                      {isAr ? 'التالي' : 'Next'}
+                      <ChevronRight className={`w-3.5 h-3.5 ${isAr ? 'rotate-180' : ''}`} />
                     </Button>
                   </div>
 
@@ -1019,7 +1071,10 @@ export default function ImageConverterTool() {
                         onClick={() => handleDownloadItem(previewItem)}
                         className="h-8 text-xs font-semibold rounded-xl gap-1.5 px-4 shadow-xs"
                       >
-                        <Download className="w-3.5 h-3.5" /> Download .{targetFormat.toUpperCase()} ({formatFileSize(previewItem.convertedSize || 0)})
+                        <Download className="w-3.5 h-3.5" />
+                        {isAr
+                          ? `تنزيل .${targetFormat.toUpperCase()} (${formatFileSize(previewItem.convertedSize || 0)})`
+                          : `Download .${targetFormat.toUpperCase()} (${formatFileSize(previewItem.convertedSize || 0)})`}
                       </Button>
                     )}
                   </div>

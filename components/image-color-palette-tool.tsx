@@ -354,7 +354,7 @@ export default function ImageColorPaletteTool() {
 
   const handleFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
-      toast.error('Please upload a valid image file (PNG, JPG, WebP, SVG)')
+      toast.error(isRtl ? 'يرجى تحميل ملف صورة صالح (PNG, JPG, WebP, SVG)' : 'Please upload a valid image file (PNG, JPG, WebP, SVG)')
       return
     }
     const reader = new FileReader()
@@ -374,7 +374,7 @@ export default function ImageColorPaletteTool() {
       processImage(img, name)
     }
     img.onerror = () => {
-      toast.error('Could not load image from URL')
+      toast.error(isRtl ? 'تعذر تحميل الصورة من الرابط' : 'Could not load image from URL')
     }
   }
 
@@ -732,14 +732,14 @@ export default function ImageColorPaletteTool() {
                     className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1"
                   >
                     <RotateCcw className="h-3 w-3" />
-                    Reset
+                    {isRtl ? 'إعادة تعيين' : 'Reset'}
                   </button>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2.5 text-[11px]">
                   <div>
                     <label className="text-muted-foreground font-medium block mb-1">
-                      Brightness ({adjustments.brightness}%)
+                      {isRtl ? 'السطوع' : 'Brightness'} ({adjustments.brightness}%)
                     </label>
                     <input
                       type="range"
@@ -756,7 +756,7 @@ export default function ImageColorPaletteTool() {
                   </div>
                   <div>
                     <label className="text-muted-foreground font-medium block mb-1">
-                      Contrast ({adjustments.contrast}%)
+                      {isRtl ? 'التباين' : 'Contrast'} ({adjustments.contrast}%)
                     </label>
                     <input
                       type="range"
@@ -773,7 +773,7 @@ export default function ImageColorPaletteTool() {
                   </div>
                   <div>
                     <label className="text-muted-foreground font-medium block mb-1">
-                      Saturate ({adjustments.saturation}%)
+                      {isRtl ? 'التشبع' : 'Saturate'} ({adjustments.saturation}%)
                     </label>
                     <input
                       type="range"
@@ -802,14 +802,14 @@ export default function ImageColorPaletteTool() {
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
                   {(
                     [
-                      { id: 'dominant', label: 'Dominant' },
-                      { id: 'vibrant', label: 'Vibrant' },
-                      { id: 'muted', label: 'Muted' },
-                      { id: 'light', label: 'Pastel' },
-                      { id: 'dark', label: 'Dark' },
-                      { id: 'picked', label: `Picked (${customPicked.length})` },
-                      { id: 'uiPreview', label: 'UI Mockup' },
-                      { id: 'accessibility', label: 'WCAG Test' },
+                      { id: 'dominant', label: isRtl ? 'الأساسية' : 'Dominant' },
+                      { id: 'vibrant', label: isRtl ? 'الحيوية' : 'Vibrant' },
+                      { id: 'muted', label: isRtl ? 'الهادئة' : 'Muted' },
+                      { id: 'light', label: isRtl ? 'باستيل' : 'Pastel' },
+                      { id: 'dark', label: isRtl ? 'الداكنة' : 'Dark' },
+                      { id: 'picked', label: isRtl ? `المختارة (${customPicked.length})` : `Picked (${customPicked.length})` },
+                      { id: 'uiPreview', label: isRtl ? 'معاينة الواجهة' : 'UI Mockup' },
+                      { id: 'accessibility', label: isRtl ? 'فحص التباين WCAG' : 'WCAG Test' },
                     ] as const
                   ).map((tab) => (
                     <button
@@ -828,7 +828,7 @@ export default function ImageColorPaletteTool() {
 
                 {/* Swatch Count Selector */}
                 <div className="flex items-center gap-2.5 text-xs">
-                  <span className="text-muted-foreground font-medium">{t('palette.colors', 'Swatches:')}</span>
+                  <span className="text-muted-foreground font-medium">{t('palette.colors', isRtl ? 'عدد الألوان:' : 'Swatches:')}</span>
                   <div className="flex items-center gap-1 bg-secondary rounded-lg p-0.5 border border-border">
                     {[4, 6, 8, 12, 16].map((count) => (
                       <button
@@ -854,7 +854,7 @@ export default function ImageColorPaletteTool() {
               <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground bg-secondary/30 p-3 rounded-xl border border-border">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-foreground">Algorithm:</span>
+                    <span className="font-semibold text-foreground">{isRtl ? 'الخوارزمية:' : 'Algorithm:'}</span>
                     <select
                       value={algorithm}
                       onChange={(e) => {
@@ -864,9 +864,9 @@ export default function ImageColorPaletteTool() {
                       }}
                       className="bg-card text-foreground text-xs rounded-md border border-border px-2 py-1 font-medium focus:outline-none focus:ring-1 focus:ring-primary"
                     >
-                      <option value="kmeans">K-Means Centroids</option>
-                      <option value="mediancut">Median Cut Quantization</option>
-                      <option value="histogram">Histogram Frequency</option>
+                      <option value="kmeans">{isRtl ? 'K-Means (مجموعات الألوان)' : 'K-Means Centroids'}</option>
+                      <option value="mediancut">{isRtl ? 'Median Cut (التقطيع الوسيط)' : 'Median Cut Quantization'}</option>
+                      <option value="histogram">{isRtl ? 'تكرار الهيستوجرام' : 'Histogram Frequency'}</option>
                     </select>
                   </div>
 
@@ -880,21 +880,21 @@ export default function ImageColorPaletteTool() {
                       }}
                       className="rounded border-border text-primary focus:ring-primary"
                     />
-                    Ignore White
+                    {isRtl ? 'تجاهل الأبيض' : 'Ignore White'}
                   </label>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span>{t('palette.sort_by', 'Sort:')}</span>
+                  <span>{t('palette.sort_by', isRtl ? 'ترتيب:' : 'Sort:')}</span>
                   <select
                     value={sortMode}
                     onChange={(e) => setSortMode(e.target.value as any)}
                     className="bg-card text-foreground text-xs rounded-md border border-border px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary font-medium"
                   >
-                    <option value="dominance">Dominance %</option>
-                    <option value="hue">Hue Spectrum</option>
-                    <option value="brightness">Lightness</option>
-                    <option value="saturation">Saturation</option>
+                    <option value="dominance">{isRtl ? 'نسبة السيطرة %' : 'Dominance %'}</option>
+                    <option value="hue">{isRtl ? 'طيف التدرج (Hue)' : 'Hue Spectrum'}</option>
+                    <option value="brightness">{isRtl ? 'شدة الإضاءة' : 'Lightness'}</option>
+                    <option value="saturation">{isRtl ? 'نسبة التشبع' : 'Saturation'}</option>
                   </select>
                 </div>
               </div>
@@ -903,16 +903,16 @@ export default function ImageColorPaletteTool() {
               <div className="flex items-center justify-between text-xs p-2.5 rounded-lg bg-card border border-border">
                 <span className="font-semibold text-foreground flex items-center gap-1.5">
                   <Eye className="h-3.5 w-3.5 text-primary" />
-                  Colorblindness Simulation:
+                  {isRtl ? 'محاكاة عمى الألوان:' : 'Colorblindness Simulation:'}
                 </span>
                 <div className="flex items-center gap-1 flex-wrap">
                   {(
                     [
-                      { id: 'normal', label: 'Normal' },
-                      { id: 'protanopia', label: 'Protanopia (Red-Blind)' },
-                      { id: 'deuteranopia', label: 'Deuteranopia (Green-Blind)' },
-                      { id: 'tritanopia', label: 'Tritanopia (Blue-Blind)' },
-                      { id: 'achromatopsia', label: 'Achromatopsia (Monochrome)' },
+                      { id: 'normal', label: isRtl ? 'طبيعي' : 'Normal' },
+                      { id: 'protanopia', label: isRtl ? 'عمى الأحمر (Protanopia)' : 'Protanopia (Red-Blind)' },
+                      { id: 'deuteranopia', label: isRtl ? 'عمى الأخضر (Deuteranopia)' : 'Deuteranopia (Green-Blind)' },
+                      { id: 'tritanopia', label: isRtl ? 'عمى الأزرق (Tritanopia)' : 'Tritanopia (Blue-Blind)' },
+                      { id: 'achromatopsia', label: isRtl ? 'أحادي اللون (Achromatopsia)' : 'Achromatopsia (Monochrome)' },
                     ] as const
                   ).map((filter) => (
                     <button
@@ -937,10 +937,10 @@ export default function ImageColorPaletteTool() {
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-foreground flex items-center gap-1.5">
                       <Layout className="h-4 w-4 text-primary" />
-                      Live UI Theme Mapping
+                      {isRtl ? 'محاكاة مظهر واجهة المستخدم الحية' : 'Live UI Theme Mapping'}
                     </span>
                     <span className="text-muted-foreground">
-                      Extracted palette mapped to interactive UI elements
+                      {isRtl ? 'تطبيق الألوان المستخرجة تلقائياً على مكونات الواجهة' : 'Extracted palette mapped to interactive UI elements'}
                     </span>
                   </div>
 
@@ -960,33 +960,35 @@ export default function ImageColorPaletteTool() {
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold uppercase tracking-wider opacity-80">
-                              Light UI Component
+                              {isRtl ? 'مكون واجهة فاتح' : 'Light UI Component'}
                             </span>
                             <span
                               className="px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-sm"
                               style={{ backgroundColor: secondary }}
                             >
-                              Active
+                              {isRtl ? 'نشط' : 'Active'}
                             </span>
                           </div>
                           <h4 className="text-lg font-extrabold" style={{ color: darkBg }}>
-                            {imageName} Dashboard
+                            {isRtl ? `لوحة تحكم ${getSampleDisplayName(imageName)}` : `${imageName} Dashboard`}
                           </h4>
                           <p className="text-xs opacity-80 leading-relaxed">
-                            This live preview demonstrates how your extracted palette automatically styles headlines, primary buttons, and accent pills.
+                            {isRtl
+                              ? 'توضح هذه المعاينة كيف تطبق لوحة الألوان تلقائياً على العناوين والأزرار والبطاقات التفاعلية.'
+                              : 'This live preview demonstrates how your extracted palette automatically styles headlines, primary buttons, and accent pills.'}
                           </p>
                           <div className="flex items-center gap-2 pt-2">
                             <button
                               className="px-4 py-2 rounded-xl text-xs font-bold text-white shadow transition-transform hover:scale-105"
                               style={{ backgroundColor: primary }}
                             >
-                              Primary CTA
+                              {isRtl ? 'إجراء رئيسي' : 'Primary CTA'}
                             </button>
                             <button
                               className="px-4 py-2 rounded-xl text-xs font-semibold border shadow-sm"
                               style={{ borderColor: primary, color: primary }}
                             >
-                              Secondary
+                              {isRtl ? 'إجراء ثانوي' : 'Secondary'}
                             </button>
                           </div>
                         </div>
@@ -998,16 +1000,18 @@ export default function ImageColorPaletteTool() {
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                              Dark UI Component
+                              {isRtl ? 'مكون واجهة داكن' : 'Dark UI Component'}
                             </span>
                             <span
                               className="px-2 py-0.5 rounded text-[10px] font-bold text-black"
                               style={{ backgroundColor: accent }}
                             >
-                              Pro
+                              {isRtl ? 'احترافي' : 'Pro'}
                             </span>
                           </div>
-                          <h4 className="text-lg font-extrabold text-white">Analytics Overview</h4>
+                          <h4 className="text-lg font-extrabold text-white">
+                            {isRtl ? 'نظرة عامة على الإحصائيات' : 'Analytics Overview'}
+                          </h4>
                           <div className="h-16 w-full rounded-xl p-3 flex items-end justify-between gap-1 bg-white/5 border border-white/10">
                             {[40, 70, 45, 90, 65, 80, 100].map((h, i) => (
                               <div
@@ -1021,7 +1025,7 @@ export default function ImageColorPaletteTool() {
                             ))}
                           </div>
                           <div className="flex items-center justify-between text-xs pt-1">
-                            <span className="text-slate-400">Conversion Rate</span>
+                            <span className="text-slate-400">{isRtl ? 'معدل التحويل' : 'Conversion Rate'}</span>
                             <span className="font-bold text-emerald-400">+24.8%</span>
                           </div>
                         </div>
@@ -1035,10 +1039,10 @@ export default function ImageColorPaletteTool() {
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-foreground flex items-center gap-1.5">
                       <Contrast className="h-4 w-4 text-primary" />
-                      WCAG 2.1 Contrast Matrix
+                      {isRtl ? 'مصفوفة تباين WCAG 2.1' : 'WCAG 2.1 Contrast Matrix'}
                     </span>
                     <span className="text-muted-foreground text-[11px]">
-                      AA (4.5:1) • AAA (7:1) Compliance
+                      {isRtl ? 'معايير التوافق AA (4.5:1) • AAA (7:1)' : 'AA (4.5:1) • AAA (7:1) Compliance'}
                     </span>
                   </div>
 
@@ -1062,7 +1066,7 @@ export default function ImageColorPaletteTool() {
                         <div className="flex items-center gap-3">
                           {/* On White */}
                           <div className="p-1.5 px-2.5 rounded-lg bg-white text-black border border-black/10 text-center">
-                            <div className="text-[10px] text-gray-500">On White</div>
+                            <div className="text-[10px] text-gray-500">{isRtl ? 'على الأبيض' : 'On White'}</div>
                             <div className="font-mono font-bold flex items-center gap-1">
                               {color.contrastOnWhite}:1
                               {color.contrastOnWhite >= 4.5 ? (
@@ -1075,7 +1079,7 @@ export default function ImageColorPaletteTool() {
 
                           {/* On Black */}
                           <div className="p-1.5 px-2.5 rounded-lg bg-slate-900 text-white border border-white/10 text-center">
-                            <div className="text-[10px] text-slate-400">On Black</div>
+                            <div className="text-[10px] text-slate-400">{isRtl ? 'على الأسود' : 'On Black'}</div>
                             <div className="font-mono font-bold flex items-center gap-1">
                               {color.contrastOnBlack}:1
                               {color.contrastOnBlack >= 4.5 ? (
@@ -1101,7 +1105,7 @@ export default function ImageColorPaletteTool() {
                         onClick={() => setInspectedColor(color)}
                         style={{ backgroundColor: color.hex, width: `${100 / displayedColors.length}%` }}
                         className="h-full relative group cursor-pointer transition-transform hover:scale-105 hover:z-10"
-                        title={`${color.name} (${color.hex}) - Click to inspect`}
+                        title={`${color.name} (${color.hex}) - ${isRtl ? 'انقر للمعاينة والتفاصيل' : 'Click to inspect'}`}
                       >
                         <span className="opacity-0 group-hover:opacity-100 absolute inset-0 flex items-center justify-center text-[10px] font-mono font-bold text-white drop-shadow-md transition-opacity">
                           {color.hex}
@@ -1147,7 +1151,7 @@ export default function ImageColorPaletteTool() {
                                   ? 'bg-amber-500 text-white'
                                   : 'bg-black/50 text-white/70 opacity-0 group-hover:opacity-100'
                               }`}
-                              title={isLocked ? 'Unlock color' : 'Lock color'}
+                              title={isLocked ? (isRtl ? 'إلغاء قفل اللون' : 'Unlock color') : (isRtl ? 'قفل اللون' : 'Lock color')}
                             >
                               {isLocked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
                             </button>
@@ -1161,7 +1165,7 @@ export default function ImageColorPaletteTool() {
                               <button
                                 onClick={() => copyToClipboard(color.hex, color.hex)}
                                 className="hover:text-primary transition-colors p-0.5"
-                                title="Copy HEX"
+                                title={isRtl ? 'نسخ كود HEX' : 'Copy HEX'}
                               >
                                 <Copy className="h-3 w-3" />
                               </button>
@@ -1195,10 +1199,10 @@ export default function ImageColorPaletteTool() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                     <FileCode className="h-4 w-4 text-primary" />
-                    {t('palette.export_suite', 'Export & Developer Suite')}
+                    {t('palette.export_suite', isRtl ? 'تصدير وحزم المطورين' : 'Export & Developer Suite')}
                   </span>
                   <span className="text-[11px] text-muted-foreground">
-                    {displayedColors.length} {t('palette.ready_to_export', 'colors ready')}
+                    {displayedColors.length} {t('palette.ready_to_export', isRtl ? 'ألوان جاهزة' : 'colors ready')}
                   </span>
                 </div>
 
@@ -1210,7 +1214,7 @@ export default function ImageColorPaletteTool() {
                     onClick={handleDownloadPng}
                   >
                     <Download className="h-3.5 w-3.5 text-primary" />
-                    {t('palette.download_png', 'PNG Poster')}
+                    {t('palette.download_png', isRtl ? 'ملصق PNG' : 'PNG Poster')}
                   </Button>
 
                   <Button
@@ -1245,20 +1249,20 @@ export default function ImageColorPaletteTool() {
                 </div>
 
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
-                  <span>Copy list:</span>
+                  <span>{isRtl ? 'نسخ كقائمة:' : 'Copy list:'}</span>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => copyToClipboard(generateHexList(displayedColors, ', '), 'Comma List')}
                       className="hover:text-foreground underline"
                     >
-                      HEX (Comma Separated)
+                      {isRtl ? 'HEX (مفصول بفواصل)' : 'HEX (Comma Separated)'}
                     </button>
                     <span>•</span>
                     <button
                       onClick={() => copyToClipboard(generateScssVariables(displayedColors), 'SCSS Variables')}
                       className="hover:text-foreground underline"
                     >
-                      SCSS $variables
+                      {isRtl ? 'متغيرات SCSS' : 'SCSS $variables'}
                     </button>
                   </div>
                 </div>
@@ -1269,7 +1273,7 @@ export default function ImageColorPaletteTool() {
 
         {/* Color Inspector Modal */}
         <Dialog open={!!inspectedColor} onOpenChange={(open) => !open && setInspectedColor(null)}>
-          <DialogContent className="max-w-md p-6 rounded-2xl">
+          <DialogContent className="max-w-md p-6 rounded-2xl" dir={isRtl ? 'rtl' : 'ltr'}>
             {inspectedColor && (
               <div className="space-y-5">
                 <DialogHeader>
@@ -1325,15 +1329,15 @@ export default function ImageColorPaletteTool() {
                 <div className="p-3.5 rounded-xl bg-secondary/30 border border-border space-y-2">
                   <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
                     <Contrast className="h-3.5 w-3.5 text-primary" />
-                    WCAG Accessibility Contrast
+                    {isRtl ? 'فحص تباين إمكانية الوصول WCAG' : 'WCAG Accessibility Contrast'}
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="p-2 rounded-lg bg-white text-black border border-black/10 flex items-center justify-between">
-                      <span>On White:</span>
+                      <span>{isRtl ? 'على الأبيض:' : 'On White:'}</span>
                       <span className="font-bold font-mono">{inspectedColor.contrastOnWhite}:1</span>
                     </div>
                     <div className="p-2 rounded-lg bg-slate-900 text-white border border-white/10 flex items-center justify-between">
-                      <span>On Black:</span>
+                      <span>{isRtl ? 'على الأسود:' : 'On Black:'}</span>
                       <span className="font-bold font-mono">{inspectedColor.contrastOnBlack}:1</span>
                     </div>
                   </div>
@@ -1341,7 +1345,7 @@ export default function ImageColorPaletteTool() {
 
                 {/* Harmonious Palettes Generator */}
                 <div className="space-y-2">
-                  <div className="text-xs font-bold text-foreground">Color Harmonies</div>
+                  <div className="text-xs font-bold text-foreground">{isRtl ? 'تناسقات الألوان والتكامل' : 'Color Harmonies'}</div>
                   {(() => {
                     const harmonies = getColorHarmonies(inspectedColor)
                     return (
@@ -1352,7 +1356,7 @@ export default function ImageColorPaletteTool() {
                           title={`Complementary (${harmonies.complementary.hex})`}
                           onClick={() => copyToClipboard(harmonies.complementary.hex, 'Complementary')}
                         >
-                          Comp
+                          {isRtl ? 'مكمل' : 'Comp'}
                         </div>
                         <div
                           className="h-10 rounded-lg border border-black/10 flex items-center justify-center text-[10px] font-mono text-white drop-shadow cursor-pointer hover:scale-105 transition-transform"
@@ -1360,7 +1364,7 @@ export default function ImageColorPaletteTool() {
                           title={`Triadic 1 (${harmonies.triadic[0].hex})`}
                           onClick={() => copyToClipboard(harmonies.triadic[0].hex, 'Triadic 1')}
                         >
-                          Tri 1
+                          {isRtl ? 'ثلاثي 1' : 'Tri 1'}
                         </div>
                         <div
                           className="h-10 rounded-lg border border-black/10 flex items-center justify-center text-[10px] font-mono text-white drop-shadow cursor-pointer hover:scale-105 transition-transform"
@@ -1368,7 +1372,7 @@ export default function ImageColorPaletteTool() {
                           title={`Triadic 2 (${harmonies.triadic[1].hex})`}
                           onClick={() => copyToClipboard(harmonies.triadic[1].hex, 'Triadic 2')}
                         >
-                          Tri 2
+                          {isRtl ? 'ثلاثي 2' : 'Tri 2'}
                         </div>
                         <div
                           className="h-10 rounded-lg border border-black/10 flex items-center justify-center text-[10px] font-mono text-white drop-shadow cursor-pointer hover:scale-105 transition-transform"
@@ -1376,7 +1380,7 @@ export default function ImageColorPaletteTool() {
                           title={`Analogous (${harmonies.analogous[0].hex})`}
                           onClick={() => copyToClipboard(harmonies.analogous[0].hex, 'Analogous')}
                         >
-                          Ana
+                          {isRtl ? 'متجاور' : 'Ana'}
                         </div>
                       </div>
                     )
@@ -1392,7 +1396,7 @@ export default function ImageColorPaletteTool() {
                     }}
                   >
                     <Copy className="h-4 w-4" />
-                    Copy HEX ({inspectedColor.hex})
+                    {isRtl ? `نسخ كود HEX (${inspectedColor.hex})` : `Copy HEX (${inspectedColor.hex})`}
                   </Button>
                 </div>
               </div>

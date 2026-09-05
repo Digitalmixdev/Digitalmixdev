@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
+import { useLanguage } from '@/lib/i18n/context'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
 import { logToolActivity } from '@/lib/history-service'
@@ -128,6 +129,9 @@ const toolMeta: ToolMetadata = {
 }
 
 export default function ImageResizerTool() {
+  const { language } = useLanguage()
+  const isAr = language === 'ar'
+
   const [images, setImages] = useState<ImageFileItem[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
   const [globalWidth, setGlobalWidth] = useState<number>(800)
@@ -243,10 +247,12 @@ export default function ImageResizerTool() {
 
         logToolActivity({
           toolId: 'image-resizer',
-          toolName: 'Image Resizer & Converter',
+          toolName: isAr ? 'أداة تغيير أبعاد ومقاسات الصور' : 'Image Resizer & Converter',
           category: 'files',
-          actionTitle: `Resized Image (${item.targetWidth}×${item.targetHeight})`,
-          details: `Resized "${item.name}" from ${item.originalWidth}×${item.originalHeight} to ${item.targetWidth}×${item.targetHeight}px (${ext.toUpperCase()})`,
+          actionTitle: isAr ? `تم تغيير أبعاد الصورة (${item.targetWidth}×${item.targetHeight})` : `Resized Image (${item.targetWidth}×${item.targetHeight})`,
+          details: isAr
+            ? `تم تعديل مقاسات "${item.name}" من ${item.originalWidth}×${item.originalHeight} إلى ${item.targetWidth}×${item.targetHeight}px بصيغة (${ext.toUpperCase()})`
+            : `Resized "${item.name}" from ${item.originalWidth}×${item.originalHeight} to ${item.targetWidth}×${item.targetHeight}px (${ext.toUpperCase()})`,
           inputSnippet: `Original: ${item.name} (${item.originalWidth}×${item.originalHeight}px)`,
           outputSnippet: `Target: ${item.targetWidth}×${item.targetHeight}px, Format: ${ext.toUpperCase()}`,
         })
@@ -305,204 +311,224 @@ export default function ImageResizerTool() {
 
   return (
     <ToolLayout metadata={toolMeta} maxWidth="7xl">
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={(e) => handleFileSelection(e.target.files)}
-        accept="image/*"
-        multiple
-        className="hidden"
-      />
+      <div dir={isAr ? 'rtl' : 'ltr'}>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={(e) => handleFileSelection(e.target.files)}
+          accept="image/*"
+          multiple
+          className="hidden"
+        />
 
-      {images.length === 0 ? (
-        <div
-          onClick={() => fileInputRef.current?.click()}
-          className="border-2 border-dashed border-border/80 hover:border-primary/50 bg-card/50 hover:bg-card/90 rounded-3xl p-10 sm:p-16 text-center cursor-pointer transition-all duration-200 shadow-xs flex flex-col items-center justify-center gap-4 group"
-        >
-          <div className="p-4 rounded-2xl bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-200">
-            <UploadCloud className="h-8 w-8" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-foreground mb-1">
-              Select or Drop Images
-            </h3>
-            <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
-              Upload JPEG, PNG, or WebP images to resize dimensions and convert formats in batch.
-            </p>
-          </div>
-          <Button size="lg" className="rounded-xl font-bold gap-2 pointer-events-none mt-2">
-            <Plus className="h-4 w-4" /> Choose Images
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* Controls Bar */}
-          <div className="p-6 rounded-2xl border border-border/70 bg-card shadow-xs space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border/40">
-              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                <Sliders className="h-4 w-4 text-primary" />
-                Global Resizing Configuration
+        {images.length === 0 ? (
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            className="border-2 border-dashed border-border/80 hover:border-primary/50 bg-card/50 hover:bg-card/90 rounded-3xl p-10 sm:p-16 text-center cursor-pointer transition-all duration-200 shadow-xs flex flex-col items-center justify-center gap-4 group"
+          >
+            <div className="p-4 rounded-2xl bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-200">
+              <UploadCloud className="h-8 w-8" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-foreground mb-1">
+                {isAr ? 'حدد أو اسحب وأفلت الصور هنا' : 'Select or Drop Images'}
               </h3>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="gap-2 text-xs font-semibold rounded-xl"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Add Images
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setImages([])}
-                  className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1.5"
-                >
-                  <Trash2 className="h-3.5 w-3.5" /> Clear All
-                </Button>
-              </div>
+              <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                {isAr
+                  ? 'ارفع صور JPEG أو PNG أو WebP لتغيير أبعادها وتحويل صيغها دفعة واحدة.'
+                  : 'Upload JPEG, PNG, or WebP images to resize dimensions and convert formats in batch.'}
+              </p>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Width (px)</label>
-                <input
-                  type="number"
-                  value={globalWidth}
-                  onChange={(e) => updateGlobalWidth(Math.max(1, Number(e.target.value)))}
-                  className="w-full h-10 px-3 rounded-xl border border-border bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Height (px)</label>
-                <input
-                  type="number"
-                  value={globalHeight}
-                  onChange={(e) => updateGlobalHeight(Math.max(1, Number(e.target.value)))}
-                  className="w-full h-10 px-3 rounded-xl border border-border bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Output Format</label>
-                <select
-                  value={outputFormat}
-                  onChange={(e) => setOutputFormat(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground cursor-pointer"
-                >
-                  <option value="image/jpeg">JPEG (.jpg)</option>
-                  <option value="image/png">PNG (.png)</option>
-                  <option value="image/webp">WebP (.webp)</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs font-semibold text-muted-foreground">
-                  <span>Quality</span>
-                  <span>{globalQuality}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={10}
-                  max={100}
-                  value={globalQuality}
-                  onChange={(e) => setGlobalQuality(Number(e.target.value))}
-                  className="w-full h-10 accent-primary cursor-pointer"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
-              <label className="flex items-center gap-2 text-xs font-semibold text-foreground cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={maintainRatio}
-                  onChange={(e) => setMaintainRatio(e.target.checked)}
-                  className="rounded border-border text-primary focus:ring-primary h-4 w-4"
-                />
-                Lock Aspect Ratio Proportions
-              </label>
-
-              <Button
-                onClick={handleDownloadAll}
-                disabled={isProcessing || images.length === 0}
-                className="gap-2 text-xs font-bold shadow-md shadow-primary/20 rounded-xl"
-              >
-                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                Process & Download All ({images.length})
-              </Button>
-            </div>
+            <Button size="lg" className="rounded-xl font-bold gap-2 pointer-events-none mt-2">
+              <Plus className="h-4 w-4" />
+              {isAr ? 'اختيار الصور' : 'Choose Images'}
+            </Button>
           </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Controls Bar */}
+            <div className="p-6 rounded-2xl border border-border/70 bg-card shadow-xs space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-border/40">
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <Sliders className="h-4 w-4 text-primary" />
+                  {isAr ? 'إعدادات تغيير المقاسات والأبعاد' : 'Global Resizing Configuration'}
+                </h3>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="gap-2 text-xs font-semibold rounded-xl"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {isAr ? 'إضافة صور' : 'Add Images'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setImages([])}
+                    className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1.5"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    {isAr ? 'مسح الكل' : 'Clear All'}
+                  </Button>
+                </div>
+              </div>
 
-          {/* Image Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {images.map((item) => (
-              <div
-                key={item.id}
-                className="p-3.5 rounded-2xl border border-border/70 bg-card shadow-xs space-y-3 flex flex-col justify-between"
-              >
-                <div className="relative aspect-video w-full rounded-xl bg-muted/40 overflow-hidden border border-border/40">
-                  <img src={item.previewUrl} alt={item.name} className="h-full w-full object-cover" />
-                  <div className="absolute top-2 right-2 flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handlePreview(item)}
-                      className="p-1.5 rounded-lg bg-background/90 text-foreground hover:text-primary transition-colors shadow-xs"
-                      title="Preview Resized Output"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setImages((prev) => prev.filter((i) => i.id !== item.id))}
-                      className="p-1.5 rounded-lg bg-background/90 text-destructive hover:bg-destructive hover:text-white transition-colors shadow-xs"
-                      title="Delete Image"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    {isAr ? 'العرض (بكسل)' : 'Width (px)'}
+                  </label>
+                  <input
+                    type="number"
+                    value={globalWidth}
+                    onChange={(e) => updateGlobalWidth(Math.max(1, Number(e.target.value)))}
+                    className="w-full h-10 px-3 rounded-xl border border-border bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    {isAr ? 'الارتفاع (بكسل)' : 'Height (px)'}
+                  </label>
+                  <input
+                    type="number"
+                    value={globalHeight}
+                    onChange={(e) => updateGlobalHeight(Math.max(1, Number(e.target.value)))}
+                    className="w-full h-10 px-3 rounded-xl border border-border bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    {isAr ? 'صيغة التصدير' : 'Output Format'}
+                  </label>
+                  <select
+                    value={outputFormat}
+                    onChange={(e) => setOutputFormat(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground cursor-pointer"
+                  >
+                    <option value="image/jpeg">JPEG (.jpg)</option>
+                    <option value="image/png">PNG (.png)</option>
+                    <option value="image/webp">WebP (.webp)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-semibold text-muted-foreground">
+                    <span>{isAr ? 'مستوى الجودة' : 'Quality'}</span>
+                    <span>{globalQuality}%</span>
                   </div>
+                  <input
+                    type="range"
+                    min={10}
+                    max={100}
+                    value={globalQuality}
+                    onChange={(e) => setGlobalQuality(Number(e.target.value))}
+                    className="w-full h-10 accent-primary cursor-pointer"
+                  />
                 </div>
+              </div>
 
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-foreground truncate" title={item.name}>
-                    {item.name}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground font-mono">
-                    {item.originalWidth}x{item.originalHeight} →{' '}
-                    <span className="text-primary font-bold">{item.targetWidth}x{item.targetHeight}</span>
-                  </p>
-                </div>
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+                <label className="flex items-center gap-2 text-xs font-semibold text-foreground cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={maintainRatio}
+                    onChange={(e) => setMaintainRatio(e.target.checked)}
+                    className="rounded border-border text-primary focus:ring-primary h-4 w-4"
+                  />
+                  {isAr ? 'قفل نسبة الأبعاد (التناسب)' : 'Lock Aspect Ratio Proportions'}
+                </label>
 
                 <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => processAndDownloadImage(item)}
-                  className="w-full text-xs font-semibold rounded-lg h-8 gap-1.5"
+                  onClick={handleDownloadAll}
+                  disabled={isProcessing || images.length === 0}
+                  className="gap-2 text-xs font-bold shadow-md shadow-primary/20 rounded-xl"
                 >
-                  <Download className="h-3 w-3" /> Download
+                  {isProcessing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  {isProcessing
+                    ? isAr ? 'جارٍ المعالجة والتنزيل...' : 'Processing...'
+                    : isAr ? `معالجة وتنزيل الكل (${images.length})` : `Process & Download All (${images.length})`}
                 </Button>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Modal Preview */}
-      {activePreview && (
-        <Dialog open={Boolean(activePreview)} onOpenChange={() => setActivePreview(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle className="text-sm font-bold truncate">
-                Preview: {activePreview.name} ({activePreview.width}x{activePreview.height})
-              </DialogTitle>
-            </DialogHeader>
-            <div className="max-h-[65vh] overflow-auto flex items-center justify-center p-4 bg-muted/20 rounded-xl border border-border/50">
-              <img src={activePreview.url} alt="Preview" className="max-h-full max-w-full object-contain rounded-lg" />
             </div>
-          </DialogContent>
-        </Dialog>
-      )}
+
+            {/* Image Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {images.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-3.5 rounded-2xl border border-border/70 bg-card shadow-xs space-y-3 flex flex-col justify-between"
+                >
+                  <div className="relative aspect-video w-full rounded-xl bg-muted/40 overflow-hidden border border-border/40">
+                    <img src={item.previewUrl} alt={item.name} className="h-full w-full object-cover" />
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handlePreview(item)}
+                        className="p-1.5 rounded-lg bg-background/90 text-foreground hover:text-primary transition-colors shadow-xs"
+                        title={isAr ? 'معاينة النتيجة' : 'Preview Resized Output'}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImages((prev) => prev.filter((i) => i.id !== item.id))}
+                        className="p-1.5 rounded-lg bg-background/90 text-destructive hover:bg-destructive hover:text-white transition-colors shadow-xs"
+                        title={isAr ? 'حذف الصورة' : 'Delete Image'}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-foreground truncate" title={item.name}>
+                      {item.name}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground font-mono">
+                      {item.originalWidth}x{item.originalHeight} →{' '}
+                      <span className="text-primary font-bold">{item.targetWidth}x{item.targetHeight}</span>
+                    </p>
+                  </div>
+
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => processAndDownloadImage(item)}
+                    className="w-full text-xs font-semibold rounded-lg h-8 gap-1.5"
+                  >
+                    <Download className="h-3 w-3" />
+                    {isAr ? 'تنزيل' : 'Download'}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Modal Preview */}
+        {activePreview && (
+          <Dialog open={Boolean(activePreview)} onOpenChange={() => setActivePreview(null)}>
+            <DialogContent className="max-w-2xl" dir={isAr ? 'rtl' : 'ltr'}>
+              <DialogHeader>
+                <DialogTitle className="text-sm font-bold truncate text-start">
+                  {isAr ? 'معاينة:' : 'Preview:'} {activePreview.name} ({activePreview.width}x{activePreview.height})
+                </DialogTitle>
+              </DialogHeader>
+              <div className="max-h-[65vh] overflow-auto flex items-center justify-center p-4 bg-muted/20 rounded-xl border border-border/50">
+                <img src={activePreview.url} alt="Preview" className="max-h-full max-w-full object-contain rounded-lg" />
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
     </ToolLayout>
   )
 }

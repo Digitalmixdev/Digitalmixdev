@@ -355,6 +355,7 @@ function isImageFile(file: File): boolean {
 
 export default function DocumentConverterTool() {
   const { language } = useLanguage()
+  const isAr = language === 'ar'
   const [sourceFormat, setSourceFormat] = useState<FormatKey>('auto')
   const [targetFormat, setTargetFormat] = useState<FormatKey>('pdf')
   const [items, setItems] = useState<DocumentQueueItem[]>([])
@@ -366,6 +367,38 @@ export default function DocumentConverterTool() {
   const [currentPreviewIndex, setCurrentPreviewIndex] = useState<number>(0)
   const [modalItem, setModalItem] = useState<DocumentQueueItem | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const getFormatLabel = (fmt: FormatKey) => {
+    if (isAr) {
+      switch (fmt) {
+        case 'auto': return 'كشف تلقائي'
+        case 'pdf': return 'مستند PDF'
+        case 'docx': return 'مستند Word'
+        case 'pptx': return 'عرض PowerPoint'
+        case 'xlsx': return 'جدول Excel'
+        case 'html': return 'صفحة ويب HTML'
+        case 'jpg': return 'صورة JPG'
+        case 'png': return 'صورة PNG'
+        case 'txt': return 'نص عادي'
+      }
+    }
+    return (FORMAT_CONFIGS[fmt] as { label?: string } | undefined)?.label || fmt
+  }
+
+  const getPresetLabel = (preset: typeof PRESET_CONVERSIONS[number]) => {
+    if (!isAr) return preset.label
+    switch (preset.label) {
+      case 'Images to PDF': return 'صور إلى PDF'
+      case 'Word to PDF': return 'Word إلى PDF'
+      case 'PDF to Word': return 'PDF إلى Word'
+      case 'PDF to PPTX': return 'PDF إلى PPTX'
+      case 'PDF to Images': return 'PDF إلى صور'
+      case 'Excel to PDF': return 'Excel إلى PDF'
+      case 'PPTX to PDF': return 'PPTX إلى PDF'
+      case 'HTML to PDF': return 'HTML إلى PDF'
+      default: return preset.label
+    }
+  }
 
   // Layout & Styling Configuration for Images -> PDF
   const [pageSize, setPageSize] = useState<'a4-portrait' | 'a4-landscape' | 'fit' | 'letter-portrait' | 'letter-landscape' | 'auto'>('a4-portrait')
@@ -1000,9 +1033,11 @@ export default function DocumentConverterTool() {
         <div className="rounded-2xl border border-border/80 bg-card/60 p-4 sm:p-5 shadow-xs backdrop-blur-xs">
           <div className="flex items-center justify-between gap-2 mb-3">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-primary" /> Popular One-Click Presets
+              <Sparkles className="w-3.5 h-3.5 text-primary" /> {isAr ? 'الإعدادات الجاهزة الأكثر استخداماً' : 'Popular One-Click Presets'}
             </span>
-            <span className="text-xs text-muted-foreground hidden sm:inline">Click to configure source & target</span>
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              {isAr ? 'انقر لتهيئة صيغة المصدر والهدف فوراً' : 'Click to configure source & target'}
+            </span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
             {PRESET_CONVERSIONS.map((preset, idx) => {
@@ -1020,7 +1055,7 @@ export default function DocumentConverterTool() {
                   }`}
                 >
                   <span className="text-base mb-1">{preset.icon}</span>
-                  <span className="text-xs font-medium leading-tight">{preset.label}</span>
+                  <span className="text-xs font-medium leading-tight">{getPresetLabel(preset)}</span>
                 </button>
               )
             })}
@@ -1033,7 +1068,7 @@ export default function DocumentConverterTool() {
             {/* From Selector */}
             <div className="space-y-2">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-                Source Format (Convert From)
+                {isAr ? 'صيغة المصدر (تحويل من)' : 'Source Format (Convert From)'}
               </label>
               <div className="relative">
                 <select
@@ -1045,30 +1080,30 @@ export default function DocumentConverterTool() {
                   }}
                   className="w-full h-11 px-3.5 rounded-xl border border-border bg-background text-sm font-medium focus:outline-hidden focus:ring-2 focus:ring-primary appearance-none cursor-pointer"
                 >
-                  <option value="auto">⚡ Auto-Detect (from files)</option>
-                  <option value="jpg">Images (JPG, PNG, WEBP, AVIF)</option>
-                  <option value="docx">Word (.docx, .doc)</option>
-                  <option value="pdf">PDF Document (.pdf)</option>
-                  <option value="pptx">PowerPoint (.pptx, .ppt)</option>
-                  <option value="xlsx">Excel Spreadsheet (.xlsx, .csv)</option>
-                  <option value="html">HTML Webpage (.html, .htm)</option>
-                  <option value="txt">Plain Text (.txt, .md)</option>
+                  <option value="auto">{isAr ? '⚡ كشف تلقائي (من الملفات)' : '⚡ Auto-Detect (from files)'}</option>
+                  <option value="jpg">{isAr ? 'صور (JPG, PNG, WEBP, AVIF)' : 'Images (JPG, PNG, WEBP, AVIF)'}</option>
+                  <option value="docx">{isAr ? 'مستند Word (.docx, .doc)' : 'Word (.docx, .doc)'}</option>
+                  <option value="pdf">{isAr ? 'مستند PDF (.pdf)' : 'PDF Document (.pdf)'}</option>
+                  <option value="pptx">{isAr ? 'عرض PowerPoint (.pptx, .ppt)' : 'PowerPoint (.pptx, .ppt)'}</option>
+                  <option value="xlsx">{isAr ? 'جدول Excel (.xlsx, .csv)' : 'Excel Spreadsheet (.xlsx, .csv)'}</option>
+                  <option value="html">{isAr ? 'صفحة ويب HTML (.html, .htm)' : 'HTML Webpage (.html, .htm)'}</option>
+                  <option value="txt">{isAr ? 'نص عادي (.txt, .md)' : 'Plain Text (.txt, .md)'}</option>
                 </select>
-                <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-3.5 top-3.5 pointer-events-none" />
+                <ChevronDown className={`w-4 h-4 text-muted-foreground absolute top-3.5 pointer-events-none ${isAr ? 'left-3.5' : 'right-3.5'}`} />
               </div>
             </div>
 
             {/* Direction Arrow */}
             <div className="flex justify-center pt-2 md:pt-6">
               <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shadow-xs">
-                <ArrowRight className="w-5 h-5" />
+                <ArrowRight className={`w-5 h-5 ${isAr ? 'rotate-180' : ''}`} />
               </div>
             </div>
 
             {/* To Selector */}
             <div className="space-y-2">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-                Target Format (Convert To)
+                {isAr ? 'صيغة الهدف (تحويل إلى)' : 'Target Format (Convert To)'}
               </label>
               <div className="relative">
                 <select
@@ -1081,11 +1116,11 @@ export default function DocumentConverterTool() {
                 >
                   {availableTargets.map((t) => (
                     <option key={t} value={t}>
-                      {FORMAT_CONFIGS[t].label} ({FORMAT_CONFIGS[t].ext})
+                      {getFormatLabel(t)} ({FORMAT_CONFIGS[t].ext})
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-3.5 top-3.5 pointer-events-none" />
+                <ChevronDown className={`w-4 h-4 text-muted-foreground absolute top-3.5 pointer-events-none ${isAr ? 'left-3.5' : 'right-3.5'}`} />
               </div>
             </div>
           </div>
@@ -1097,12 +1132,12 @@ export default function DocumentConverterTool() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <FileText className="w-4 h-4 text-primary" />
-                <span>{language === 'ar' ? 'خيارات تحويل Word' : 'Word Conversion Options'}</span>
+                <span>{isAr ? 'خيارات تحويل Word' : 'Word Conversion Options'}</span>
               </div>
               <span className="text-xs text-muted-foreground bg-background/80 px-2.5 py-1 rounded-full border border-border">
                 {pdfToDocxMode === 'withImages'
-                  ? (language === 'ar' ? '🖼️ مع صور الخلفية' : '🖼️ With Background Image')
-                  : (language === 'ar' ? '⚡ نص قابل للتعديل فقط' : '⚡ Editable Text Only')}
+                  ? (isAr ? '🖼️ مع صور الخلفية' : '🖼️ With Background Image')
+                  : (isAr ? '⚡ نص قابل للتعديل فقط' : '⚡ Editable Text Only')}
               </span>
             </div>
 
@@ -1111,7 +1146,7 @@ export default function DocumentConverterTool() {
                 type="button"
                 onClick={() => setPdfToDocxMode('withImages')}
                 className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between cursor-pointer ${
-                  language === 'ar' ? 'text-right' : 'text-left'
+                  isAr ? 'text-right' : 'text-left'
                 } ${
                   pdfToDocxMode === 'withImages'
                     ? 'border-primary bg-background shadow-xs text-primary font-medium'
@@ -1121,14 +1156,14 @@ export default function DocumentConverterTool() {
                 <div className="flex items-center justify-between w-full mb-1.5">
                   <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                     <ImageIcon className="w-3.5 h-3.5 text-primary" />
-                    {language === 'ar'
+                    {isAr
                       ? 'تضمين صورة الخلفية مع النص (موصى به)'
                       : 'Include Background Image with Text (Recommended)'}
                   </span>
                   {pdfToDocxMode === 'withImages' && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  {language === 'ar'
+                  {isAr
                     ? 'يتضمن صور الصفحة الأصلية في الخلفية مع وضع النص بالكامل فوقها بشكل قابل للتعديل والتحرير المباشر.'
                     : 'Includes original page background images while keeping all extracted text fully editable on top.'}
                 </p>
@@ -1138,7 +1173,7 @@ export default function DocumentConverterTool() {
                 type="button"
                 onClick={() => setPdfToDocxMode('editableText')}
                 className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between cursor-pointer ${
-                  language === 'ar' ? 'text-right' : 'text-left'
+                  isAr ? 'text-right' : 'text-left'
                 } ${
                   pdfToDocxMode === 'editableText'
                     ? 'border-primary bg-background shadow-xs text-primary font-medium'
@@ -1148,14 +1183,14 @@ export default function DocumentConverterTool() {
                 <div className="flex items-center justify-between w-full mb-1.5">
                   <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-primary" />
-                    {language === 'ar'
+                    {isAr
                       ? 'نص Word قابل للتعديل فقط'
                       : 'Editable Text Only'}
                   </span>
                   {pdfToDocxMode === 'editableText' && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
                 </div>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  {language === 'ar'
+                  {isAr
                     ? 'يستخرج النصوص والبيانات (بما فيها النص داخل الصور بالمسح الضوئي OCR) ويضعها مباشرة في ملف Word بدون صور خلفية.'
                     : 'Extracts document text (including OCR for scanned images) directly into Word without background images.'}
                 </p>
@@ -1170,14 +1205,14 @@ export default function DocumentConverterTool() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/80 pb-4">
               <div>
                 <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <Layout className="w-4 h-4 text-primary" /> PDF Page Layout & Customization
+                  <Layout className="w-4 h-4 text-primary" /> {isAr ? 'تخطيط وتخصيص صفحات PDF' : 'PDF Page Layout & Customization'}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Configure page dimensions, image placement, margins, and export mode
+                  {isAr ? 'ضبط أبعاد الصفحة وموضع الصور والهوامش ونمط التصدير' : 'Configure page dimensions, image placement, margins, and export mode'}
                 </p>
               </div>
               <Badge variant="outline" className="text-xs w-fit text-primary border-primary/30">
-                <Sliders className="w-3 h-3 mr-1" /> Dynamic Layout Engine
+                <Sliders className="w-3 h-3 mr-1" /> {isAr ? 'محرك التخطيط الديناميكي' : 'Dynamic Layout Engine'}
               </Badge>
             </div>
 
@@ -1185,67 +1220,67 @@ export default function DocumentConverterTool() {
               {/* Page Size */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-                  Page Dimensions
+                  {isAr ? 'أبعاد وقياس الصفحة' : 'Page Dimensions'}
                 </label>
                 <select
                   value={pageSize}
                   onChange={(e: any) => setPageSize(e.target.value)}
                   className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-medium focus:outline-hidden focus:ring-2 focus:ring-primary"
                 >
-                  <option value="a4-portrait">📄 A4 Portrait (210 × 297 mm)</option>
-                  <option value="a4-landscape">🖼️ A4 Landscape (297 × 210 mm)</option>
-                  <option value="fit">📐 Fit to Image (Dynamic Ratio)</option>
-                  <option value="auto">⚡ Smart Auto-Orientation</option>
-                  <option value="letter-portrait">📜 US Letter Portrait</option>
-                  <option value="letter-landscape">📜 US Letter Landscape</option>
+                  <option value="a4-portrait">{isAr ? '📄 A4 طولي (210 × 297 مم)' : '📄 A4 Portrait (210 × 297 mm)'}</option>
+                  <option value="a4-landscape">{isAr ? '🖼️ A4 عرضي (297 × 210 مم)' : '🖼️ A4 Landscape (297 × 210 mm)'}</option>
+                  <option value="fit">{isAr ? '📐 ملاءمة لمقاس الصورة (نسبة ديناميكية)' : '📐 Fit to Image (Dynamic Ratio)'}</option>
+                  <option value="auto">{isAr ? '⚡ توجيه تلقائي ذكي' : '⚡ Smart Auto-Orientation'}</option>
+                  <option value="letter-portrait">{isAr ? '📜 US Letter طولي' : '📜 US Letter Portrait'}</option>
+                  <option value="letter-landscape">{isAr ? '📜 US Letter عرضي' : '📜 US Letter Landscape'}</option>
                 </select>
               </div>
 
               {/* Image Fit Mode */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-                  Image Scaling (Fit Mode)
+                  {isAr ? 'مقياس الصورة (نمط الملاءمة)' : 'Image Scaling (Fit Mode)'}
                 </label>
                 <select
                   value={fitMode}
                   onChange={(e: any) => setFitMode(e.target.value)}
                   className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-medium focus:outline-hidden focus:ring-2 focus:ring-primary"
                 >
-                  <option value="contain">🔍 Fit Inside Page (Preserve Aspect)</option>
-                  <option value="cover">📐 Fill Page / Full Bleed</option>
-                  <option value="original">🎯 1:1 Original Pixel Size</option>
+                  <option value="contain">{isAr ? '🔍 احتواء داخل الصفحة (الحفاظ على الأبعاد)' : '🔍 Fit Inside Page (Preserve Aspect)'}</option>
+                  <option value="cover">{isAr ? '📐 ملء كامل الصفحة' : '📐 Fill Page / Full Bleed'}</option>
+                  <option value="original">{isAr ? '🎯 الحجم الأصلي بالبكسل (1:1)' : '🎯 1:1 Original Pixel Size'}</option>
                 </select>
               </div>
 
               {/* Page Margin */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-                  Page Margin
+                  {isAr ? 'هوامش الصفحة' : 'Page Margin'}
                 </label>
                 <select
                   value={margin}
                   onChange={(e) => setMargin(Number(e.target.value))}
                   className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-medium focus:outline-hidden focus:ring-2 focus:ring-primary"
                 >
-                  <option value={0}>0 mm (No Margin / Borderless)</option>
-                  <option value={15}>5 mm (Compact Margin)</option>
-                  <option value={30}>10 mm (Standard Margin)</option>
-                  <option value={50}>18 mm (Spacious Margin)</option>
+                  <option value={0}>{isAr ? '0 مم (بدون هوامش / حافة لحافة)' : '0 mm (No Margin / Borderless)'}</option>
+                  <option value={15}>{isAr ? '5 مم (هوامش مدمجة)' : '5 mm (Compact Margin)'}</option>
+                  <option value={30}>{isAr ? '10 مم (هوامش قياسية)' : '10 mm (Standard Margin)'}</option>
+                  <option value={50}>{isAr ? '18 مم (هوامش واسعة)' : '18 mm (Spacious Margin)'}</option>
                 </select>
               </div>
 
               {/* Export Mode */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-                  Download Mode
+                  {isAr ? 'نمط التنزيل' : 'Download Mode'}
                 </label>
                 <select
                   value={exportMode}
                   onChange={(e: any) => setExportMode(e.target.value)}
                   className="w-full h-10 px-3 rounded-xl border border-border bg-background text-xs font-medium focus:outline-hidden focus:ring-2 focus:ring-primary"
                 >
-                  <option value="merged">📑 Merge All into 1 Combined PDF</option>
-                  <option value="individual">🗂️ Export Each as Individual PDF</option>
+                  <option value="merged">{isAr ? '📑 دمج كل الصور في ملف PDF واحد' : '📑 Merge All into 1 Combined PDF'}</option>
+                  <option value="individual">{isAr ? '🗂️ تصدير كل صورة كملف PDF مستقل' : '🗂️ Export Each as Individual PDF'}</option>
                 </select>
               </div>
             </div>
@@ -1286,14 +1321,16 @@ export default function DocumentConverterTool() {
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">
-                Select or drag & drop multiple files or images
+                {isAr ? 'اختر أو اسحب وأفلت عدة ملفات أو صور' : 'Select or drag & drop multiple files or images'}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Multi-select enabled: Choose multiple PNG/JPG photos to create PDF, or upload Word, PowerPoint, Excel & PDF files
+                {isAr
+                  ? 'التحديد المتعدد مفعل: اختر صور PNG/JPG متعددة لإنشاء PDF، أو ارفع ملفات Word أو PowerPoint أو Excel أو PDF'
+                  : 'Multi-select enabled: Choose multiple PNG/JPG photos to create PDF, or upload Word, PowerPoint, Excel & PDF files'}
               </p>
             </div>
             <Button variant="outline" size="sm" className="rounded-xl pointer-events-none text-xs">
-              <Plus className="w-3.5 h-3.5 mr-1" /> Browse Files (Multi-Select Enabled)
+              <Plus className="w-3.5 h-3.5 mr-1" /> {isAr ? 'استعراض الملفات (تحديد متعدد)' : 'Browse Files (Multi-Select Enabled)'}
             </Button>
           </div>
         </div>
@@ -1304,10 +1341,11 @@ export default function DocumentConverterTool() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
               <div>
                 <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                  Queued Files ({items.length})
+                  {isAr ? `الملفات في قائمة الانتظار (${items.length})` : `Queued Files (${items.length})`}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Ready to transform into <strong className="text-foreground">{FORMAT_CONFIGS[validTarget].label}</strong>
+                  {isAr ? 'جاهزة للتحويل إلى ' : 'Ready to transform into '}
+                  <strong className="text-foreground">{getFormatLabel(validTarget)}</strong>
                 </p>
               </div>
 
@@ -1318,7 +1356,7 @@ export default function DocumentConverterTool() {
                   onClick={handleClearAll}
                   className="text-xs text-muted-foreground hover:text-destructive h-8"
                 >
-                  <Trash2 className="w-3.5 h-3.5 mr-1" /> Clear All
+                  <Trash2 className="w-3.5 h-3.5 mr-1" /> {isAr ? 'مسح الكل' : 'Clear All'}
                 </Button>
 
                 <Button
@@ -1327,7 +1365,7 @@ export default function DocumentConverterTool() {
                   onClick={() => fileInputRef.current?.click()}
                   className="text-xs h-9 rounded-xl gap-1.5"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Add More Files
+                  <Plus className="w-3.5 h-3.5" /> {isAr ? 'إضافة المزيد' : 'Add More Files'}
                 </Button>
 
                 {items.some((it) => it.status === 'success') && (
@@ -1337,7 +1375,7 @@ export default function DocumentConverterTool() {
                     onClick={handleDownloadAllZip}
                     className="text-xs h-9 rounded-xl gap-1.5"
                   >
-                    <FileArchive className="w-3.5 h-3.5" /> Download All ZIP
+                    <FileArchive className="w-3.5 h-3.5" /> {isAr ? 'تنزيل الكل ZIP' : 'Download All ZIP'}
                   </Button>
                 )}
 
@@ -1349,11 +1387,11 @@ export default function DocumentConverterTool() {
                 >
                   {isConverting ? (
                     <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Converting...
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> {isAr ? 'جارٍ التحويل...' : 'Converting...'}
                     </>
                   ) : (
                     <>
-                      <RefreshCw className="w-3.5 h-3.5" /> Convert to {FORMAT_CONFIGS[validTarget].label}
+                      <RefreshCw className="w-3.5 h-3.5" /> {isAr ? `تحويل إلى ${getFormatLabel(validTarget)}` : `Convert to ${FORMAT_CONFIGS[validTarget].label}`}
                     </>
                   )}
                 </Button>
@@ -1383,7 +1421,7 @@ export default function DocumentConverterTool() {
                           setCurrentPreviewIndex(idx)
                           if (item.previewUrl) setModalItem(item)
                         }}
-                        title="Click to preview"
+                        title={isAr ? 'انقر للمعاينة' : 'Click to preview'}
                         className="relative w-14 h-14 rounded-lg bg-card border border-border/60 overflow-hidden flex items-center justify-center shrink-0 cursor-pointer group/thumb hover:ring-2 hover:ring-primary transition-all"
                       >
                         {item.previewUrl ? (
@@ -1404,14 +1442,14 @@ export default function DocumentConverterTool() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1">
                           <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                            Page {idx + 1} of {items.length}
+                            {isAr ? `صفحة ${idx + 1} من ${items.length}` : `Page ${idx + 1} of ${items.length}`}
                           </span>
                           <div className="flex items-center gap-1">
                             {idx > 0 && (
                               <button
                                 type="button"
                                 onClick={() => handleMoveItem(idx, 'up')}
-                                title="Move up"
+                                title={isAr ? 'تحريك لأعلى' : 'Move up'}
                                 className="p-0.5 hover:text-primary transition-colors cursor-pointer"
                               >
                                 <MoveUp className="w-3 h-3" />
@@ -1421,7 +1459,7 @@ export default function DocumentConverterTool() {
                               <button
                                 type="button"
                                 onClick={() => handleMoveItem(idx, 'down')}
-                                title="Move down"
+                                title={isAr ? 'تحريك لأسفل' : 'Move down'}
                                 className="p-0.5 hover:text-primary transition-colors cursor-pointer"
                               >
                                 <MoveDown className="w-3 h-3" />
@@ -1443,17 +1481,17 @@ export default function DocumentConverterTool() {
 
                         {item.status === 'success' && (
                           <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
-                            <CheckCircle2 className="w-3 h-3" /> Converted (PDF)
+                            <CheckCircle2 className="w-3 h-3" /> {isAr ? 'تم التحويل' : 'Converted (PDF)'}
                           </div>
                         )}
                         {item.status === 'converting' && (
                           <div className="flex items-center gap-1.5 text-[10px] text-primary font-semibold mt-1">
-                            <Loader2 className="w-3 h-3 animate-spin" /> Processing
+                            <Loader2 className="w-3 h-3 animate-spin" /> {isAr ? 'جارٍ المعالجة' : 'Processing'}
                           </div>
                         )}
                         {item.status === 'error' && (
                           <div className="text-[10px] text-destructive font-semibold mt-1 truncate">
-                            {item.error || 'Failed'}
+                            {item.error || (isAr ? 'فشل' : 'Failed')}
                           </div>
                         )}
                       </div>
@@ -1468,7 +1506,7 @@ export default function DocumentConverterTool() {
                             isCurrentPreview ? 'text-primary font-bold' : 'text-muted-foreground hover:text-foreground'
                           }`}
                         >
-                          {isCurrentPreview ? '● Active Preview' : 'Select for Preview'}
+                          {isCurrentPreview ? (isAr ? '● المعاينة النشطة' : '● Active Preview') : (isAr ? 'تحديد للمعاينة' : 'Select for Preview')}
                         </button>
                       ) : (
                         <span className="text-[11px] text-muted-foreground">{item.format.toUpperCase()}</span>
@@ -1491,7 +1529,7 @@ export default function DocumentConverterTool() {
                           onClick={() => handleRemoveItem(item.id)}
                           className="text-[11px] text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
                         >
-                          Remove
+                          {isAr ? 'حذف' : 'Remove'}
                         </button>
                       </div>
                     </div>
@@ -1518,11 +1556,11 @@ export default function DocumentConverterTool() {
                 </div>
                 <div>
                   <h3 className="font-bold text-foreground text-base">
-                    Live PDF Page Preview
+                    {isAr ? 'معاينة حية لصفحات PDF' : 'Live PDF Page Preview'}
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    Inspecting Page {currentPreviewIndex + 1} of {items.length}:{' '}
-                    <strong className="text-foreground">{activeSimulatedItem.name}</strong> • Layout: {pageSize.toUpperCase()} ({fitMode})
+                    {isAr ? `فحص الصفحة ${currentPreviewIndex + 1} من ${items.length}: ` : `Inspecting Page ${currentPreviewIndex + 1} of ${items.length}: `}
+                    <strong className="text-foreground">{activeSimulatedItem.name}</strong> • {isAr ? 'التخطيط:' : 'Layout:'} {pageSize.toUpperCase()} ({fitMode})
                   </p>
                 </div>
               </div>
@@ -1536,7 +1574,7 @@ export default function DocumentConverterTool() {
                   onClick={() => setCurrentPreviewIndex((prev) => Math.max(0, prev - 1))}
                   className="h-8 w-8 p-0 rounded-lg"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <ChevronLeft className={`w-4 h-4 ${isAr ? 'rotate-180' : ''}`} />
                 </Button>
                 <span className="text-xs font-semibold px-2">
                   {currentPreviewIndex + 1} / {items.length}
@@ -1548,7 +1586,7 @@ export default function DocumentConverterTool() {
                   onClick={() => setCurrentPreviewIndex((prev) => Math.min(items.length - 1, prev + 1))}
                   className="h-8 w-8 p-0 rounded-lg"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className={`w-4 h-4 ${isAr ? 'rotate-180' : ''}`} />
                 </Button>
               </div>
             </div>
@@ -1588,7 +1626,7 @@ export default function DocumentConverterTool() {
                   <div className="p-8 text-center space-y-2">
                     <FileText className="w-12 h-12 text-muted-foreground mx-auto" />
                     <p className="text-xs font-semibold text-neutral-700">{activeSimulatedItem.name}</p>
-                    <p className="text-[10px] text-neutral-500">Document Page Placeholder</p>
+                    <p className="text-[10px] text-neutral-500">{isAr ? 'عنصر نائب لصفحة المستند' : 'Document Page Placeholder'}</p>
                   </div>
                 )}
 
@@ -1640,11 +1678,12 @@ export default function DocumentConverterTool() {
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-foreground text-base">Conversion Completed</h3>
+                  <h3 className="font-bold text-foreground text-base">{isAr ? 'اكتمل التحويل بنجاح' : 'Conversion Completed'}</h3>
                   <p className="text-xs text-muted-foreground">
-                    Output: <span className="font-semibold text-foreground">{result.filename}</span> •{' '}
+                    {isAr ? 'الملف الناتج: ' : 'Output: '}
+                    <span className="font-semibold text-foreground">{result.filename}</span> •{' '}
                     {formatFileSize(result.blob.size)}
-                    {result.pageCount ? ` • ${result.pageCount} pages compiled` : ''}
+                    {result.pageCount ? ` • ${result.pageCount} ${isAr ? 'صفحات تم تجميعها' : 'pages compiled'}` : ''}
                   </p>
                 </div>
               </div>
@@ -1657,7 +1696,7 @@ export default function DocumentConverterTool() {
                     onClick={handleDownloadAllZip}
                     className="rounded-xl gap-2 font-semibold shadow-xs"
                   >
-                    <FileArchive className="w-4 h-4" /> Download All (ZIP)
+                    <FileArchive className="w-4 h-4" /> {isAr ? 'تنزيل الكل (ZIP)' : 'Download All (ZIP)'}
                   </Button>
                 )}
 
@@ -1665,7 +1704,7 @@ export default function DocumentConverterTool() {
                   onClick={handleDownloadCombined}
                   className="rounded-xl gap-2 font-semibold shadow-xs"
                 >
-                  <Download className="w-4 h-4" /> Download {FORMAT_CONFIGS[validTarget].label}
+                  <Download className="w-4 h-4" /> {isAr ? `تنزيل ${getFormatLabel(validTarget)}` : `Download ${FORMAT_CONFIGS[validTarget].label}`}
                 </Button>
               </div>
             </div>
@@ -1675,10 +1714,10 @@ export default function DocumentConverterTool() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Individual Converted Pages ({result.items.length})
+                    {isAr ? `الصفحات المحولة الفردية (${result.items.length})` : `Individual Converted Pages (${result.items.length})`}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    Download each page independently or as a combined package
+                    {isAr ? 'تنزيل كل صفحة على حدة أو كحزمة مجمعة' : 'Download each page independently or as a combined package'}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-96 overflow-y-auto p-1 custom-scrollbar">
@@ -1710,11 +1749,11 @@ export default function DocumentConverterTool() {
                           a.click()
                           document.body.removeChild(a)
                           URL.revokeObjectURL(url)
-                          toast.success(`Downloaded ${item.name}`)
+                          toast.success(isAr ? `تم تنزيل ${item.name}` : `Downloaded ${item.name}`)
                         }}
                         className="w-full mt-2 h-7 text-[11px] rounded-lg gap-1 opacity-90 group-hover:opacity-100"
                       >
-                        <Download className="w-3 h-3" /> Save File
+                        <Download className="w-3 h-3" /> {isAr ? 'حفظ الملف' : 'Save File'}
                       </Button>
                     </div>
                   ))}
@@ -1736,7 +1775,7 @@ export default function DocumentConverterTool() {
                             : 'text-muted-foreground hover:text-foreground'
                         }`}
                       >
-                        Visual Document Preview
+                        {isAr ? 'معاينة المستند المرئية' : 'Visual Document Preview'}
                       </button>
                     )}
                     {result.previewText && (
@@ -1748,7 +1787,7 @@ export default function DocumentConverterTool() {
                             : 'text-muted-foreground hover:text-foreground'
                         }`}
                       >
-                        Extracted Text View
+                        {isAr ? 'عرض النصوص المستخرجة' : 'Extracted Text View'}
                       </button>
                     )}
                   </div>
@@ -1760,7 +1799,7 @@ export default function DocumentConverterTool() {
                       onClick={() => handleCopyText(result.previewText || '')}
                       className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1.5"
                     >
-                      <Copy className="w-3.5 h-3.5" /> Copy Text
+                      <Copy className="w-3.5 h-3.5" /> {isAr ? 'نسخ النص' : 'Copy Text'}
                     </Button>
                   )}
                 </div>
@@ -1812,7 +1851,7 @@ export default function DocumentConverterTool() {
                 onClick={() => setModalItem(null)}
                 className="text-xs rounded-xl"
               >
-                Close Preview
+                {isAr ? 'إغلاق المعاينة' : 'Close Preview'}
               </Button>
               {modalItem?.convertedBlob && (
                 <Button
@@ -1820,7 +1859,7 @@ export default function DocumentConverterTool() {
                   onClick={() => modalItem && handleDownloadItem(modalItem)}
                   className="text-xs rounded-xl gap-1.5"
                 >
-                  <Download className="w-3.5 h-3.5" /> Download PDF
+                  <Download className="w-3.5 h-3.5" /> {isAr ? 'تنزيل PDF' : 'Download PDF'}
                 </Button>
               )}
             </div>

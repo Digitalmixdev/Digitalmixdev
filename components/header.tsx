@@ -215,7 +215,7 @@ export function Header() {
               </Button>
             )}
 
-            {/* Auth Section (Desktop only for Avatar/UserMenu, Mobile uses Hamburger Menu) */}
+            {/* Auth Section (Avatar/UserMenu for Mobile & Desktop) */}
             {mounted && !isLoading && !isAuthenticated ? (
               <div className="hidden lg:flex items-center gap-2 animate-in fade-in duration-150">
                 <Button asChild variant="ghost" size="sm" className="h-9 px-3 text-xs font-semibold rounded-xl text-muted-foreground hover:text-foreground">
@@ -226,7 +226,7 @@ export function Header() {
                 </Button>
               </div>
             ) : mounted && isAuthenticated ? (
-              <div className="hidden sm:flex items-center min-h-[36px]">
+              <div className="flex items-center shrink-0">
                 <UserMenu />
               </div>
             ) : null}

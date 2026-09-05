@@ -793,54 +793,52 @@ export default function BinaryTranslatorTool() {
           <div className="space-y-6">
             {/* Two-Column Side-by-Side Workspace */}
             <div className="relative">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                 {/* Left Column: Input Box */}
-                <div className="p-5 rounded-2xl border border-border/70 bg-card shadow-xs flex flex-col justify-between space-y-3.5">
-                  <div className="space-y-3.5 flex-1 flex flex-col">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold tracking-wider text-muted-foreground uppercase flex items-center gap-1.5">
-                        {mode === 'text-to-binary' ? (
-                          <>
-                            <FileText className="h-3.5 w-3.5 text-primary" />
-                            {isAr ? 'النص المدخل (Plain Text)' : 'Plain Text Input'}
-                          </>
-                        ) : (
-                          <>
-                            <Binary className="h-3.5 w-3.5 text-primary" />
-                            {isAr ? 'النص الثنائي المدخل (Binary Code)' : 'Binary Input (0s & 1s)'}
-                          </>
-                        )}
-                      </label>
+                <div className="p-5 rounded-2xl border border-border/70 bg-card shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold tracking-wider text-muted-foreground uppercase flex items-center gap-1.5">
+                      {mode === 'text-to-binary' ? (
+                        <>
+                          <FileText className="h-3.5 w-3.5 text-primary" />
+                          {isAr ? 'النص المدخل (Plain Text)' : 'Plain Text Input'}
+                        </>
+                      ) : (
+                        <>
+                          <Binary className="h-3.5 w-3.5 text-primary" />
+                          {isAr ? 'النص الثنائي المدخل (Binary Code)' : 'Binary Input (0s & 1s)'}
+                        </>
+                      )}
+                    </label>
 
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={handleClear}
-                          disabled={!inputText}
-                          className="text-xs text-destructive hover:underline flex items-center gap-1 font-medium cursor-pointer disabled:opacity-40"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                          {isAr ? 'مسح' : 'Clear'}
-                        </button>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleClear}
+                        disabled={!inputText}
+                        className="text-xs text-destructive hover:underline flex items-center gap-1 font-medium cursor-pointer disabled:opacity-40"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        {isAr ? 'مسح' : 'Clear'}
+                      </button>
                     </div>
-
-                    <textarea
-                      value={inputText}
-                      onChange={(e) => setInputText(e.target.value)}
-                      placeholder={
-                        mode === 'text-to-binary'
-                          ? isAr
-                            ? 'اكتب أو الصق أي نص عادي هنا ليتم تحويله إلى كود ثنائي بايت ببايت...'
-                            : 'Type or paste plain text here to translate into binary code byte by byte...'
-                          : isAr
-                            ? 'الصق الأرقام الثنائية هنا (مثل: 01001000 01100101)...'
-                            : 'Paste binary digits here (e.g. 01001000 01100101 01101100)...'
-                      }
-                      className="w-full h-80 p-4 rounded-xl border border-border bg-background font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all resize-none leading-relaxed text-foreground placeholder:text-muted-foreground/50 flex-1"
-                      spellCheck={false}
-                    />
                   </div>
+
+                  <textarea
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    placeholder={
+                      mode === 'text-to-binary'
+                        ? isAr
+                          ? `اكتب أو الصق أي نص عادي هنا (${encoding.toUpperCase()})...`
+                          : `Type or paste your raw text here (${encoding.toUpperCase()})...`
+                        : isAr
+                          ? 'الصق الأرقام الثنائية هنا (مثل: 01001000 01100101)...'
+                          : 'Paste binary digits here (e.g., 01001000 01100101)...'
+                    }
+                    className="w-full h-64 p-4 rounded-xl border border-border bg-background font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all resize-none leading-relaxed text-foreground placeholder:text-muted-foreground/50"
+                    spellCheck={false}
+                  />
 
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/40">
                     <span>
@@ -857,58 +855,56 @@ export default function BinaryTranslatorTool() {
                 </div>
 
                 {/* Right Column: Output Box */}
-                <div className="p-5 rounded-2xl border border-border/70 bg-card shadow-xs flex flex-col justify-between space-y-3.5">
-                  <div className="space-y-3.5 flex-1 flex flex-col">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold tracking-wider text-muted-foreground uppercase flex items-center gap-1.5">
-                        {mode === 'text-to-binary' ? (
-                          <>
-                            <Binary className="h-3.5 w-3.5 text-primary" />
-                            {isAr ? 'النتيجة بالنظام الثنائي (Binary Output)' : 'Binary Output (Byte-by-Byte)'}
-                          </>
-                        ) : (
-                          <>
-                            <FileText className="h-3.5 w-3.5 text-primary" />
-                            {isAr ? 'النص الناتج بعد فك التشفير' : 'Decoded Plain Text Output'}
-                          </>
-                        )}
-                      </label>
-
-                      {outputText && (
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={handleCopy}
-                            className="h-8 px-2.5 text-xs gap-1.5 font-medium rounded-lg"
-                          >
-                            {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                            {isCopied ? (isAr ? 'تم النسخ' : 'Copied') : isAr ? 'نسخ' : 'Copy'}
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleDownload}
-                            className="h-8 px-2.5 text-xs gap-1.5 font-medium rounded-lg"
-                            title={isAr ? 'تنزيل النتيجة كملف' : 'Download result'}
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                            {isAr ? 'تنزيل' : 'Download'}
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="relative h-80 w-full rounded-xl border border-border bg-background p-4 overflow-y-auto font-mono text-sm leading-relaxed text-foreground break-all whitespace-pre-wrap select-all flex-1">
-                      {outputText ? (
-                        outputText
+                <div className="p-5 rounded-2xl border border-border/70 bg-card shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold tracking-wider text-muted-foreground uppercase flex items-center gap-1.5">
+                      {mode === 'text-to-binary' ? (
+                        <>
+                          <Binary className="h-3.5 w-3.5 text-primary" />
+                          {isAr ? 'النتيجة بالنظام الثنائي (Binary Output)' : 'Binary Output'}
+                        </>
                       ) : (
-                        <span className="text-muted-foreground/50 italic text-xs select-none">
-                          {isAr ? 'ستظهر النتيجة المترجمة هنا فورياً...' : 'Translated output will appear here in real-time...'}
-                        </span>
+                        <>
+                          <FileText className="h-3.5 w-3.5 text-primary" />
+                          {isAr ? 'النص الناتج بعد فك التشفير' : 'Decoded Plain Text Output'}
+                        </>
                       )}
-                    </div>
+                    </label>
+
+                    {outputText && (
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleCopy}
+                          className="h-8 px-2.5 text-xs gap-1.5 font-medium rounded-lg"
+                        >
+                          {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                          {isCopied ? (isAr ? 'تم النسخ' : 'Copied') : isAr ? 'نسخ' : 'Copy'}
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDownload}
+                          className="h-8 px-2.5 text-xs gap-1.5 font-medium rounded-lg"
+                          title={isAr ? 'تنزيل النتيجة كملف' : 'Download result'}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          {isAr ? 'تنزيل' : 'Download'}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="relative h-64 w-full rounded-xl border border-border bg-background p-4 overflow-y-auto font-mono text-sm leading-relaxed text-foreground break-all whitespace-pre-wrap select-all">
+                    {outputText ? (
+                      outputText
+                    ) : (
+                      <span className="text-muted-foreground/50 italic text-xs select-none">
+                        {isAr ? 'ستظهر النتيجة المترجمة هنا فورياً...' : 'Output will appear here in real-time...'}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/40">
