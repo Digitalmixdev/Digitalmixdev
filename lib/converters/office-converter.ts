@@ -1382,9 +1382,8 @@ export async function generateDocxFromNormalizedDoc(
 
     if (!isWhiteBg) {
       const hexColor = pageBgColor.replace('#', '').substring(0, 6)
-      const cx = 11906 * 635 // 7560310 EMUs (11906 twips)
-      const cy = 16838 * 635 // 10692130 EMUs (16838 twips)
-      const bgRelId = relIndex++
+      const widthPt = `${11906 / 20}pt`
+      const heightPt = `${16838 / 20}pt`
 
       bodyXml += `
         <w:p>
@@ -1392,36 +1391,11 @@ export async function generateDocxFromNormalizedDoc(
             <w:spacing w:before="0" w:after="0"/>
           </w:pPr>
           <w:r>
-            <w:drawing>
-              <wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="0" behindDoc="1" locked="1" layoutInCell="1" allowOverlap="1">
-                <wp:simplePos x="0" y="0"/>
-                <wp:positionH relativeFrom="page">
-                  <wp:posOffset>0</wp:posOffset>
-                </wp:positionH>
-                <wp:positionV relativeFrom="page">
-                  <wp:posOffset>0</wp:posOffset>
-                </wp:positionV>
-                <wp:extent cx="${cx}" cy="${cy}"/>
-                <wp:effectExtent l="0" t="0" r="0" b="0"/>
-                <wp:docPr id="${bgRelId}" name="Page Background ${pageIdx + 1}"/>
-                <wp:cNvGraphicFramePr/>
-                <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
-                  <a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">
-                    <wps:wsp xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">
-                      <wps:spPr>
-                        <a:xfrm>
-                          <a:off x="0" y="0"/>
-                          <a:ext cx="${cx}" cy="${cy}"/>
-                        </a:xfrm>
-                        <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
-                        <a:solidFill><a:srgbClr val="${hexColor}"/></a:solidFill>
-                        <a:ln><a:noFill/></a:ln>
-                      </wps:spPr>
-                    </wps:wsp>
-                  </a:graphicData>
-                </a:graphic>
-              </wp:anchor>
-            </w:drawing>
+            <w:pict>
+              <v:rect id="pageBg${pageIdx + 1}" style="position:absolute;left:0;top:0;width:${widthPt};height:${heightPt};z-index:-999" fillcolor="#${hexColor}" stroked="f">
+                <w10:wrap type="none" anchorx="page" anchory="page"/>
+              </v:rect>
+            </w:pict>
           </w:r>
         </w:p>
       `
@@ -1502,7 +1476,9 @@ export async function generateDocxFromNormalizedDoc(
             xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"
             xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
             xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
-            xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+            xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"
+            xmlns:v="urn:schemas-microsoft-com:vml"
+            xmlns:w10="urn:schemas-microsoft-com:office:word">
   <w:body>
     ${bodyXml}
     <w:sectPr>
