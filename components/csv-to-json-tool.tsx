@@ -21,7 +21,7 @@ import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { useLanguage } from '@/lib/i18n/context'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
-import { logToolActivity } from '@/lib/history-service'
+import { logToolActivity, registerClientToolSignature } from '@/lib/history-service'
 import { toast } from 'sonner'
 
 const toolMeta: ToolMetadata = {
@@ -125,9 +125,13 @@ export default function CsvToJsonTool() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const recordUsage = async () => {
+    if (!inputCsv.trim()) return
+    const sig = `${inputCsv.trim()}|${outputJson.trim()}`
+    if (!registerClientToolSignature('csv-json', sig)) return
+
     try {
       await Promise.all([
-        incrementToolUsage(),
+        incrementToolUsage(sig),
         markToolUsed('csv-json'),
       ])
     } catch {

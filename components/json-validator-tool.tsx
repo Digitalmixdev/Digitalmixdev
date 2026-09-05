@@ -473,7 +473,7 @@ export function JsonValidatorTool() {
     lastValidatedInputRef.current = validationKey
 
     markToolUsed('json-validator')
-    incrementToolUsage()
+    incrementToolUsage(validationKey)
 
     const res = validateJsonPayload(code)
     const newHistItem: JsonValidatorHistoryItem = {

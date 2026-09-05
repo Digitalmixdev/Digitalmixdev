@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
-import { logToolActivity } from '@/lib/history-service'
+import { logToolActivity, registerClientToolSignature } from '@/lib/history-service'
 
 const toolMeta: ToolMetadata = {
   id: 'base64',
@@ -120,9 +120,13 @@ export default function Base64Tool() {
   const [isCopied, setIsCopied] = useState(false)
 
   const recordUsage = async () => {
+    if (!outputText || !inputText) return
+    const sig = `${mode}|${encoding}|${inputText.trim()}|${outputText.trim()}`
+    if (!registerClientToolSignature('base64', sig)) return
+
     try {
       await Promise.all([
-        incrementToolUsage(),
+        incrementToolUsage(sig),
         markToolUsed('base64'),
       ])
       logToolActivity({

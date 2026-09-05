@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
-import { logToolActivity } from '@/lib/history-service'
+import { logToolActivity, registerClientToolSignature } from '@/lib/history-service'
 import { registerToolInputGetter } from '@/lib/ai/tool-input-bus'
 
 const toolMeta: ToolMetadata = {
@@ -134,9 +134,15 @@ export default function JwtTool() {
   }, [mode, jwtInput, payloadJson])
 
   const recordUsage = async () => {
+    const inSnip = mode === 'decode' ? jwtInput.trim() : payloadJson.trim()
+    const outSnip = mode === 'decode' ? payloadJson.trim() : jwtOutput.trim()
+    if (!inSnip) return
+    const sig = `${mode}|${algorithm}|${inSnip}|${outSnip}`
+    if (!registerClientToolSignature('jwt', sig)) return
+
     try {
       await Promise.all([
-        incrementToolUsage(),
+        incrementToolUsage(sig),
         markToolUsed('jwt'),
       ])
       logToolActivity({

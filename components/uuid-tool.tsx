@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
-import { logToolActivity } from '@/lib/history-service'
+import { logToolActivity, registerClientToolSignature } from '@/lib/history-service'
 
 const toolMeta: ToolMetadata = {
   id: 'uuid-generator',
@@ -116,9 +116,13 @@ function UUIDToolContent() {
   const [isCopied, setIsCopied] = useState(false)
 
   const recordUsage = async (count = quantity) => {
+    if (uuidList.length === 0) return
+    const sig = `${count}|${uuidList[0] || ''}|${uuidList.length}`
+    if (!registerClientToolSignature('uuid-generator', sig)) return
+
     try {
       await Promise.all([
-        incrementToolUsage(),
+        incrementToolUsage(sig),
         markToolUsed('uuid-generator'),
       ])
       logToolActivity({

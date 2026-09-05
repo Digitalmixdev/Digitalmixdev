@@ -30,7 +30,7 @@ import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
 import { useLanguage } from '@/lib/i18n/context'
-import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities } from '@/lib/history-service'
+import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities, registerClientToolSignature } from '@/lib/history-service'
 import { registerToolInputGetter } from '@/lib/ai/tool-input-bus'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -451,9 +451,13 @@ export default function JsonFormatterTool() {
   }, [history, historySearch])
 
   const recordUsage = async () => {
+    if (!inputJson.trim()) return
+    const sig = `${inputJson.trim()}|${indentSpaces}`
+    if (!registerClientToolSignature('json-formatter', sig)) return
+
     try {
       await Promise.all([
-        incrementToolUsage(),
+        incrementToolUsage(sig),
         markToolUsed('json-formatter'),
       ])
     } catch {

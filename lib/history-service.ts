@@ -44,6 +44,35 @@ export function notifyHistoryUpdated(items?: ToolActivityItem[]): void {
 let lastLoggedActivitySignature = ''
 let lastLoggedActivityTime = 0
 
+// In-memory client signature set to prevent duplicate tool usage recording across the application
+const activeClientToolSignatures = new Set<string>()
+
+/**
+ * Checks if a specific action signature has already been recorded in the current session.
+ * If not yet recorded, registers it and returns true (allowed).
+ * If already recorded with the exact same signature, returns false (duplicate).
+ */
+export function registerClientToolSignature(toolId: string, signature: string): boolean {
+  if (!signature) return true
+  const key = `${toolId}:${signature}`
+  if (activeClientToolSignatures.has(key)) {
+    return false
+  }
+  activeClientToolSignatures.add(key)
+  return true
+}
+
+/**
+ * Resets the recorded client signature for a tool (e.g. when editor or input is cleared).
+ */
+export function clearClientToolSignature(toolId: string): void {
+  for (const key of activeClientToolSignatures) {
+    if (key.startsWith(`${toolId}:`)) {
+      activeClientToolSignatures.delete(key)
+    }
+  }
+}
+
 /**
  * Universal function to log any tool activity across the entire app.
  */
@@ -59,10 +88,10 @@ export async function logToolActivity(activity: {
   createdAt?: string
 }): Promise<ToolActivityItem> {
   const now = Date.now()
-  const sig = `${activity.toolId}|${activity.actionTitle}|${(activity.details || '').slice(0, 40)}`
+  const sig = `${activity.toolId}|${activity.actionTitle}|${(activity.inputSnippet || '').slice(0, 100)}|${(activity.outputSnippet || '').slice(0, 100)}`
 
-  // Debounce duplicate invocations within 1.5 seconds
-  if (sig === lastLoggedActivitySignature && now - lastLoggedActivityTime < 1500) {
+  // Debounce duplicate invocations within 5 seconds for the same content
+  if (sig === lastLoggedActivitySignature && now - lastLoggedActivityTime < 5000) {
     const existing = getLocalActivityHistory()
     if (existing.length > 0) return existing[0]
   }
@@ -92,12 +121,18 @@ export async function logToolActivity(activity: {
       const raw = localStorage.getItem(LOCAL_STORAGE_KEY)
       const list: ToolActivityItem[] = raw ? JSON.parse(raw) : []
 
-      // Filter out duplicate identical actions within recent seconds
+      // Filter out duplicate identical actions (identical input/output or rapid bursts)
       const filtered = list.filter((it) => {
         if (it.id === newItem.id) return false
-        if (it.toolId === newItem.toolId && it.actionTitle === newItem.actionTitle) {
-          const diffMs = Math.abs(new Date(it.createdAt).getTime() - new Date(newItem.createdAt).getTime())
-          if (diffMs < 3000) return false
+        if (it.toolId === newItem.toolId) {
+          // If identical input and output were already recorded, deduplicate it
+          if (it.inputSnippet === newItem.inputSnippet && it.outputSnippet === newItem.outputSnippet) {
+            return false
+          }
+          if (it.actionTitle === newItem.actionTitle) {
+            const diffMs = Math.abs(new Date(it.createdAt).getTime() - new Date(newItem.createdAt).getTime())
+            if (diffMs < 3000) return false
+          }
         }
         return true
       })

@@ -279,7 +279,7 @@ export function SqlValidatorTool() {
     lastValidatedInputRef.current = validationKey
 
     markToolUsed('sql-validator')
-    incrementToolUsage()
+    incrementToolUsage(validationKey)
 
     const res = validateSqlCode(code, dialect)
     const newHistItem: SqlValidatorHistoryItem = {
@@ -393,31 +393,55 @@ export function SqlValidatorTool() {
   return (
     <ToolLayout metadata={toolMeta}>
       <div className="space-y-6">
-        {/* Navigation Tabs */}
-        <div className="flex items-center justify-start border-b border-border/60 pb-3 gap-2">
-          <Button
-            variant={activeTab === 'editor' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveTab('editor')}
-            className="rounded-xl gap-2 text-xs font-semibold"
-          >
-            <Code className="h-3.5 w-3.5" />
-            {isAr ? 'محرر التدقيق' : 'Validator Editor'}
-          </Button>
-          <Button
-            variant={activeTab === 'history' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveTab('history')}
-            className="rounded-xl gap-2 text-xs font-semibold relative"
-          >
-            <History className="h-3.5 w-3.5" />
-            {isAr ? 'سجل التدقيق' : 'Validation History'}
-            {history.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 bg-primary/20 text-primary text-[10px] font-bold rounded-full">
-                {history.length}
-              </span>
-            )}
-          </Button>
+        {/* Navigation Tabs & Dialect Selector */}
+        <div className="flex flex-wrap items-center justify-between border-b border-border/60 pb-3 gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant={activeTab === 'editor' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setActiveTab('editor')}
+              className="rounded-xl gap-2 text-xs font-semibold"
+            >
+              <Code className="h-3.5 w-3.5" />
+              {isAr ? 'محرر التدقيق' : 'Validator Editor'}
+            </Button>
+            <Button
+              variant={activeTab === 'history' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setActiveTab('history')}
+              className="rounded-xl gap-2 text-xs font-semibold relative"
+            >
+              <History className="h-3.5 w-3.5" />
+              {isAr ? 'سجل التدقيق' : 'Validation History'}
+              {history.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 bg-primary/20 text-primary text-[10px] font-bold rounded-full">
+                  {history.length}
+                </span>
+              )}
+            </Button>
+
+            {/* Dialect Selector: Beside Validation History on Big Screens (sm and up) */}
+            <div className="hidden sm:flex items-center gap-2 sm:ms-2 sm:ps-3 sm:border-s sm:border-border/60">
+              <div className="flex items-center gap-1.5 text-primary">
+                <Database className="h-3.5 w-3.5" />
+                <span className="text-xs font-bold text-foreground whitespace-nowrap">
+                  {isAr ? 'قاعدة البيانات / اللهجة:' : 'SQL Dialect:'}
+                </span>
+              </div>
+              <select
+                value={dialect}
+                onChange={(e) => setDialect(e.target.value as SqlDialect)}
+                className="h-8 rounded-xl border border-border/80 bg-background px-2.5 py-1 text-xs font-semibold text-foreground shadow-xs focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
+              >
+                <option value="postgresql">PostgreSQL</option>
+                <option value="mysql">MySQL / MariaDB</option>
+                <option value="sql">Standard ANSI SQL</option>
+                <option value="sqlite">SQLite</option>
+                <option value="plsql">Oracle (PL/SQL)</option>
+                <option value="tsql">MS SQL Server (T-SQL)</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         {activeTab === 'history' ? (
@@ -514,8 +538,8 @@ export function SqlValidatorTool() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left Column: Editor & Controls */}
             <div className="lg:col-span-7 space-y-3.5">
-              {/* Dialect Selector (Above Samples) */}
-              <div className="flex flex-wrap items-center gap-2.5">
+              {/* Dialect Selector (Above Samples in mobile only) */}
+              <div className="flex sm:hidden flex-wrap items-center gap-2.5">
                 <div className="flex items-center gap-1.5 text-primary">
                   <Database className="h-3.5 w-3.5" />
                   <span className="text-xs font-bold text-foreground">

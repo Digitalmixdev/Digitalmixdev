@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
-import { logToolActivity } from '@/lib/history-service'
+import { logToolActivity, registerClientToolSignature } from '@/lib/history-service'
 
 const toolMeta: ToolMetadata = {
   id: 'regex-tester',
@@ -177,9 +177,18 @@ function RegexToolContent() {
   const [isCopied, setIsCopied] = useState(false)
 
   const recordUsage = async () => {
+    if (!regexInput) return
+    let flags = ''
+    if (flagG) flags += 'g'
+    if (flagI) flags += 'i'
+    if (flagM) flags += 'm'
+    if (flagS) flags += 's'
+    const sig = `/${regexInput}/${flags}|${testString.slice(0, 100)}`
+    if (!registerClientToolSignature('regex-tester', sig)) return
+
     try {
       await Promise.all([
-        incrementToolUsage(),
+        incrementToolUsage(sig),
         markToolUsed('regex-tester'),
       ])
       logToolActivity({

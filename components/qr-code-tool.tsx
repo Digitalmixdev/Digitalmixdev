@@ -459,7 +459,7 @@ function QRCodeToolContent() {
 
     try {
       await Promise.all([
-        incrementToolUsage(),
+        incrementToolUsage(key),
         markToolUsed('qr-code-generator'),
       ])
     } catch {

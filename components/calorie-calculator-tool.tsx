@@ -253,7 +253,8 @@ export default function CalorieCalculatorTool() {
   const activeGoalLabel = isArabic ? activeGoalObj.label_ar : activeGoalObj.label
 
   const handleCopySummary = () => {
-    incrementToolUsage()
+    const sig = `${age}|${weight}|${height}|${units}|${activity}|${goal}`
+    incrementToolUsage(sig)
     markToolUsed('calorie-calculator')
     logToolActivity({
       toolId: 'calorie-calculator',

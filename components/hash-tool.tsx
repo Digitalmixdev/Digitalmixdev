@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
-import { logToolActivity } from '@/lib/history-service'
+import { logToolActivity, registerClientToolSignature } from '@/lib/history-service'
 
 import md5 from 'crypto-js/md5'
 
@@ -121,9 +121,13 @@ function HashToolContent() {
   })
 
   const recordUsage = async (algoName = 'Hashes') => {
+    if (!inputText) return
+    const sig = `${algoName}|${inputText.trim()}|${hashes.sha256 || hashes.md5 || ''}`
+    if (!registerClientToolSignature('hash-generator', sig)) return
+
     try {
       await Promise.all([
-        incrementToolUsage(),
+        incrementToolUsage(sig),
         markToolUsed('hash-generator'),
       ])
       logToolActivity({

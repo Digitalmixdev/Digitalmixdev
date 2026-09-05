@@ -32,7 +32,7 @@ import { ToolLayout, type ToolMetadata } from '@/components/tool-layout'
 import { incrementToolUsage } from '@/actions/incrementUsage'
 import { markToolUsed } from '@/actions/toolUsage'
 import { useLanguage } from '@/lib/i18n/context'
-import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities } from '@/lib/history-service'
+import { logToolActivity, deleteActivityItem, getToolHistoryFromActivities, registerClientToolSignature } from '@/lib/history-service'
 import { registerToolInputGetter } from '@/lib/ai/tool-input-bus'
 import { validateSqlCode, autoFixSqlCode } from '@/lib/sql-validator-engine'
 import Link from 'next/link'
@@ -448,9 +448,13 @@ export default function SqlFormatterTool() {
   }, [history, historySearch])
 
   const recordUsage = async () => {
+    if (!inputSql.trim()) return
+    const sig = `${inputSql.trim()}|${dialect}`
+    if (!registerClientToolSignature('sql-formatter', sig)) return
+
     try {
       await Promise.all([
-        incrementToolUsage(),
+        incrementToolUsage(sig),
         markToolUsed('sql-formatter'),
       ])
     } catch {
