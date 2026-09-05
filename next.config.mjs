@@ -23,6 +23,20 @@ const nextConfig = {
   ],
   headers: async () => [
     {
+      // Ensure sw.js is never cached by browser or proxies
+      source: '/sw.js',
+      headers: [
+        {
+          key: 'Cache-Control',
+          value: 'no-cache, no-store, must-revalidate',
+        },
+        {
+          key: 'Content-Type',
+          value: 'application/javascript; charset=utf-8',
+        },
+      ],
+    },
+    {
       source: '/:path*',
       headers: [
         // Prevent MIME type sniffing
@@ -65,12 +79,12 @@ const nextConfig = {
           key: 'Content-Security-Policy',
           value: 
             "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://www.clarity.ms https://scripts.clarity.ms https://www.googletagmanager.com https://www.google-analytics.com https://js.stripe.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://adservice.google.com; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://www.clarity.ms https://scripts.clarity.ms https://www.googletagmanager.com https://www.google-analytics.com https://js.stripe.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://adservice.google.com https://*.google.com https://*.google.com.eg https://*.doubleclick.net https://ep1.adtrafficquality.google https://ep2.adtrafficquality.google https://*.adtrafficquality.google https://*.googleadservices.com; " +
             "style-src 'self' 'unsafe-inline'; " +
             "img-src 'self' data: https: blob:; " +
             "font-src 'self' data: https:; " +
-            "connect-src 'self' https://*.clarity.ms https://pagead2.googlesyndication.com https://*.googlesyndication.com https: wss:; " +
-            "frame-src 'self' https://challenges.cloudflare.com https://www.google.com https://googleads.g.doubleclick.net https://*.googlesyndication.com https://tpc.googlesyndication.com; " +
+            "connect-src 'self' https://*.clarity.ms https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.google.com https://*.doubleclick.net https://ep1.adtrafficquality.google https://ep2.adtrafficquality.google https://*.adtrafficquality.google https: wss:; " +
+            "frame-src 'self' https://challenges.cloudflare.com https://www.google.com https://googleads.g.doubleclick.net https://*.googlesyndication.com https://tpc.googlesyndication.com https://*.doubleclick.net; " +
             "worker-src 'self' blob:; " +
             "object-src 'none'; " +
             "base-uri 'self'; " +
