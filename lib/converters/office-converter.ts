@@ -1372,6 +1372,61 @@ export async function generateDocxFromNormalizedDoc(
       bodyXml += `<w:p><w:r><w:br w:type="page"/></w:r></w:p>\n`
     }
 
+    // Emit page background shape if page has a non-white background
+    const pageBgColor = page.backgroundColor?.trim()
+    const isWhiteBg =
+      !pageBgColor ||
+      pageBgColor.toUpperCase() === '#FFFFFF' ||
+      pageBgColor.toUpperCase() === '#FFFFFFFF' ||
+      pageBgColor.toLowerCase() === 'white'
+
+    if (!isWhiteBg) {
+      const hexColor = pageBgColor.replace('#', '').substring(0, 6)
+      const cx = 11906 * 635 // 7560310 EMUs (11906 twips)
+      const cy = 16838 * 635 // 10692130 EMUs (16838 twips)
+      const bgRelId = relIndex++
+
+      bodyXml += `
+        <w:p>
+          <w:pPr>
+            <w:spacing w:before="0" w:after="0"/>
+          </w:pPr>
+          <w:r>
+            <w:drawing>
+              <wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="0" behindDoc="1" locked="1" layoutInCell="1" allowOverlap="1">
+                <wp:simplePos x="0" y="0"/>
+                <wp:positionH relativeFrom="page">
+                  <wp:posOffset>0</wp:posOffset>
+                </wp:positionH>
+                <wp:positionV relativeFrom="page">
+                  <wp:posOffset>0</wp:posOffset>
+                </wp:positionV>
+                <wp:extent cx="${cx}" cy="${cy}"/>
+                <wp:effectExtent l="0" t="0" r="0" b="0"/>
+                <wp:docPr id="${bgRelId}" name="Page Background ${pageIdx + 1}"/>
+                <wp:cNvGraphicFramePr/>
+                <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+                  <a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">
+                    <wps:wsp xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">
+                      <wps:spPr>
+                        <a:xfrm>
+                          <a:off x="0" y="0"/>
+                          <a:ext cx="${cx}" cy="${cy}"/>
+                        </a:xfrm>
+                        <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+                        <a:solidFill><a:srgbClr val="${hexColor}"/></a:solidFill>
+                        <a:ln><a:noFill/></a:ln>
+                      </wps:spPr>
+                    </wps:wsp>
+                  </a:graphicData>
+                </a:graphic>
+              </wp:anchor>
+            </w:drawing>
+          </w:r>
+        </w:p>
+      `
+    }
+
     // Process page elements
     for (const elem of page.elements) {
       if (elem.type === 'image' && includeImages && elem.data) {
@@ -1441,11 +1496,6 @@ export async function generateDocxFromNormalizedDoc(
 
   wordRelsContent += `</Relationships>`
 
-  const pageBg = doc.pages[0]?.backgroundColor
-  const docBgXml = pageBg && pageBg.toUpperCase() !== '#FFFFFF'
-    ? `<w:background w:color="${pageBg.replace('#', '')}"/>`
-    : ''
-
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
             xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -1453,7 +1503,6 @@ export async function generateDocxFromNormalizedDoc(
             xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
             xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
             xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
-  ${docBgXml}
   <w:body>
     ${bodyXml}
     <w:sectPr>
@@ -1538,6 +1587,7 @@ export async function generateDocxFromNormalizedDoc(
 <w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:zoom w:percent="100"/>
   <w:doNotDisplayPageBoundaries/>
+  <w:displayBackgroundShape/>
   <w:compat>
     <w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/>
   </w:compat>
